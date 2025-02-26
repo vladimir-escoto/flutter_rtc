@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
-
 import 'signaling_interface.dart';
 import 'signaling_event.dart';
 import 'signaling_configuration.dart';
@@ -11,8 +9,7 @@ import 'signaling_configuration.dart';
 class MQTTSignaling implements SignalingInterface {
   final SignalingConfiguration config;
   late MqttServerClient _client;
-  final StreamController<SignalingEvent> _eventController =
-      StreamController.broadcast();
+  final StreamController<SignalingEvent> _eventController = StreamController.broadcast();
 
   MQTTSignaling({required this.config}) {
     _client = MqttServerClient(config.brokerUrl, config.clientId);
@@ -30,14 +27,11 @@ class MQTTSignaling implements SignalingInterface {
   @override
   Future<void> connect() async {
     try {
+      print("[MQTT] Connecting to broker ${config.brokerUrl}...");
       await _client.connect();
-      // Subscribe to a topic specific to this client to receive signaling messages.
-      _client.subscribe(
-        '${config.topicPrefix}/${config.clientId}',
-        MqttQos.atMostOnce,
-      );
-
-      // Listen for incoming messages.
+      print("[MQTT] Connected");
+      // Subscribe to the client's topic.
+      _client.subscribe('${config.topicPrefix}/${config.clientId}', MqttQos.atMostOnce);
       _client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> event) {
         for (var msg in event) {
           final payload = (msg.payload as MqttPublishMessage).payload.message;
@@ -46,79 +40,71 @@ class MQTTSignaling implements SignalingInterface {
         }
       });
     } catch (e) {
-      _eventController.add(
-        SignalingEvent(type: SignalingEventType.error, data: e),
-      );
+      print("[MQTT] Connection error: $e");
+      _eventController.add(SignalingEvent(type: SignalingEventType.error, data: e));
     }
   }
 
   @override
   Future<void> disconnect() async {
+    print("[MQTT] Disconnecting...");
     _client.disconnect();
   }
 
-  Future<void> _publishMessage(
-    String topic,
-    Map<String, dynamic> message,
-  ) async {
+  Future<void> _publishMessage(String topic, Map<String, dynamic> message) async {
     final builder = MqttClientPayloadBuilder();
     builder.addString(jsonEncode(message));
     _client.publishMessage(topic, MqttQos.atMostOnce, builder.payload!);
+    print("[MQTT] Published on $topic: ${jsonEncode(message)}");
   }
 
   void _handleIncomingMessage(String message) {
+    print("[MQTT] Received message: $message");
     try {
       final Map<String, dynamic> data = jsonDecode(message);
       final String eventType = data['event'];
-      // It's assumed that the sender's client id is included in the data.
       switch (eventType) {
         case 'incomingOffer':
-          _eventController.add(
-            SignalingEvent(
+          _eventController.add(SignalingEvent(
               type: SignalingEventType.incomingOffer,
-              data: {'senderId': data['senderId'], 'offer': data['offer']},
-            ),
-          );
+              data: {'senderId': data['senderId'], 'offer': data['offer']}));
           break;
         case 'incomingAnswer':
-          _eventController.add(
-            SignalingEvent(
+          _eventController.add(SignalingEvent(
               type: SignalingEventType.incomingAnswer,
-              data: {'senderId': data['senderId'], 'answer': data['answer']},
-            ),
-          );
+              data: {'senderId': data['senderId'], 'answer': data['answer']}));
           break;
         case 'incomingIceCandidate':
-          _eventController.add(
-            SignalingEvent(
+          _eventController.add(SignalingEvent(
               type: SignalingEventType.incomingIceCandidate,
-              data: {
-                'senderId': data['senderId'],
-                'candidate': data['candidate'],
-              },
-            ),
-          );
+              data: {'senderId': data['senderId'], 'candidate': data['candidate']}));
+          break;
+        case 'callDeclined':
+          _eventController.add(SignalingEvent(
+              type: SignalingEventType.callDeclined,
+              data: {'senderId': data['senderId'], 'info': data['info']}));
           break;
         default:
           break;
       }
     } catch (e) {
-      _eventController.add(
-        SignalingEvent(type: SignalingEventType.error, data: e),
-      );
+      print("[MQTT] Error processing message: $e");
+      _eventController.add(SignalingEvent(type: SignalingEventType.error, data: e));
     }
   }
 
   void _onConnected() {
+    print("[MQTT] Connection established");
     _eventController.add(SignalingEvent(type: SignalingEventType.connected));
   }
 
   void _onDisconnected() {
+    print("[MQTT] Disconnected");
     _eventController.add(SignalingEvent(type: SignalingEventType.disconnected));
   }
 
   void _onSubscribed(String topic) {
-    // Optionally handle subscription confirmation.
+    print("[MQTT] Subscribed to $topic");
   }
 
   @override
@@ -150,6 +136,17 @@ class MQTTSignaling implements SignalingInterface {
       'event': 'incomingIceCandidate',
       'senderId': config.clientId,
       'candidate': candidate,
+    };
+    await _publishMessage(topic, message);
+  }
+
+  @override
+  Future<void> sendCallDecline(String peerId, dynamic info) async {
+    final topic = '${config.topicPrefix}/$peerId';
+    final message = {
+      'event': 'callDeclined',
+      'senderId': config.clientId,
+      'info': info,
     };
     await _publishMessage(topic, message);
   }

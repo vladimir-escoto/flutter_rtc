@@ -3,21 +3,21 @@ export 'src/signaling/mqtt_signaling.dart';
 export 'src/signaling/signaling_configuration.dart';
 export 'src/signaling/signaling_event.dart';
 export 'src/call_manager.dart';
+export 'src/ui/call_screen.dart';
 
-import 'src/signaling/mqtt_signaling.dart';
-import 'src/signaling/signaling_configuration.dart';
-import 'src/call_manager.dart';
-import 'src/signaling/signaling_interface.dart';
+import 'package:flutter/material.dart';
+
+import 'flutter_rtc.dart';
 
 class FlutterRTC {
   late final SignalingInterface signaling;
   late final CallManager callManager;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
-  /// The [clientId] must be specified by the application.
-  /// Optionally, a custom signaling implementation can be provided.
-  FlutterRTC({required String clientId, SignalingInterface? customSignaling}) {
-    signaling =
-        customSignaling ??
+  /// Constructs FlutterRTC with a 6-digit client ID.
+  /// Optionally, a custom signaling implementation and navigatorKey can be provided.
+  FlutterRTC({required String clientId, SignalingInterface? customSignaling, this.navigatorKey}) {
+    signaling = customSignaling ??
         MQTTSignaling(
           config: SignalingConfiguration(
             brokerUrl: 'broker.hivemq.com',
@@ -25,20 +25,30 @@ class FlutterRTC {
           ),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
+    callManager.setupIncomingCallListener();
   }
 
-  /// Initialize the package (establish local media, peer connection and signaling).
+  /// Initialize the framework (only signaling is connected at this point).
   Future<void> initialize() async {
     await signaling.connect();
-    await callManager.initialize();
   }
 
-  /// Initiate an outgoing call to [targetPeerId].
+  /// Initiates an outgoing call.
   Future<void> makeCall(String targetPeerId) async {
-    await callManager.makeCall(targetPeerId);
+    await callManager.startOutgoingCall(targetPeerId);
+    // If a navigatorKey is provided, show the call screen modal.
+    if (navigatorKey != null && navigatorKey!.currentState != null) {
+      navigatorKey!.currentState!.push(MaterialPageRoute(
+        builder: (context) => CallScreen(
+          callManager: callManager,
+          onHangUp: hangUp,
+        ),
+        fullscreenDialog: true,
+      ));
+    }
   }
 
-  /// Hang up the current call.
+  /// Hangs up the call.
   Future<void> hangUp() async {
     await callManager.hangUp();
     await signaling.disconnect();

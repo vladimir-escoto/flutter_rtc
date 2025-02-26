@@ -1,4 +1,4 @@
-// Configuration class for MQTT signaling.
+// Configuration for the MQTT signaling.
 class SignalingConfiguration {
   final String brokerUrl;
   final int port;

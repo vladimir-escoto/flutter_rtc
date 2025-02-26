@@ -1,97 +1,89 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/flutter_rtc.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+
+/// Generates a random 6-digit client ID.
+String generate6DigitClientId() {
+  final random = Random();
+  final number = random.nextInt(900000) + 100000;
+  return number.toString();
+}
 
 void main() {
-  runApp(const MyApp());
+  final clientId = generate6DigitClientId();
+  runApp(MyApp(clientId: clientId));
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class MyApp extends StatelessWidget {
+  final String clientId;
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  MyApp({required this.clientId, super.key});
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      title: 'FlutterRTC Demo',
+      home: HomeScreen(clientId: clientId, navigatorKey: navigatorKey),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
+class HomeScreen extends StatefulWidget {
+  final String clientId;
+  final GlobalKey<NavigatorState> navigatorKey;
+  const HomeScreen({required this.clientId, required this.navigatorKey, super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   late FlutterRTC flutterRTC;
-  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  final TextEditingController _callIdController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _initializeRenderers();
-    // Initialize the package with the client id.
-    flutterRTC = FlutterRTC(clientId: 'client_12345');
+    // Initialize FlutterRTC with the client ID and navigator key.
+    flutterRTC = FlutterRTC(clientId: widget.clientId, navigatorKey: widget.navigatorKey);
     flutterRTC.initialize().then((_) {
-      // Listen for call events if needed.
-      flutterRTC.callManager.callEvents.listen((event) {
-        if (event == CallEvent.remoteStreamAdded) {
-          // Assign the remote stream to the renderer.
-          setState(() {
-            _remoteRenderer.srcObject = flutterRTC.callManager.remoteStream;
-          });
-        }
-      });
-      // Also assign the local stream to its renderer.
-      setState(() {
-        _localRenderer.srcObject = flutterRTC.callManager.localStream;
-      });
+      print("FlutterRTC initialized with clientId: ${widget.clientId}");
     });
-  }
-
-  Future<void> _initializeRenderers() async {
-    await _localRenderer.initialize();
-    await _remoteRenderer.initialize();
   }
 
   @override
   void dispose() {
-    _localRenderer.dispose();
-    _remoteRenderer.dispose();
+    _callIdController.dispose();
     flutterRTC.hangUp();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FlutterRTC Example',
-      home: Scaffold(
-        appBar: AppBar(title: const Text('FlutterRTC Example')),
-        body: Column(
+    return Scaffold(
+      appBar: AppBar(title: const Text('FlutterRTC Home')),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
           children: [
-            Expanded(child: RTCVideoView(_localRenderer)),
-            Expanded(
-              child: flutterRTC.callManager.remoteStream != null
-                  ? RTCVideoView(_remoteRenderer)
-                  : Container(
-                      color: Colors.black,
-                      child: const Center(
-                        child: Text(
-                          'Waiting for remote stream...',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
+            Text('Client ID: ${widget.clientId}'),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _callIdController,
+              decoration: const InputDecoration(
+                labelText: 'Call ID (target)',
+                border: OutlineInputBorder(),
+              ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Make a call to another client (for example, "client_67890").
-                    flutterRTC.makeCall('client_67890');
-                  },
-                  child: const Text('Make Call'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    flutterRTC.hangUp();
-                  },
-                  child: const Text('Hang Up'),
-                ),
-              ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                final targetId = _callIdController.text.trim();
+                if (targetId.isNotEmpty) {
+                  print("Initiating call to $targetId");
+                  flutterRTC.makeCall(targetId);
+                }
+              },
+              child: const Text('Make Call'),
             ),
           ],
         ),
