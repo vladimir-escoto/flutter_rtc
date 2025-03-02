@@ -11,8 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_webrtc: ^0.12.11
-  flutter_callkit_incoming: ^2.5.0 # Verifica la versión actual
+  flutter_callkit_incoming: ^2.5.0
   mqtt_client: ^10.5.1
+  permission_handler: ^11.4.0
 
 dev_dependencies:
   flutter_test:

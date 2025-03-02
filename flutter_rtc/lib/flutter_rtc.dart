@@ -20,7 +20,7 @@ class FlutterRTC {
     signaling = customSignaling ??
         MQTTSignaling(
           config: SignalingConfiguration(
-            brokerUrl: 'broker.hivemq.com',
+            brokerUrl: 'broker.emqx.io',
             clientId: clientId,
           ),
         );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../flutter_rtc.dart';
 import 'callkit_manager.dart';
 
@@ -19,10 +20,37 @@ class CallManager {
 
   CallManager({required this.signaling, required this.clientId});
 
-  /// Starts an outgoing call by obtaining local media and initiating negotiation.
+  /// Checks and requests camera and microphone permissions.
+  Future<bool> _ensurePermissions() async {
+    // Request camera and microphone permissions.
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.camera,
+      Permission.microphone,
+    ].request();
+
+    bool cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
+    bool microphoneGranted = statuses[Permission.microphone]?.isGranted ?? false;
+
+    if (!cameraGranted || !microphoneGranted) {
+      print("[CallManager] Permissions not granted. Camera: $cameraGranted, Microphone: $microphoneGranted");
+      return false;
+    }
+    return true;
+  }
+
+  /// Starts an outgoing call by first ensuring permissions,
+  /// then obtaining local media and initiating negotiation.
   Future<void> startOutgoingCall(String targetPeerId) async {
     _currentCallPeerId = targetPeerId;
     print("[CallManager] Starting outgoing call to $targetPeerId");
+
+    // Ensure necessary permissions before proceeding.
+    bool permissionsGranted = await _ensurePermissions();
+    if (!permissionsGranted) {
+      print("[CallManager] Required permissions not granted. Aborting call start.");
+      return;
+    }
+
     // Obtain local media only when starting a call.
     localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
     _peerConnection = await createPeerConnection({
@@ -57,6 +85,16 @@ class CallManager {
   Future<void> answerIncomingCall(String senderId, dynamic offer) async {
     _currentCallPeerId = senderId;
     print("[CallManager] Answering incoming call from $senderId");
+
+    // Ensure necessary permissions.
+    bool permissionsGranted = await _ensurePermissions();
+    if (!permissionsGranted) {
+      print("[CallManager] Required permissions not granted. Cannot answer call.");
+      // Optionally, notify the caller that the call was declined due to missing permissions.
+      signaling.sendCallDecline(senderId, {"reason": "permissions not granted"});
+      return;
+    }
+
     localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
     _peerConnection = await createPeerConnection({
       'iceServers': [
