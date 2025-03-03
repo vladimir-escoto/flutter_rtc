@@ -2,37 +2,51 @@
 //
 // This file contains the implementation of the CallBloc,
 // which acts as an intermediary between the signaling layer and the UI.
-// It processes incoming events and updates the call state accordingly.
+// All call-related data (including local and remote streams) is maintained
+// within the bloc's state, so that the UI depends solely on the bloc.
 
 import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'call_state.dart';
 import 'call_events.dart';
 import 'call_enums.dart';
+import '../call_manager.dart';
 
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
-  // Constructor initializing with the initial state.
-  CallBloc() : super(initialCallBlocState) {
+  final CallManager callManager;
+
+  CallBloc({required this.callManager})
+      : super(initialCallBlocState.copyWith(
+    localStream: callManager.localStream,
+    remoteStream: callManager.remoteStream,
+  )) {
     on<CallLifecycleEvent>(_handleLifecycleEvent);
     on<LocalControlEvent>(_handleLocalControlEvent);
-    //toggle event handler:
     on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
     on<RemoteControlEvent>(_handleRemoteControlEvent);
     on<UIEvent>(_handleUIEvent);
     on<SignalingBlocEvent>(_handleSignalingEvent);
     on<CallErrorEvent>(_handleErrorEvent);
-    //incoming call events:
     on<AcceptIncomingCallEvent>(_handleAcceptIncomingCallEvent);
     on<DeclineIncomingCallEvent>(_handleDeclineIncomingCallEvent);
     on<HangUpCallEvent>(_handleHangUpCallEvent);
+    on<SwitchCameraEvent>(_handleSwitchCameraEvent);
   }
 
   /// Handles lifecycle events by updating the lifecycle status.
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
-    emit(state.copyWith(lifecycleStatus: event.status));
+    // When connected, update remoteStream from the callManager.
+    if (event.status == CallLifecycleStatus.connected) {
+      emit(state.copyWith(
+        lifecycleStatus: event.status,
+        remoteStream: callManager.remoteStream,
+      ));
+    } else {
+      emit(state.copyWith(lifecycleStatus: event.status));
+    }
   }
 
-  /// Handles explicit local control events (if provided with a value).
+  /// Handles explicit local control events.
   void _handleLocalControlEvent(LocalControlEvent event, Emitter<CallBlocState> emit) {
     switch (event.control) {
       case LocalControlType.mic:
@@ -48,7 +62,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         emit(state.copyWith(localScreenShareOn: event.value));
         break;
       case LocalControlType.callMode:
-      // Here, event.value is expected to be true for video, false for audio.
+      // event.value: true for video, false for audio.
         emit(state.copyWith(callMode: event.value ? CallMode.video : CallMode.audio));
         break;
     }
@@ -70,7 +84,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         emit(state.copyWith(localScreenShareOn: !state.localScreenShareOn));
         break;
       case LocalControlType.callMode:
-      // Toggle between video and audio.
         emit(state.copyWith(
           callMode: state.callMode == CallMode.video ? CallMode.audio : CallMode.video,
         ));
@@ -104,8 +117,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         break;
       case UIEventType.dragged:
         if (event.value is Offset) {
-          var offset = event.value + event.value;
-          emit(state.copyWith(uiPosition: offset));
+          emit(state.copyWith(uiPosition: event.value));
         }
         break;
       case UIEventType.callTimerUpdated:
@@ -114,7 +126,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         }
         break;
       case UIEventType.callStatusChanged:
-      // This event can be used to update additional UI state if needed.
+      // Additional UI updates if needed.
         break;
     }
   }
@@ -124,30 +136,44 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     if (event.event == SignalingEventType.connectionQualityChanged) {
       // Update state based on connection quality data if desired.
     }
-    // Additional signaling events can be handled here.
   }
 
-  /// Handles error events by updating the error message in the state.
+  /// Handles error events by updating the error message.
   void _handleErrorEvent(CallErrorEvent event, Emitter<CallBlocState> emit) {
     emit(state.copyWith(errorMessage: event.errorMessage));
   }
 
   /// New handler: Accept an incoming call.
   void _handleAcceptIncomingCallEvent(AcceptIncomingCallEvent event, Emitter<CallBlocState> emit) {
-    // When an incoming call is accepted, update lifecycle to connected.
-    // Additional logic, such as starting the call timer, should be implemented in your signaling layer.
-    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.connected, callDuration: Duration.zero));
+    emit(state.copyWith(
+      lifecycleStatus: CallLifecycleStatus.connected,
+      callDuration: Duration.zero,
+      // Optionally update streams from callManager.
+      localStream: callManager.localStream,
+      remoteStream: callManager.remoteStream,
+    ));
   }
 
   /// New handler: Decline an incoming call.
   void _handleDeclineIncomingCallEvent(DeclineIncomingCallEvent event, Emitter<CallBlocState> emit) {
-    // Update lifecycle to declined.
-    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.declined, errorMessage: event.reason));
+    emit(state.copyWith(
+      lifecycleStatus: CallLifecycleStatus.declined,
+      errorMessage: event.reason,
+    ));
   }
 
   /// New handler: Hang up the current call.
   void _handleHangUpCallEvent(HangUpCallEvent event, Emitter<CallBlocState> emit) {
-    // Update lifecycle to ended.
     emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.ended));
   }
+
+  /// New handler: Switch camera.
+  void _handleSwitchCameraEvent(SwitchCameraEvent event, Emitter<CallBlocState> emit) {
+    // CallManager is used to send the switch camera command.
+    callManager.sendControlMessage("switch_camera", true);
+    // No state change required.
+  }
 }
+
+/// New event for switching the camera.
+class SwitchCameraEvent extends CallBlocEvent {}

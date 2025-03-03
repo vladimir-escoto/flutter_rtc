@@ -3,29 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-import '../call_manager.dart';
 import '../bloc/call_bloc.dart';
 import '../bloc/call_state.dart';
 import '../bloc/call_enums.dart';
 import '../bloc/call_events.dart';
 
 /// EnhancedCallScreen displays the call UI using a BLoC for state management.
-/// It provides controls for mic, camera, speaker, screen share, etc.,
-/// and updates the UI based on call lifecycle and control events.
-/// It shows different views based on the call lifecycle:
-/// - For an outgoing video call that has not yet connected, display the local stream full screen.
-/// - When the remote stream becomes available (call connected), show the remote stream in full screen
-///   with the local stream as a small draggable overlay.
-/// - An incoming call view is also provided for audio and video calls.
+/// All call-related information (streams, controls, lifecycle, minimization, etc.)
+/// is maintained within the bloc state.
 class EnhancedCallScreen extends StatefulWidget {
-  final CallManager callManager;
   final CallBloc callBloc;
   final Future<void> Function() onHangUp;
   final VoidCallback onRedial;
 
   const EnhancedCallScreen({
     super.key,
-    required this.callManager,
     required this.callBloc,
     required this.onHangUp,
     required this.onRedial,
@@ -39,23 +31,17 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
-  // Local UI state for the draggable/minimized view.
   @override
   void initState() {
     super.initState();
     _initializeRenderers();
   }
 
-  /// Initialize local and remote video renderers.
+  /// Initialize the RTC renderers based on the streams from the bloc state.
   Future<void> _initializeRenderers() async {
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
-    if (widget.callManager.localStream != null) {
-      _localRenderer.srcObject = widget.callManager.localStream;
-    }
-    if (widget.callManager.remoteStream != null) {
-      _remoteRenderer.srcObject = widget.callManager.remoteStream;
-    }
+    // The streams will be provided by the bloc state.
   }
 
   @override
@@ -65,7 +51,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     super.dispose();
   }
 
-  // ---UI Control Handlers: dispatch events to the bloc (the bloc computes the new state)
+  // --- UI Control Handlers: dispatch events to the bloc ---
   void _onToggleMic() {
     widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
   }
@@ -83,51 +69,44 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   }
 
   void _onSwitchCamera() {
-    // This is a one-time command; its result is handled separately.
-    widget.callManager.sendControlMessage("switch_camera", true);
+    widget.callBloc.add(SwitchCameraEvent());
   }
 
   // ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<CallBloc, CallBlocState>(
+    return BlocBuilder<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
-      listener: (context, state) {
-        // Side effects: update local media tracks based on bloc state.
-        widget.callManager.localStream?.getAudioTracks().forEach((track) {
-          track.enabled = state.localMicOn;
-        });
-        widget.callManager.localStream?.getVideoTracks().forEach((track) {
-          track.enabled = state.localCameraOn;
-        });
+      builder: (context, state) {
+        // Set the renderer sources from the state.
+        if (state.localStream != null) {
+          _localRenderer.srcObject = state.localStream;
+        }
+        if (state.remoteStream != null) {
+          _remoteRenderer.srcObject = state.remoteStream;
+        }
+        // If an incoming call is detected, show the incoming call view.
+        if (state.lifecycleStatus == CallLifecycleStatus.incoming) {
+          return _buildIncomingCallView(state);
+        }
+        // For an outgoing video call that is not yet connected,
+        // display the local stream full screen.
+        if (state.callMode == CallMode.video &&
+            (state.lifecycleStatus == CallLifecycleStatus.outgoing ||
+                state.lifecycleStatus == CallLifecycleStatus.connecting) &&
+            state.remoteStream == null) {
+          return _buildOutgoingLocalOnlyView(state);
+        }
+        // Otherwise, show full-screen or minimized view based on state.
+        return state.uiMinimized
+            ? _buildMinimizedView(state)
+            : _buildFullScreenView(state);
       },
-      child: BlocBuilder<CallBloc, CallBlocState>(
-        bloc: widget.callBloc,
-        builder: (context, state) {
-          // If an incoming call is detected, show the incoming call view.
-          if (state.lifecycleStatus == CallLifecycleStatus.incoming) {
-            return _buildIncomingCallView(state);
-          }
-          // For outgoing video calls that are not connected yet,
-          // display the local stream full screen if remote stream is not available.
-          if (state.callMode == CallMode.video &&
-              (state.lifecycleStatus == CallLifecycleStatus.outgoing ||
-                  state.lifecycleStatus == CallLifecycleStatus.connecting) &&
-              widget.callManager.remoteStream == null) {
-            return _buildOutgoingLocalOnlyView(state);
-          }
-          // Otherwise, show the normal full-screen view (remote primary, local overlay)
-          return state.uiMinimized
-              ? _buildMinimizedView(state)
-              : _buildFullScreenView(state);
-        },
-      ),
     );
   }
 
-  /// Builds the outgoing call view when it's a video call and not yet connected.
-  /// The local stream is shown full screen.
+  /// Builds the view for an outgoing video call when only the local stream is available.
   Widget _buildOutgoingLocalOnlyView(CallBlocState state) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -135,11 +114,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         children: [
           Positioned.fill(
             child:
-                widget.callManager.localStream != null
+                state.localStream != null
                     ? RTCVideoView(_localRenderer)
                     : Container(color: Colors.black),
           ),
-          // Top bar: display call status and a hang-up button.
           Positioned(
             top: 40,
             left: 20,
@@ -169,7 +147,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     );
   }
 
-  /// Builds the incoming call view for both audio and video calls.
+  /// Builds the incoming call view.
   Widget _buildIncomingCallView(CallBlocState state) {
     final bool isVideoCall = state.callMode == CallMode.video;
     return Scaffold(
@@ -237,10 +215,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Remote video or a placeholder if remote camera is off.
+          // Remote video or placeholder if remote camera is off.
           Positioned.fill(
             child:
-                widget.callManager.remoteStream != null && state.remoteCameraOn
+                state.remoteStream != null && state.remoteCameraOn
                     ? RTCVideoView(_remoteRenderer)
                     : Container(
                       color: Colors.black,
@@ -282,17 +260,17 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
             top: 100,
             right: 20,
             child: Draggable(
-              feedback: _buildLocalVideoBox(),
+              feedback: _buildLocalVideoBox(state),
               childWhenDragging: Container(),
               onDragEnd: (details) {
                 widget.callBloc.add(
                   UIEvent(event: UIEventType.dragged, value: details.offset),
                 );
               },
-              child: _buildLocalVideoBox(),
+              child: _buildLocalVideoBox(state),
             ),
           ),
-          // Bottom call controls (only visible when connected).
+          // Bottom call controls (visible when connected).
           if (state.lifecycleStatus == CallLifecycleStatus.connected)
             Positioned(bottom: 40, left: 0, right: 0, child: _buildCallControls(state)),
           // Minimize button.
@@ -306,7 +284,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               },
             ),
           ),
-          // Error overlay if the call is failed or declined.
+          // Error overlay.
           if (state.lifecycleStatus == CallLifecycleStatus.failed ||
               state.lifecycleStatus == CallLifecycleStatus.declined)
             _buildErrorOverlay(),
@@ -324,10 +302,8 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           top: state.uiPosition.dy,
           child: GestureDetector(
             onPanUpdate: (details) {
-              var minimizedOffset = state.uiPosition + details.delta;
-              widget.callBloc.add(
-                UIEvent(event: UIEventType.dragged, value: minimizedOffset),
-              );
+              final newOffset = state.uiPosition + details.delta;
+              widget.callBloc.add(UIEvent(event: UIEventType.dragged, value: newOffset));
             },
             onTap: () {
               widget.callBloc.add(UIEvent(event: UIEventType.maximized));
@@ -341,7 +317,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               ),
               child: Stack(
                 children: [
-                  widget.callManager.remoteStream != null && state.remoteCameraOn
+                  state.remoteStream != null && state.remoteCameraOn
                       ? RTCVideoView(_remoteRenderer)
                       : Container(color: Colors.black),
                   Positioned(
@@ -367,7 +343,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   }
 
   /// Builds the local video box.
-  Widget _buildLocalVideoBox() {
+  Widget _buildLocalVideoBox(CallBlocState state) {
     return Container(
       width: 120,
       height: 160,
@@ -375,10 +351,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         borderRadius: BorderRadius.circular(8),
         color: Colors.grey,
       ),
-      child:
-          widget.callManager.localStream != null
-              ? RTCVideoView(_localRenderer)
-              : Container(),
+      child: (state.localStream != null) ? RTCVideoView(_localRenderer) : Container(),
     );
   }
 

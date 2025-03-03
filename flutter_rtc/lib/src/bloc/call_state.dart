@@ -4,6 +4,8 @@
 // UI state (e.g., minimized and position), call duration, and an optional error message.
 
 import 'dart:ui'; // for Offset
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 import 'call_enums.dart';
 
 /// The state for the call, including lifecycle, local and remote control statuses,
@@ -34,7 +36,12 @@ class CallBlocState {
   // Optional error message.
   final String? errorMessage;
 
-  const CallBlocState({
+  final MediaStream? localStream;
+  final MediaStream? remoteStream;
+
+  const CallBlocState( {
+    required this.localStream,
+    required this.remoteStream,
     required this.lifecycleStatus,
     required this.localMicOn,
     required this.localCameraOn,
@@ -52,6 +59,8 @@ class CallBlocState {
 
   /// Returns a copy of the current state with updated values.
   CallBlocState copyWith({
+    localStream,
+    remoteStream,
     CallLifecycleStatus? lifecycleStatus,
     bool? localMicOn,
     bool? localCameraOn,
@@ -79,7 +88,9 @@ class CallBlocState {
       uiMinimized: uiMinimized ?? this.uiMinimized,
       uiPosition: uiPosition ?? this.uiPosition,
       callDuration: callDuration ?? this.callDuration,
-      errorMessage: errorMessage,
+      errorMessage: errorMessage?? this.errorMessage,
+      localStream: localStream??this.localStream,
+      remoteStream: remoteStream??this.remoteStream,
     );
   }
 
@@ -104,4 +115,6 @@ final CallBlocState initialCallBlocState = CallBlocState(
   uiPosition: const Offset(20, 80),
   callDuration: Duration.zero,
   errorMessage: null,
+  localStream: null,
+  remoteStream: null,
 );
