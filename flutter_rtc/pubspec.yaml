@@ -14,6 +14,7 @@ dependencies:
   flutter_callkit_incoming: ^2.5.0
   mqtt_client: ^10.5.1
   permission_handler: ^11.4.0
+  flutter_bloc: ^9.1.0
 
 dev_dependencies:
   flutter_test:

@@ -4,62 +4,58 @@ export 'src/signaling/signaling_configuration.dart';
 export 'src/signaling/signaling_event.dart';
 export 'src/call_manager.dart';
 export 'src/ui/call_screen.dart';
+export 'src/ui/flutter_rtc_widget.dart';
+export 'src/ui/incoming_call_screen.dart';
 
 import 'package:flutter/material.dart';
-
-import 'flutter_rtc.dart';
+import 'package:flutter_rtc/src/call_manager.dart';
+import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
+import 'package:flutter_rtc/src/signaling/signaling_configuration.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:flutter_rtc/src/ui/call_screen.dart';
 
 class FlutterRTC {
   late final SignalingInterface signaling;
   late final CallManager callManager;
-  final GlobalKey<NavigatorState>? navigatorKey;
+  final GlobalKey<NavigatorState> navigatorKey;
 
-  /// Constructs FlutterRTC with a 6-digit client ID.
-  /// Optionally, a custom signaling implementation and navigatorKey can be provided.
   FlutterRTC({
     required String clientId,
     SignalingInterface? customSignaling,
-    this.navigatorKey,
-  }) {
-    signaling =
-        customSignaling ??
+    GlobalKey<NavigatorState>? navigatorKey,
+  })  : navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>() {
+    signaling = customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
+          config: SignalingConfiguration(
+            brokerUrl: 'broker.emqx.io',
+            clientId: clientId,
+          ),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
   }
 
-  /// Initialize the framework (only signaling is connected at this point).
-  Future<void> initialize() async {
-    await callManager.setupIncomingCallListener();
+  Future<void> initialize(BuildContext context) async {
+    await callManager.setupIncomingCallListener(context);
     await signaling.connect();
   }
 
-  /// Initiates an outgoing call.
   Future<void> makeCall(String targetPeerId) async {
     await callManager.startOutgoingCall(targetPeerId);
-    // If a navigatorKey is provided, show the call screen modal.
-    if (navigatorKey != null && navigatorKey!.currentState != null) {
-      navigatorKey!.currentState!.push(
-        MaterialPageRoute(
-          builder: (context) => CallScreen(callManager: callManager, onHangUp: hangUp),
-          fullscreenDialog: true,
-        ),
-      );
-    }
+    // navigatorKey.currentState?.push(MaterialPageRoute(
+    //   builder: (_) => EnhancedCallScreen(
+    //     callManager: callManager,
+    //     onHangUp: () async => hangUp(),
+    //     onRedial: () {
+    //       // Implement re-dial logic if needed.
+    //     },
+    //   ),
+    // ));
   }
 
-  /// Hangs up the call.
   Future<void> hangUp() async {
     await callManager.hangUp();
     await signaling.disconnect();
-    // If a navigatorKey is provided, pop the call screen modal.
-    if (navigatorKey != null && navigatorKey!.currentState != null) {
-      navigatorKey!.currentState!.pop();
-    }
-  }
-
-  void checkNotificationPermission(BuildContext context) {
-    callManager.checkNotificationPermission(context);
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
   }
 }
+

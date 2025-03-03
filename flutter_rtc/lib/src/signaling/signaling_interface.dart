@@ -1,4 +1,6 @@
 // Abstract signaling interface that all implementations must follow.
+import 'package:flutter_rtc/src/signaling/signaling_event.dart';
+
 import '../../flutter_rtc.dart';
 
 abstract class SignalingInterface {
