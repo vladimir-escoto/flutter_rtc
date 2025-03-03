@@ -59,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    flutterRTC.checkNotificationPermission(context);
     return Scaffold(
       appBar: AppBar(title: const Text('FlutterRTC Home')),
       body: Padding(

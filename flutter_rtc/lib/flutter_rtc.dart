@@ -6,6 +6,7 @@ export 'src/call_manager.dart';
 export 'src/ui/call_screen.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_rtc/src/callkit_manager.dart';
 
 import 'flutter_rtc.dart';
 
@@ -13,24 +14,28 @@ class FlutterRTC {
   late final SignalingInterface signaling;
   late final CallManager callManager;
   final GlobalKey<NavigatorState>? navigatorKey;
+  final CallKitManager _callKitManager = CallKitManager();
 
   /// Constructs FlutterRTC with a 6-digit client ID.
   /// Optionally, a custom signaling implementation and navigatorKey can be provided.
-  FlutterRTC({required String clientId, SignalingInterface? customSignaling, this.navigatorKey}) {
-    signaling = customSignaling ??
+  FlutterRTC({
+    required String clientId,
+    SignalingInterface? customSignaling,
+    this.navigatorKey,
+  }) {
+    signaling =
+        customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(
-            brokerUrl: 'broker.emqx.io',
-            clientId: clientId,
-          ),
+          config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
-    callManager.setupIncomingCallListener();
   }
 
   /// Initialize the framework (only signaling is connected at this point).
   Future<void> initialize() async {
+    await callManager.setupIncomingCallListener();
     await signaling.connect();
+    await _callKitManager.showIncomingCall(callId: "0000001", callerName: "Vlady");
   }
 
   /// Initiates an outgoing call.
@@ -38,13 +43,12 @@ class FlutterRTC {
     await callManager.startOutgoingCall(targetPeerId);
     // If a navigatorKey is provided, show the call screen modal.
     if (navigatorKey != null && navigatorKey!.currentState != null) {
-      navigatorKey!.currentState!.push(MaterialPageRoute(
-        builder: (context) => CallScreen(
-          callManager: callManager,
-          onHangUp: hangUp,
+      navigatorKey!.currentState!.push(
+        MaterialPageRoute(
+          builder: (context) => CallScreen(callManager: callManager, onHangUp: hangUp),
+          fullscreenDialog: true,
         ),
-        fullscreenDialog: true,
-      ));
+      );
     }
   }
 
@@ -52,5 +56,9 @@ class FlutterRTC {
   Future<void> hangUp() async {
     await callManager.hangUp();
     await signaling.disconnect();
+  }
+
+  void checkNotificationPermission(BuildContext context) {
+    callManager.checkNotificationPermission(context);
   }
 }

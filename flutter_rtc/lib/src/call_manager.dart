@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../flutter_rtc.dart';
@@ -15,24 +17,66 @@ class CallManager {
   MediaStream? remoteStream;
   String? _currentCallPeerId;
   final StreamController<CallEvent> _callEventController = StreamController.broadcast();
+
   Stream<CallEvent> get callEvents => _callEventController.stream;
   final CallKitManager _callKitManager = CallKitManager();
 
   CallManager({required this.signaling, required this.clientId});
 
+  Future<void> checkNotificationPermission(BuildContext context) async {
+    PermissionStatus status = await Permission.notification.status;
+    if (!status.isGranted) {
+      if (status.isPermanentlyDenied) {
+        // Show a dialog to the user explaining why the permission is needed
+        // and guide them to open the app settings.
+        await showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Permission Required'),
+                content: Text(
+                  'Notification permission is permanently denied. Please open settings and enable it to receive call notifications.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      openAppSettings();
+                    },
+                    child: Text('Open Settings'),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        // Request the permission again.
+        final result = await Permission.notification.request();
+        if (!result.isGranted) {
+          print("Notification permission not granted");
+        }
+      }
+    }
+  }
+
   /// Checks and requests camera and microphone permissions.
   Future<bool> _ensurePermissions() async {
     // Request camera and microphone permissions.
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
+    Map<Permission, PermissionStatus> statuses =
+        await [
+          Permission.camera,
+          Permission.microphone,
+          Permission.notification,
+        ].request();
 
     bool cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
     bool microphoneGranted = statuses[Permission.microphone]?.isGranted ?? false;
 
     if (!cameraGranted || !microphoneGranted) {
-      print("[CallManager] Permissions not granted. Camera: $cameraGranted, Microphone: $microphoneGranted");
+      print(
+        "[CallManager] Permissions not granted."
+        " Camera: $cameraGranted, "
+        "Microphone: $microphoneGranted",
+      );
       return false;
     }
     return true;
@@ -52,11 +96,14 @@ class CallManager {
     }
 
     // Obtain local media only when starting a call.
-    localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
+    localStream = await navigator.mediaDevices.getUserMedia({
+      'video': true,
+      'audio': true,
+    });
     _peerConnection = await createPeerConnection({
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
-      ]
+      ],
     }, {});
     // Add local tracks.
     localStream?.getTracks().forEach((track) {
@@ -95,11 +142,14 @@ class CallManager {
       return;
     }
 
-    localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
+    localStream = await navigator.mediaDevices.getUserMedia({
+      'video': true,
+      'audio': true,
+    });
     _peerConnection = await createPeerConnection({
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
-      ]
+      ],
     }, {});
     localStream?.getTracks().forEach((track) {
       _peerConnection?.addTrack(track, localStream!);
@@ -116,7 +166,9 @@ class CallManager {
       _callEventController.add(CallEvent.remoteStreamAdded);
     };
     // Set remote description from the received offer.
-    await _peerConnection!.setRemoteDescription(RTCSessionDescription(offer['sdp'], offer['type']));
+    await _peerConnection!.setRemoteDescription(
+      RTCSessionDescription(offer['sdp'], offer['type']),
+    );
     // Create answer.
     RTCSessionDescription answer = await _peerConnection!.createAnswer();
     await _peerConnection!.setLocalDescription(answer);
@@ -124,14 +176,15 @@ class CallManager {
   }
 
   /// Listens to signaling events for incoming calls.
-  void setupIncomingCallListener() {
+  Future<void> setupIncomingCallListener() async {
+    await _ensurePermissions();
     signaling.events.listen((event) async {
       if (event.type == SignalingEventType.incomingOffer) {
         var data = event.data as Map<String, dynamic>;
         String senderId = data['senderId'];
         dynamic offer = data['offer'];
         print("[CallManager] Incoming call from $senderId");
-        // Show CallKit notification for the incoming call.
+        // Show CallKit notification for the incoming ca`ll.
         await _callKitManager.showIncomingCall(callId: senderId, callerName: senderId);
         // Wait for user response from CallKit.
         var callKitEvent = await _callKitManager.callKitEvents.first;
@@ -146,7 +199,9 @@ class CallManager {
         var data = event.data as Map<String, dynamic>;
         var answer = data['answer'];
         print("[CallManager] Received answer from ${data['senderId']}");
-        await _peerConnection?.setRemoteDescription(RTCSessionDescription(answer['sdp'], answer['type']));
+        await _peerConnection?.setRemoteDescription(
+          RTCSessionDescription(answer['sdp'], answer['type']),
+        );
         _callEventController.add(CallEvent.callStarted);
       } else if (event.type == SignalingEventType.incomingIceCandidate) {
         var data = event.data as Map<String, dynamic>;
