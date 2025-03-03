@@ -5,9 +5,7 @@
 // It processes incoming events and updates the call state accordingly.
 
 import 'dart:ui';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'call_state.dart';
 import 'call_events.dart';
 import 'call_enums.dart';
@@ -17,12 +15,16 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   CallBloc() : super(initialCallBlocState) {
     on<CallLifecycleEvent>(_handleLifecycleEvent);
     on<LocalControlEvent>(_handleLocalControlEvent);
-    // Register the new toggle event handler:
+    //toggle event handler:
     on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
     on<RemoteControlEvent>(_handleRemoteControlEvent);
     on<UIEvent>(_handleUIEvent);
     on<SignalingBlocEvent>(_handleSignalingEvent);
     on<CallErrorEvent>(_handleErrorEvent);
+    //incoming call events:
+    on<AcceptIncomingCallEvent>(_handleAcceptIncomingCallEvent);
+    on<DeclineIncomingCallEvent>(_handleDeclineIncomingCallEvent);
+    on<HangUpCallEvent>(_handleHangUpCallEvent);
   }
 
   /// Handles lifecycle events by updating the lifecycle status.
@@ -127,5 +129,24 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   /// Handles error events by updating the error message in the state.
   void _handleErrorEvent(CallErrorEvent event, Emitter<CallBlocState> emit) {
     emit(state.copyWith(errorMessage: event.errorMessage));
+  }
+
+  /// New handler: Accept an incoming call.
+  void _handleAcceptIncomingCallEvent(AcceptIncomingCallEvent event, Emitter<CallBlocState> emit) {
+    // When an incoming call is accepted, update lifecycle to connected.
+    // Additional logic, such as starting the call timer, should be implemented in your signaling layer.
+    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.connected, callDuration: Duration.zero));
+  }
+
+  /// New handler: Decline an incoming call.
+  void _handleDeclineIncomingCallEvent(DeclineIncomingCallEvent event, Emitter<CallBlocState> emit) {
+    // Update lifecycle to declined.
+    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.declined, errorMessage: event.reason));
+  }
+
+  /// New handler: Hang up the current call.
+  void _handleHangUpCallEvent(HangUpCallEvent event, Emitter<CallBlocState> emit) {
+    // Update lifecycle to ended.
+    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.ended));
   }
 }

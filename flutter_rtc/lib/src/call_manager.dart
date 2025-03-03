@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/src/signaling/signaling_event.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
-import 'package:flutter_rtc/src/ui/call_screen.dart';
 import 'package:flutter_rtc/src/ui/incoming_call_screen.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -212,7 +211,7 @@ class CallManager {
         if (event.type == SignalingEventType.incomingOffer) {
           final data = event.data as Map<String, dynamic>;
           final String senderId = data['senderId'];
-          final dynamic offer = data['offer'];
+          final dynamic _ = data['offer'];
           // Show incoming call UI.
           await Navigator.of(context).push(MaterialPageRoute(
             fullscreenDialog: true,

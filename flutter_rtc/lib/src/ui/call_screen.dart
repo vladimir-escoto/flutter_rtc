@@ -1,3 +1,4 @@
+// lib/enhanced_call_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -11,6 +12,10 @@ import '../bloc/call_events.dart';
 /// EnhancedCallScreen displays the call UI using a BLoC for state management.
 /// It provides controls for mic, camera, speaker, screen share, etc.,
 /// and updates the UI based on call lifecycle and control events.
+/// It shows different views based on the call lifecycle:
+/// - Full-screen call UI when connected
+/// - Incoming call UI when a call is incoming (audio or video)
+/// - A minimized (floating) view when the user minimizes the call.
 class EnhancedCallScreen extends StatefulWidget {
   final CallManager callManager;
   final CallBloc callBloc;
@@ -62,8 +67,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     super.dispose();
   }
 
-  // --- UI Control Handlers ---
-  /// Dispatch toggle events; the bloc will compute the new state.
+  // --- UI Control Handlers: dispatch events to the bloc (the bloc computes the new state) ---
   void _onToggleMic() {
     widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
   }
@@ -81,18 +85,17 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   }
 
   void _onSwitchCamera() {
-    // This remains a one-time command.
+    // This is a one-time command; its result is handled separately.
     widget.callManager.sendControlMessage("switch_camera", true);
   }
-  // -----------------------------
+  // ------------------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    // Listen to control state changes to perform side effects on local media.
     return BlocListener<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
       listener: (context, state) {
-        // Update local media tracks based on the bloc state.
+        // Side effects: update local media tracks based on bloc state.
         widget.callManager.localStream?.getAudioTracks().forEach((track) {
           track.enabled = state.localMicOn;
         });
@@ -103,10 +106,76 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       child: BlocBuilder<CallBloc, CallBlocState>(
         bloc: widget.callBloc,
         builder: (context, state) {
+          // If an incoming call is detected, show the incoming call view.
+          if (state.lifecycleStatus == CallLifecycleStatus.incoming) {
+            return _buildIncomingCallView(state);
+          }
+          // Otherwise, show full-screen or minimized view.
           return _isMinimized
               ? _buildMinimizedView(state)
               : _buildFullScreenView(state);
         },
+      ),
+    );
+  }
+
+  /// Builds the incoming call view for both audio and video calls.
+  Widget _buildIncomingCallView(CallBlocState state) {
+    // Use different background if it's an audio call.
+    final bool isVideoCall = state.callMode == CallMode.video;
+    return Scaffold(
+      backgroundColor: Colors.blueGrey[900],
+      body: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Top: Caller info.
+            Column(
+              children: [
+                const SizedBox(height: 40),
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: const NetworkImage("https://i.pravatar.cc/100"),
+                ),
+                const SizedBox(height: 16),
+                const Text("Incoming Call",
+                    style: TextStyle(color: Colors.white, fontSize: 24)),
+                const SizedBox(height: 8),
+                Text(
+                  isVideoCall ? "Video Call" : "Audio Call",
+                  style: const TextStyle(color: Colors.white70, fontSize: 18),
+                ),
+              ],
+            ),
+            // Bottom: Accept and Decline buttons.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 40.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Decline button.
+                  FloatingActionButton(
+                    onPressed: () {
+                      // Dispatch event to decline the call.
+                      widget.callBloc.add(DeclineIncomingCallEvent(reason: "declined by user"));
+                    },
+                    backgroundColor: Colors.red,
+                    child: const Icon(Icons.call_end, size: 30),
+                  ),
+                  // Accept button.
+                  FloatingActionButton(
+                    onPressed: () {
+                      // Dispatch event to accept the call.
+                      widget.callBloc.add(AcceptIncomingCallEvent(callMode: state.callMode));
+                    },
+                    backgroundColor: Colors.green,
+                    child: const Icon(Icons.call, size: 30),
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
@@ -117,7 +186,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Remote video or a placeholder if the remote camera is off.
+          // Remote video or placeholder if remote camera is off.
           Positioned.fill(
             child: widget.callManager.remoteStream != null && state.remoteCameraOn
                 ? RTCVideoView(_remoteRenderer)
@@ -178,7 +247,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               right: 0,
               child: _buildCallControls(state),
             ),
-          // Minimize button.
+          // Button to minimize the call screen.
           Positioned(
             top: 40,
             right: 20,
@@ -276,7 +345,8 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-          icon: Icon(Icons.volume_up, color: state.localSpeakerOn ? Colors.white : Colors.grey),
+          icon: Icon(Icons.volume_up,
+              color: state.localSpeakerOn ? Colors.white : Colors.grey),
           onPressed: _onToggleSpeaker,
         ),
         IconButton(
@@ -284,20 +354,24 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           onPressed: _onSwitchCamera,
         ),
         IconButton(
-          icon: Icon(state.localCameraOn ? Icons.videocam : Icons.videocam_off, color: Colors.white),
+          icon: Icon(state.localCameraOn ? Icons.videocam : Icons.videocam_off,
+              color: Colors.white),
           onPressed: _onToggleCamera,
         ),
         IconButton(
-          icon: Icon(state.localMicOn ? Icons.mic : Icons.mic_off, color: Colors.white),
+          icon: Icon(state.localMicOn ? Icons.mic : Icons.mic_off,
+              color: Colors.white),
           onPressed: _onToggleMic,
         ),
         IconButton(
-          icon: Icon(Icons.screen_share, color: state.localScreenShareOn ? Colors.white : Colors.grey),
+          icon: Icon(Icons.screen_share,
+              color: state.localScreenShareOn ? Colors.white : Colors.grey),
           onPressed: _onToggleScreenShare,
         ),
         IconButton(
           icon: const Icon(Icons.call_end, color: Colors.red),
           onPressed: () async {
+            widget.callBloc.add(HangUpCallEvent());
             await widget.onHangUp();
             if (mounted) {
               Navigator.of(context).popUntil((route) => route.isFirst);
@@ -308,7 +382,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     );
   }
 
-  /// Builds an overlay to display if the call is failed or declined.
+  /// Builds an overlay to display when the call is failed or declined.
   Widget _buildErrorOverlay() {
     return Positioned.fill(
       child: Container(
@@ -326,6 +400,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.red, size: 40),
                   onPressed: () async {
+                    widget.callBloc.add(HangUpCallEvent());
                     await widget.onHangUp();
                     if (mounted) {
                       Navigator.of(context).popUntil((route) => route.isFirst);

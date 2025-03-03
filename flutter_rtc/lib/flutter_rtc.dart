@@ -12,7 +12,6 @@ import 'package:flutter_rtc/src/call_manager.dart';
 import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
 import 'package:flutter_rtc/src/signaling/signaling_configuration.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
-import 'package:flutter_rtc/src/ui/call_screen.dart';
 
 class FlutterRTC {
   late final SignalingInterface signaling;
