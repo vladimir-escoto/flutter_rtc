@@ -13,9 +13,10 @@ import '../bloc/call_events.dart';
 /// It provides controls for mic, camera, speaker, screen share, etc.,
 /// and updates the UI based on call lifecycle and control events.
 /// It shows different views based on the call lifecycle:
-/// - Full-screen call UI when connected
-/// - Incoming call UI when a call is incoming (audio or video)
-/// - A minimized (floating) view when the user minimizes the call.
+/// - For an outgoing video call that has not yet connected, display the local stream full screen.
+/// - When the remote stream becomes available (call connected), show the remote stream in full screen
+///   with the local stream as a small draggable overlay.
+/// - An incoming call view is also provided for audio and video calls.
 class EnhancedCallScreen extends StatefulWidget {
   final CallManager callManager;
   final CallBloc callBloc;
@@ -67,7 +68,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     super.dispose();
   }
 
-  // --- UI Control Handlers: dispatch events to the bloc (the bloc computes the new state) ---
+  // ---UI Control Handlers: dispatch events to the bloc (the bloc computes the new state)
   void _onToggleMic() {
     widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
   }
@@ -88,7 +89,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     // This is a one-time command; its result is handled separately.
     widget.callManager.sendControlMessage("switch_camera", true);
   }
-  // ------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +111,15 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           if (state.lifecycleStatus == CallLifecycleStatus.incoming) {
             return _buildIncomingCallView(state);
           }
-          // Otherwise, show full-screen or minimized view.
+          // For outgoing video calls that are not connected yet,
+          // display the local stream full screen if remote stream is not available.
+          if (state.callMode == CallMode.video &&
+              (state.lifecycleStatus == CallLifecycleStatus.outgoing ||
+                  state.lifecycleStatus == CallLifecycleStatus.connecting) &&
+              widget.callManager.remoteStream == null) {
+            return _buildOutgoingLocalOnlyView(state);
+          }
+          // Otherwise, show the normal full-screen view (remote primary, local overlay)
           return _isMinimized
               ? _buildMinimizedView(state)
               : _buildFullScreenView(state);
@@ -119,9 +128,50 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     );
   }
 
+  /// Builds the outgoing call view when it's a video call and not yet connected.
+  /// The local stream is shown full screen.
+  Widget _buildOutgoingLocalOnlyView(CallBlocState state) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: widget.callManager.localStream != null
+                ? RTCVideoView(_localRenderer)
+                : Container(color: Colors.black),
+          ),
+          // Top bar: display call status and a hang-up button.
+          Positioned(
+            top: 40,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _mapLifecycleStatusToText(state.lifecycleStatus),
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.call_end, color: Colors.red),
+                  onPressed: () async {
+                    widget.callBloc.add(HangUpCallEvent());
+                    await widget.onHangUp();
+                    if (mounted) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Builds the incoming call view for both audio and video calls.
   Widget _buildIncomingCallView(CallBlocState state) {
-    // Use different background if it's an audio call.
     final bool isVideoCall = state.callMode == CallMode.video;
     return Scaffold(
       backgroundColor: Colors.blueGrey[900],
@@ -129,7 +179,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Top: Caller info.
+            // Caller info.
             Column(
               children: [
                 const SizedBox(height: 40),
@@ -147,25 +197,21 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 ),
               ],
             ),
-            // Bottom: Accept and Decline buttons.
+            // Accept and Decline buttons.
             Padding(
               padding: const EdgeInsets.only(bottom: 40.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Decline button.
                   FloatingActionButton(
                     onPressed: () {
-                      // Dispatch event to decline the call.
                       widget.callBloc.add(DeclineIncomingCallEvent(reason: "declined by user"));
                     },
                     backgroundColor: Colors.red,
                     child: const Icon(Icons.call_end, size: 30),
                   ),
-                  // Accept button.
                   FloatingActionButton(
                     onPressed: () {
-                      // Dispatch event to accept the call.
                       widget.callBloc.add(AcceptIncomingCallEvent(callMode: state.callMode));
                     },
                     backgroundColor: Colors.green,
@@ -180,13 +226,13 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     );
   }
 
-  /// Builds the full-screen call UI.
+  /// Builds the full-screen call UI when connected.
   Widget _buildFullScreenView(CallBlocState state) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Remote video or placeholder if remote camera is off.
+          // Remote video or a placeholder if remote camera is off.
           Positioned.fill(
             child: widget.callManager.remoteStream != null && state.remoteCameraOn
                 ? RTCVideoView(_remoteRenderer)
@@ -247,7 +293,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               right: 0,
               child: _buildCallControls(state),
             ),
-          // Button to minimize the call screen.
+          // Minimize button.
           Positioned(
             top: 40,
             right: 20,
