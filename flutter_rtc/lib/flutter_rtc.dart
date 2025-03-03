@@ -6,7 +6,6 @@ export 'src/call_manager.dart';
 export 'src/ui/call_screen.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_rtc/src/callkit_manager.dart';
 
 import 'flutter_rtc.dart';
 
@@ -14,7 +13,6 @@ class FlutterRTC {
   late final SignalingInterface signaling;
   late final CallManager callManager;
   final GlobalKey<NavigatorState>? navigatorKey;
-  final CallKitManager _callKitManager = CallKitManager();
 
   /// Constructs FlutterRTC with a 6-digit client ID.
   /// Optionally, a custom signaling implementation and navigatorKey can be provided.
@@ -35,7 +33,6 @@ class FlutterRTC {
   Future<void> initialize() async {
     await callManager.setupIncomingCallListener();
     await signaling.connect();
-    await _callKitManager.showIncomingCall(callId: "0000001", callerName: "Vlady");
   }
 
   /// Initiates an outgoing call.
@@ -56,6 +53,10 @@ class FlutterRTC {
   Future<void> hangUp() async {
     await callManager.hangUp();
     await signaling.disconnect();
+    // If a navigatorKey is provided, pop the call screen modal.
+    if (navigatorKey != null && navigatorKey!.currentState != null) {
+      navigatorKey!.currentState!.pop();
+    }
   }
 
   void checkNotificationPermission(BuildContext context) {

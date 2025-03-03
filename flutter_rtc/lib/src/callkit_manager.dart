@@ -69,18 +69,15 @@ class CallKitManager {
 
     // Subscribe to native CallKit events.
     FlutterCallkitIncoming.onEvent.listen((dynamic event) {
-      print("[CallKit] Received event: $event");
       // Check if the event is an instance of the plugin's CallEvent type.
       if (event is CallEvent) {
         // Access the event property.
-        final pluginEvent = event.event;
-        print("[CallKit] Plugin event: $pluginEvent");
-        if (pluginEvent == Event.actionCallIncoming) {
+        if (event.event == Event.actionCallAccept) {
          _callKitEventController.add(CallKitEvent.accepted);
-        } else if (pluginEvent == Event.actionCallDecline) {
+        } else if (event.event == Event.actionCallDecline) {
           _callKitEventController.add(CallKitEvent.declined);
         } else {
-          print("[CallKit] Unknown action: $pluginEvent");
+          print("[CallKit] Unknown action: $event.event");
         }
       } else {
         print("[CallKit] Unknown event type: $event");
