@@ -101,7 +101,7 @@ final CallBlocState initialCallBlocState = CallBlocState(
   remoteCameraOn: true,
   remoteScreenShareOn: false,
   uiMinimized: false,
-  uiPosition: const Offset(0, 0),
+  uiPosition: const Offset(20, 80),
   callDuration: Duration.zero,
   errorMessage: null,
 );

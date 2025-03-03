@@ -104,7 +104,8 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         break;
       case UIEventType.dragged:
         if (event.value is Offset) {
-          emit(state.copyWith(uiPosition: event.value));
+          var offset = event.value + event.value;
+          emit(state.copyWith(uiPosition: offset));
         }
         break;
       case UIEventType.callTimerUpdated:

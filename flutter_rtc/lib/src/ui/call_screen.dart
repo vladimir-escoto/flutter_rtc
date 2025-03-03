@@ -40,9 +40,6 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
   // Local UI state for the draggable/minimized view.
-  bool _isMinimized = false;
-  Offset _minimizedOffset = const Offset(20, 80);
-
   @override
   void initState() {
     super.initState();
@@ -89,6 +86,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     // This is a one-time command; its result is handled separately.
     widget.callManager.sendControlMessage("switch_camera", true);
   }
+
   // ------------------------------------------------------------------
 
   @override
@@ -120,7 +118,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
             return _buildOutgoingLocalOnlyView(state);
           }
           // Otherwise, show the normal full-screen view (remote primary, local overlay)
-          return _isMinimized
+          return state.uiMinimized
               ? _buildMinimizedView(state)
               : _buildFullScreenView(state);
         },
@@ -136,9 +134,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: widget.callManager.localStream != null
-                ? RTCVideoView(_localRenderer)
-                : Container(color: Colors.black),
+            child:
+                widget.callManager.localStream != null
+                    ? RTCVideoView(_localRenderer)
+                    : Container(color: Colors.black),
           ),
           // Top bar: display call status and a hang-up button.
           Positioned(
@@ -188,8 +187,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                   backgroundImage: const NetworkImage("https://i.pravatar.cc/100"),
                 ),
                 const SizedBox(height: 16),
-                const Text("Incoming Call",
-                    style: TextStyle(color: Colors.white, fontSize: 24)),
+                const Text(
+                  "Incoming Call",
+                  style: TextStyle(color: Colors.white, fontSize: 24),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   isVideoCall ? "Video Call" : "Audio Call",
@@ -205,21 +206,25 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 children: [
                   FloatingActionButton(
                     onPressed: () {
-                      widget.callBloc.add(DeclineIncomingCallEvent(reason: "declined by user"));
+                      widget.callBloc.add(
+                        DeclineIncomingCallEvent(reason: "declined by user"),
+                      );
                     },
                     backgroundColor: Colors.red,
                     child: const Icon(Icons.call_end, size: 30),
                   ),
                   FloatingActionButton(
                     onPressed: () {
-                      widget.callBloc.add(AcceptIncomingCallEvent(callMode: state.callMode));
+                      widget.callBloc.add(
+                        AcceptIncomingCallEvent(callMode: state.callMode),
+                      );
                     },
                     backgroundColor: Colors.green,
                     child: const Icon(Icons.call, size: 30),
                   ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -234,14 +239,15 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         children: [
           // Remote video or a placeholder if remote camera is off.
           Positioned.fill(
-            child: widget.callManager.remoteStream != null && state.remoteCameraOn
-                ? RTCVideoView(_remoteRenderer)
-                : Container(
-              color: Colors.black,
-              child: const Center(
-                child: Icon(Icons.videocam_off, color: Colors.white, size: 60),
-              ),
-            ),
+            child:
+                widget.callManager.remoteStream != null && state.remoteCameraOn
+                    ? RTCVideoView(_remoteRenderer)
+                    : Container(
+                      color: Colors.black,
+                      child: const Center(
+                        child: Icon(Icons.videocam_off, color: Colors.white, size: 60),
+                      ),
+                    ),
           ),
           // Top bar: contact info and call status.
           Positioned(
@@ -250,8 +256,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
             right: 20,
             child: Column(
               children: [
-                const Text("Contact Name",
-                    style: TextStyle(color: Colors.white, fontSize: 24)),
+                const Text(
+                  "Contact Name",
+                  style: TextStyle(color: Colors.white, fontSize: 24),
+                ),
                 const SizedBox(height: 8),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
@@ -277,22 +285,16 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               feedback: _buildLocalVideoBox(),
               childWhenDragging: Container(),
               onDragEnd: (details) {
-                widget.callBloc.add(UIEvent(event: UIEventType.dragged, value: details.offset));
-                setState(() {
-                  _minimizedOffset = details.offset;
-                });
+                widget.callBloc.add(
+                  UIEvent(event: UIEventType.dragged, value: details.offset),
+                );
               },
               child: _buildLocalVideoBox(),
             ),
           ),
           // Bottom call controls (only visible when connected).
           if (state.lifecycleStatus == CallLifecycleStatus.connected)
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: _buildCallControls(state),
-            ),
+            Positioned(bottom: 40, left: 0, right: 0, child: _buildCallControls(state)),
           // Minimize button.
           Positioned(
             top: 40,
@@ -301,9 +303,6 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               icon: const Icon(Icons.minimize, color: Colors.white),
               onPressed: () {
                 widget.callBloc.add(UIEvent(event: UIEventType.minimized));
-                setState(() {
-                  _isMinimized = true;
-                });
               },
             ),
           ),
@@ -321,20 +320,17 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     return Stack(
       children: [
         Positioned(
-          left: _minimizedOffset.dx,
-          top: _minimizedOffset.dy,
+          left: state.uiPosition.dx,
+          top: state.uiPosition.dy,
           child: GestureDetector(
             onPanUpdate: (details) {
-              setState(() {
-                _minimizedOffset += details.delta;
-              });
-              widget.callBloc.add(UIEvent(event: UIEventType.dragged, value: _minimizedOffset));
+              var minimizedOffset = state.uiPosition + details.delta;
+              widget.callBloc.add(
+                UIEvent(event: UIEventType.dragged, value: minimizedOffset),
+              );
             },
             onTap: () {
               widget.callBloc.add(UIEvent(event: UIEventType.maximized));
-              setState(() {
-                _isMinimized = false;
-              });
             },
             child: Container(
               width: 150,
@@ -379,9 +375,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         borderRadius: BorderRadius.circular(8),
         color: Colors.grey,
       ),
-      child: widget.callManager.localStream != null
-          ? RTCVideoView(_localRenderer)
-          : Container(),
+      child:
+          widget.callManager.localStream != null
+              ? RTCVideoView(_localRenderer)
+              : Container(),
     );
   }
 
@@ -391,8 +388,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-          icon: Icon(Icons.volume_up,
-              color: state.localSpeakerOn ? Colors.white : Colors.grey),
+          icon: Icon(
+            Icons.volume_up,
+            color: state.localSpeakerOn ? Colors.white : Colors.grey,
+          ),
           onPressed: _onToggleSpeaker,
         ),
         IconButton(
@@ -400,18 +399,21 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           onPressed: _onSwitchCamera,
         ),
         IconButton(
-          icon: Icon(state.localCameraOn ? Icons.videocam : Icons.videocam_off,
-              color: Colors.white),
+          icon: Icon(
+            state.localCameraOn ? Icons.videocam : Icons.videocam_off,
+            color: Colors.white,
+          ),
           onPressed: _onToggleCamera,
         ),
         IconButton(
-          icon: Icon(state.localMicOn ? Icons.mic : Icons.mic_off,
-              color: Colors.white),
+          icon: Icon(state.localMicOn ? Icons.mic : Icons.mic_off, color: Colors.white),
           onPressed: _onToggleMic,
         ),
         IconButton(
-          icon: Icon(Icons.screen_share,
-              color: state.localScreenShareOn ? Colors.white : Colors.grey),
+          icon: Icon(
+            Icons.screen_share,
+            color: state.localScreenShareOn ? Colors.white : Colors.grey,
+          ),
           onPressed: _onToggleScreenShare,
         ),
         IconButton(
