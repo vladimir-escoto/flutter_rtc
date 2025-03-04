@@ -4,23 +4,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../bloc/call_bloc.dart';
-import '../bloc/call_state.dart';
 import '../bloc/call_enums.dart';
 import '../bloc/call_events.dart';
+import '../bloc/call_state.dart';
 
 /// EnhancedCallScreen displays the call UI using a BLoC for state management.
 /// All call-related information (streams, controls, lifecycle, minimization, etc.)
 /// is maintained within the bloc state.
 class EnhancedCallScreen extends StatefulWidget {
   final CallBloc callBloc;
-  final Future<void> Function() onHangUp;
-  final VoidCallback onRedial;
 
   const EnhancedCallScreen({
     super.key,
-    required this.callBloc,
-    required this.onHangUp,
-    required this.onRedial,
+    required this.callBloc
   });
 
   @override
@@ -133,10 +129,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                   icon: const Icon(Icons.call_end, color: Colors.red),
                   onPressed: () async {
                     widget.callBloc.add(HangUpCallEvent());
-                    await widget.onHangUp();
-                    if (mounted) {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    }
+                    // if (mounted) {
+                    //   Navigator.of(context).popUntil((route) => route.isFirst);
+                    // }
                   },
                 ),
               ],
@@ -393,10 +388,6 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           icon: const Icon(Icons.call_end, color: Colors.red),
           onPressed: () async {
             widget.callBloc.add(HangUpCallEvent());
-            await widget.onHangUp();
-            if (mounted) {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            }
           },
         ),
       ],
@@ -416,16 +407,14 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.phone, color: Colors.green, size: 40),
-                  onPressed: widget.onRedial,
+                  onPressed: () {
+                    widget.callBloc.add(RedialCallEvent());
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.red, size: 40),
                   onPressed: () async {
                     widget.callBloc.add(HangUpCallEvent());
-                    await widget.onHangUp();
-                    if (mounted) {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    }
                   },
                 ),
               ],

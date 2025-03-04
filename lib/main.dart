@@ -22,6 +22,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // The FlutterRTCWidget encapsulates the MaterialApp and internal navigator.
     return FlutterRTCWidget(
+      navigatorKey: GlobalKey<NavigatorState>(),
       clientId: clientId,
       child: HomeScreen(clientId: clientId),
     );

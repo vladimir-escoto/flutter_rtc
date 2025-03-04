@@ -62,8 +62,13 @@ class DeclineIncomingCallEvent extends CallBlocEvent {
   DeclineIncomingCallEvent({this.reason});
 }
 
+class StartOutgoingCallEvent extends CallBlocEvent {
+  final String targetPeerId;
+  StartOutgoingCallEvent({required this.targetPeerId});
+}
 /// New event: Hang up the current call.
 class HangUpCallEvent extends CallBlocEvent {}
-
+/// New event: Hang up the current call.
+class RedialCallEvent extends CallBlocEvent {}
 /// New event for switching the camera.
 class SwitchCameraEvent extends CallBlocEvent {}

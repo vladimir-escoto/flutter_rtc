@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../flutter_rtc.dart';
 
 /// Internal events emitted during the call process.
@@ -49,6 +51,14 @@ class CallManager {
     return true;
   }
 
+  Future<void> startRedialCall() async {
+    if (_currentCallPeerId != null) {
+      startOutgoingCall(_currentCallPeerId!);
+    } else {
+      debugPrint("[CallManager] No current call to redial.");
+      throw Exception("No current call to redial.");
+    }
+  }
   /// Starts an outgoing call by ensuring permissions, obtaining local media,
   /// creating the peer connection and establishing a data channel.
   Future<void> startOutgoingCall(String targetPeerId) async {

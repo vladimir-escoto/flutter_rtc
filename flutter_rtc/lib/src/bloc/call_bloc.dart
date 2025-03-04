@@ -5,12 +5,15 @@
 // All call-related data (including local and remote streams) is maintained
 // within the bloc's state, so that the UI depends solely on the bloc.
 
+import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'call_state.dart';
-import 'call_events.dart';
-import 'call_enums.dart';
+
 import '../call_manager.dart';
+import 'call_enums.dart';
+import 'call_events.dart';
+import 'call_state.dart';
 
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   final CallManager callManager;
@@ -30,8 +33,20 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     on<CallErrorEvent>(_handleErrorEvent);
     on<AcceptIncomingCallEvent>(_handleAcceptIncomingCallEvent);
     on<DeclineIncomingCallEvent>(_handleDeclineIncomingCallEvent);
+    on<StartOutgoingCallEvent>(_handleOutgoingCallEvent);
     on<HangUpCallEvent>(_handleHangUpCallEvent);
+    on<RedialCallEvent>(_handlerRedialCallEvent);
     on<SwitchCameraEvent>(_handleSwitchCameraEvent);
+
+    callManager.callEvents.listen((event) {
+      if (event == CallEvent.remoteStreamAdded) {
+        add(CallLifecycleEvent(status: CallLifecycleStatus.connected));
+      } else if (event == CallEvent.callStarted) {
+        add(CallLifecycleEvent(status: CallLifecycleStatus.outgoing));
+      } else if (event == CallEvent.callEnded) {
+        add(CallLifecycleEvent(status: CallLifecycleStatus.ended));
+      }
+    });
   }
 
   /// Handles lifecycle events by updating the lifecycle status.
@@ -174,5 +189,15 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   ) async {
     // CallManager is used to send the switch camera command.
     await callManager.switchCamera();
+  }
+
+  FutureOr<void> _handleOutgoingCallEvent(StartOutgoingCallEvent event,
+      Emitter<CallBlocState> emit) async {
+    await callManager.startOutgoingCall(event.targetPeerId);
+  }
+
+  FutureOr<void> _handlerRedialCallEvent(RedialCallEvent event,
+      Emitter<CallBlocState> emit) async {
+    await callManager.startRedialCall();
   }
 }
