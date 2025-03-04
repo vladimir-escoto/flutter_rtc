@@ -156,7 +156,7 @@ class CallManager {
 
       final permissionsGranted = await _ensurePermissions();
       if (!permissionsGranted) {
-        signaling.sendCallDecline(senderId, {"reason": "permissions not granted"});
+        declineCall();
         return;
       }
       // Obtain local media stream.
@@ -261,7 +261,7 @@ class CallManager {
   }
 
   Future<void> _disposeCall() async {
-    await signaling.sendCallDecline(_currentCallPeerId!, "");
+
     try {
       localStream?.getTracks().forEach((track) => track.stop());
       remoteStream?.getTracks().forEach((track) => track.stop());
@@ -277,6 +277,12 @@ class CallManager {
 
   /// Hangs up the call.
   Future<void> hangUp() async {
+    await signaling.sendCallEnded(_currentCallPeerId!, "");
+    _disposeCall();
+    _callEventController.add(CallLifecycleStatus.ended);
+  }
+
+  Future<void> declineCall() async {
     await signaling.sendCallDecline(_currentCallPeerId!, "");
     _disposeCall();
     _callEventController.add(CallLifecycleStatus.ended);

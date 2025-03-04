@@ -28,7 +28,7 @@ class FlutterRTC {
     signaling =
         customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(brokerUrl: 'broker.hivemq.com', clientId: clientId),
+          config: SignalingConfiguration(brokerUrl: 'test.mosquitto.org', clientId: clientId),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
     callBloc = CallBloc(callManager: callManager);

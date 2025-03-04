@@ -63,7 +63,6 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
 
   /// Safely closes the call screen if it is still in the navigation stack.
   void _closeCallScreen() {
-    widget.callBloc.add(HangUpCallEvent());
     if (mounted && Navigator.canPop(context)) {
       Navigator.of(
         context,
@@ -84,10 +83,10 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       },
       builder: (context, state) {
         // Set the renderer sources from the state.
-        if (state.localStream != null && _localRenderer.textureId!=null) {
+        if (state.localStream != null && _localRenderer.textureId != null) {
           _localRenderer.srcObject = state.localStream;
         }
-        if (state.remoteStream != null && _localRenderer.textureId!=null) {
+        if (state.remoteStream != null && _localRenderer.textureId != null) {
           _remoteRenderer.srcObject = state.remoteStream;
         }
         // If an incoming call is detected, show the incoming call view.
@@ -135,7 +134,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.call_end, color: Colors.red),
-                  onPressed: _closeCallScreen,
+                  onPressed: () {
+                    widget.callBloc.add(HangUpCallEvent());
+                  },
                 ),
               ],
             ),
@@ -421,7 +422,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.red, size: 40),
-                  onPressed: _closeCallScreen,
+                  onPressed: () {
+                    widget.callBloc.add(HangUpCallEvent());
+                  },
                 ),
               ],
             ),

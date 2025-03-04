@@ -131,11 +131,11 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   }
 
   /// New handler: Decline an incoming call.
-  void _handleDeclineIncomingCallEvent(
+  Future<void> _handleDeclineIncomingCallEvent(
     DeclineIncomingCallEvent event,
     Emitter<CallBlocState> emit,
-  ) {
-    callManager.hangUp();
+  ) async {
+    await callManager.declineCall();
   }
 
   /// **🔹 Handles the start of an outgoing call**
@@ -143,7 +143,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     StartOutgoingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.calling));
     await callManager.startOutgoingCall(event.targetPeerId);
   }
 
@@ -160,7 +159,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     RedialCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.calling));
     await callManager.startRedialCall();
   }
 
