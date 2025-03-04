@@ -63,6 +63,10 @@ class CallManager {
   /// Starts an outgoing call by ensuring permissions, obtaining local media,
   /// creating the peer connection and establishing a data channel.
   Future<void> startOutgoingCall(String targetPeerId) async {
+    _callEventController.add(CallLifecycleStatus.initial);
+
+    Future.delayed(const Duration(milliseconds: 500));
+
     _callEventController.add(CallLifecycleStatus.calling);
     _currentCallPeerId = targetPeerId;
 
@@ -119,33 +123,7 @@ class CallManager {
         remoteStream = stream;
       };
 
-      _peerConnection?.onSignalingState = (state) {
-        debugPrint("[CallManager] Signaling state changed: $state");
-      };
-
-      _peerConnection?.onIceConnectionState = (state) {
-        debugPrint("[CallManager] Ice connection state changed: $state");
-      };
-
-      _peerConnection?.onIceGatheringState = (state) {
-        debugPrint("[CallManager] Ice gathering state changed: $state");
-      };
-
-      _peerConnection?.onConnectionState = (state) {
-        debugPrint("[CallManager] Connection state changed: $state");
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
-          _callEventController.add(CallLifecycleStatus.ended);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-          _callEventController.add(CallLifecycleStatus.failed);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-          _callEventController.add(CallLifecycleStatus.connected);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
-          _callEventController.add(CallLifecycleStatus.connecting);
-        }
-      };
+      _peerConnection?.onConnectionState = _onConnectionState;
 
       // Create offer and send via signaling.
       RTCSessionDescription offer = await _peerConnection!.createOffer();
@@ -163,6 +141,8 @@ class CallManager {
   Future<void> answerIncomingCall() async {
     debugPrint("[CallManager] Answering incoming call.");
     try {
+      _callEventController.add(CallLifecycleStatus.initial);
+      Future.delayed(const Duration(milliseconds: 500));
       if (_currentCallPeerId == null) {
         throw Exception("No current call senderId to answer.");
       }
@@ -206,33 +186,7 @@ class CallManager {
         }
       };
 
-      _peerConnection?.onSignalingState = (state) {
-        debugPrint("[CallManager] Signaling state changed: $state");
-      };
-
-      _peerConnection?.onIceConnectionState = (state) {
-        debugPrint("[CallManager] Ice connection state changed: $state");
-      };
-
-      _peerConnection?.onIceGatheringState = (state) {
-        debugPrint("[CallManager] Ice gathering state changed: $state");
-      };
-
-      _peerConnection?.onConnectionState = (state) {
-        debugPrint("[CallManager] Connection state changed: $state");
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
-          _callEventController.add(CallLifecycleStatus.ended);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-          _callEventController.add(CallLifecycleStatus.failed);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-          _callEventController.add(CallLifecycleStatus.connected);
-        }
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
-          _callEventController.add(CallLifecycleStatus.connecting);
-        }
-      };
+      _peerConnection?.onConnectionState = _onConnectionState;
 
       // Listen for incoming data channel.
       _peerConnection?.onDataChannel = (RTCDataChannel channel) {
@@ -271,6 +225,28 @@ class CallManager {
     }
   }
 
+  void _onConnectionState(state) {
+    debugPrint("[CallManager] Connection state changed: $state");
+    if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+      _disposeCall();
+      _callEventController.add(CallLifecycleStatus.ended);
+    }
+    if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+      _disposeCall();
+      _callEventController.add(CallLifecycleStatus.failed);
+    }
+    if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+      _disposeCall();
+      _callEventController.add(CallLifecycleStatus.failed);
+    }
+    if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+      _callEventController.add(CallLifecycleStatus.connected);
+    }
+    if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
+      _callEventController.add(CallLifecycleStatus.connecting);
+    }
+  }
+
   Future<void> switchCamera() async {
     try {
       final videoTrack = localStream?.getVideoTracks().first;
@@ -284,8 +260,8 @@ class CallManager {
     }
   }
 
-  /// Hangs up the call.
-  Future<void> hangUp() async {
+  Future<void> _disposeCall() async {
+    await signaling.sendCallDecline(_currentCallPeerId!, "");
     try {
       localStream?.getTracks().forEach((track) => track.stop());
       remoteStream?.getTracks().forEach((track) => track.stop());
@@ -295,6 +271,14 @@ class CallManager {
     }
     _peerConnection = null;
     _currentCallPeerId = null;
+    localStream = null;
+    remoteStream = null;
+  }
+
+  /// Hangs up the call.
+  Future<void> hangUp() async {
+    await signaling.sendCallDecline(_currentCallPeerId!, "");
+    _disposeCall();
     _callEventController.add(CallLifecycleStatus.ended);
   }
 
@@ -327,11 +311,16 @@ class CallManager {
           case SignalingEventType.callDeclined:
             _callEventController.add(CallLifecycleStatus.declined);
             break;
+          case SignalingEventType.callEnded:
+            _disposeCall();
+            _callEventController.add(CallLifecycleStatus.ended);
+            break;
           default:
             debugPrint("[CallManager] unknown signaling event: ${event.type}");
             break;
         }
       } catch (e) {
+        _disposeCall();
         _callEventController.add(CallLifecycleStatus.failed);
         debugPrint("[CallManager] Error handling signaling event: $e");
       }
@@ -342,7 +331,7 @@ class CallManager {
   /// and emitting the appropriate event.
   Future<void> _handleIncomingOffer(dynamic data) async {
     final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
-
+    debugPrint("[CallManager] Receive offer: $parsedData");
     _currentCallPeerId = parsedData['senderId'];
     _offer = parsedData['offer'];
     // Emit event to notify an incoming call.

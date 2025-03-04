@@ -24,4 +24,7 @@ abstract class SignalingInterface {
 
   // Notify the caller that the call was declined.
   Future<void> sendCallDecline(String peerId, dynamic info);
+
+  // Notify the caller that the call was declined.
+  Future<void> sendCallEnded(String peerId, dynamic info);
 }

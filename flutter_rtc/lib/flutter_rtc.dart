@@ -28,7 +28,7 @@ class FlutterRTC {
     signaling =
         customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
+          config: SignalingConfiguration(brokerUrl: 'broker.hivemq.com', clientId: clientId),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
     callBloc = CallBloc(callManager: callManager);
@@ -56,14 +56,14 @@ class FlutterRTC {
   // This ensures that the call screen is displayed regardless of where
   // the user is in the app's navigation.
   Future<void> _showCallScreen() async {
-
     navigatorKey.currentState?.push(
       MaterialPageRoute(
+        settings: RouteSettings(name: EnhancedCallScreen.route),
         builder:
             (_) => BlocProvider.value(
-          value: callBloc,
-          child: EnhancedCallScreen(callBloc: callBloc),
-        ),
+              value: callBloc,
+              child: EnhancedCallScreen(callBloc: callBloc),
+            ),
       ),
     );
   }
@@ -71,6 +71,5 @@ class FlutterRTC {
   /// Hangs up the call and resets the navigation.
   Future<void> hangUp() async {
     callBloc.add(HangUpCallEvent());
-    // navigatorKey.currentState?.pop();
   }
 }

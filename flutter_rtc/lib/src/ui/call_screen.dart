@@ -14,10 +14,9 @@ import '../bloc/call_state.dart';
 class EnhancedCallScreen extends StatefulWidget {
   final CallBloc callBloc;
 
-  const EnhancedCallScreen({
-    super.key,
-    required this.callBloc
-  });
+  static const route = 'enhanced_call_screen';
+
+  const EnhancedCallScreen({super.key, required this.callBloc});
 
   @override
   EnhancedCallScreenState createState() => EnhancedCallScreenState();
@@ -37,49 +36,58 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   Future<void> _initializeRenderers() async {
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
-    // The streams will be provided by the bloc state.
   }
 
   @override
   void dispose() {
+    debugPrint("dispose renders");
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     super.dispose();
   }
 
   // --- UI Control Handlers: dispatch events to the bloc ---
-  void _onToggleMic() {
-    widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
-  }
+  void _onToggleMic() =>
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
 
-  void _onToggleCamera() {
-    widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
-  }
+  void _onToggleCamera() =>
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
 
-  void _onToggleSpeaker() {
-    widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
-  }
+  void _onToggleSpeaker() =>
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
 
-  void _onToggleScreenShare() {
-    widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.screenshare));
-  }
+  void _onToggleScreenShare() =>
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.screenshare));
 
-  void _onSwitchCamera() {
-    widget.callBloc.add(SwitchCameraEvent());
+  void _onSwitchCamera() => widget.callBloc.add(SwitchCameraEvent());
+
+  /// Safely closes the call screen if it is still in the navigation stack.
+  void _closeCallScreen() {
+    widget.callBloc.add(HangUpCallEvent());
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.of(
+        context,
+      ).popUntil((route) => route.settings.name != EnhancedCallScreen.route);
+    }
   }
 
   // ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CallBloc, CallBlocState>(
+    return BlocConsumer<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
+      listener: (context, state) {
+        if (state.lifecycleStatus == CallLifecycleStatus.ended) {
+          _closeCallScreen();
+        }
+      },
       builder: (context, state) {
         // Set the renderer sources from the state.
-        if (state.localStream != null) {
+        if (state.localStream != null && _localRenderer.textureId!=null) {
           _localRenderer.srcObject = state.localStream;
         }
-        if (state.remoteStream != null) {
+        if (state.remoteStream != null && _localRenderer.textureId!=null) {
           _remoteRenderer.srcObject = state.remoteStream;
         }
         // If an incoming call is detected, show the incoming call view.
@@ -127,12 +135,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.call_end, color: Colors.red),
-                  onPressed: () async {
-                    widget.callBloc.add(HangUpCallEvent());
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
+                  onPressed: _closeCallScreen,
                 ),
               ],
             ),
@@ -418,12 +421,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.red, size: 40),
-                  onPressed: () async {
-                    widget.callBloc.add(HangUpCallEvent());
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
+                  onPressed: _closeCallScreen,
                 ),
               ],
             ),

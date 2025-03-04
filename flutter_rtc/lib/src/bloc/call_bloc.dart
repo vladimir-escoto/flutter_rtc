@@ -28,13 +28,17 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
 
   /// **🔹 Handling of call lifecycle events**
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
-    emit(
-      state.copyWith(
-        lifecycleStatus: event.status,
+    if (event.status == CallLifecycleStatus.initial) {
+      emit(initialCallBlocState);
+    } else {
+      emit(
+        state.copyWith(
+          lifecycleStatus: event.status,
           localStream: callManager.localStream,
           remoteStream: callManager.remoteStream,
-      ),
-    );
+        ),
+      );
+    }
   }
 
   /// **🔹 Handles the change of states of local controls**
@@ -131,12 +135,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     DeclineIncomingCallEvent event,
     Emitter<CallBlocState> emit,
   ) {
-    emit(
-      state.copyWith(
-        lifecycleStatus: CallLifecycleStatus.declined,
-        errorMessage: event.reason,
-      ),
-    );
+    callManager.hangUp();
   }
 
   /// **🔹 Handles the start of an outgoing call**
@@ -154,7 +153,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     Emitter<CallBlocState> emit,
   ) async {
     await callManager.hangUp();
-    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.ended));
   }
 
   /// **🔹 Handles the retry of a call**

@@ -5,7 +5,7 @@ import 'package:flutter_rtc/flutter_rtc.dart';
 /// Generates a random 6-digit client ID.
 String generate6DigitClientId() {
   final random = Random();
-  final number = random.nextInt(900000) + 100000;
+  final number = random.nextInt(10);
   return number.toString();
 }
 
