@@ -1,15 +1,6 @@
-// call_bloc.dart
-//
-// This file contains the implementation of the CallBloc,
-// which acts as an intermediary between the signaling layer and the UI.
-// All call-related data (including local and remote streams) is maintained
-// within the bloc's state, so that the UI depends solely on the bloc.
-
 import 'dart:async';
 import 'dart:ui';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../call_manager.dart';
 import 'call_enums.dart';
 import 'call_events.dart';
@@ -18,53 +9,35 @@ import 'call_state.dart';
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   final CallManager callManager;
 
-  CallBloc({required this.callManager})
-    : super(
-        initialCallBlocState.copyWith(
-          localStream: callManager.localStream,
-          remoteStream: callManager.remoteStream,
-        ),
-      ) {
+  CallBloc({required this.callManager}) : super(initialCallBlocState) {
     on<CallLifecycleEvent>(_handleLifecycleEvent);
     on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
     on<RemoteControlEvent>(_handleRemoteControlEvent);
     on<UIEvent>(_handleUIEvent);
-    on<SignalingBlocEvent>(_handleSignalingEvent);
     on<CallErrorEvent>(_handleErrorEvent);
     on<AcceptIncomingCallEvent>(_handleAcceptIncomingCallEvent);
     on<DeclineIncomingCallEvent>(_handleDeclineIncomingCallEvent);
     on<StartOutgoingCallEvent>(_handleOutgoingCallEvent);
     on<HangUpCallEvent>(_handleHangUpCallEvent);
-    on<RedialCallEvent>(_handlerRedialCallEvent);
+    on<RedialCallEvent>(_handleRedialCallEvent);
     on<SwitchCameraEvent>(_handleSwitchCameraEvent);
 
-    callManager.callEvents.listen((event) {
-      if (event == CallEvent.remoteStreamAdded) {
-        add(CallLifecycleEvent(status: CallLifecycleStatus.connected));
-      } else if (event == CallEvent.callStarted) {
-        add(CallLifecycleEvent(status: CallLifecycleStatus.outgoing));
-      } else if (event == CallEvent.callEnded) {
-        add(CallLifecycleEvent(status: CallLifecycleStatus.ended));
-      }
-    });
+    /// **🔹 Listens to events from CallManager**
+    callManager.callEvents.listen((event) => add(CallLifecycleEvent(status: event)));
   }
 
-  /// Handles lifecycle events by updating the lifecycle status.
+  /// **🔹 Handling of call lifecycle events**
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
-    // When connected, update remoteStream from the callManager.
-    if (event.status == CallLifecycleStatus.connected) {
-      emit(
-        state.copyWith(
-          lifecycleStatus: event.status,
+    emit(
+      state.copyWith(
+        lifecycleStatus: event.status,
+          localStream: callManager.localStream,
           remoteStream: callManager.remoteStream,
-        ),
-      );
-    } else {
-      emit(state.copyWith(lifecycleStatus: event.status));
-    }
+      ),
+    );
   }
 
-  /// Handles toggle events by reading the current state and toggling it.
+  /// **🔹 Handles the change of states of local controls**
   void _handleToggleLocalControlEvent(
     ToggleLocalControlEvent event,
     Emitter<CallBlocState> emit,
@@ -132,13 +105,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     }
   }
 
-  /// Handles signaling events from the WebRTC layer.
-  void _handleSignalingEvent(SignalingBlocEvent event, Emitter<CallBlocState> emit) {
-    if (event.event == SignalingEventType.connectionQualityChanged) {
-      // Update state based on connection quality data if desired.
-    }
-  }
-
   /// Handles error events by updating the error message.
   void _handleErrorEvent(CallErrorEvent event, Emitter<CallBlocState> emit) {
     emit(state.copyWith(errorMessage: event.errorMessage));
@@ -149,11 +115,11 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     AcceptIncomingCallEvent event,
     Emitter<CallBlocState> emit,
   ) {
+    callManager.answerIncomingCall();
     emit(
       state.copyWith(
         lifecycleStatus: CallLifecycleStatus.connected,
         callDuration: Duration.zero,
-        // Optionally update streams from callManager.
         localStream: callManager.localStream,
         remoteStream: callManager.remoteStream,
       ),
@@ -173,7 +139,16 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     );
   }
 
-  /// New handler: Hang up the current call.
+  /// **🔹 Handles the start of an outgoing call**
+  Future<void> _handleOutgoingCallEvent(
+    StartOutgoingCallEvent event,
+    Emitter<CallBlocState> emit,
+  ) async {
+    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.calling));
+    await callManager.startOutgoingCall(event.targetPeerId);
+  }
+
+  /// **🔹 Handles the end of a call**
   Future<void> _handleHangUpCallEvent(
     HangUpCallEvent event,
     Emitter<CallBlocState> emit,
@@ -182,22 +157,20 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.ended));
   }
 
-  /// New handler: Switch camera.
+  /// **🔹 Handles the retry of a call**
+  Future<void> _handleRedialCallEvent(
+    RedialCallEvent event,
+    Emitter<CallBlocState> emit,
+  ) async {
+    emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.calling));
+    await callManager.startRedialCall();
+  }
+
+  /// **🔹 Handles the camera switch**
   Future<void> _handleSwitchCameraEvent(
     SwitchCameraEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    // CallManager is used to send the switch camera command.
     await callManager.switchCamera();
-  }
-
-  FutureOr<void> _handleOutgoingCallEvent(StartOutgoingCallEvent event,
-      Emitter<CallBlocState> emit) async {
-    await callManager.startOutgoingCall(event.targetPeerId);
-  }
-
-  FutureOr<void> _handlerRedialCallEvent(RedialCallEvent event,
-      Emitter<CallBlocState> emit) async {
-    await callManager.startRedialCall();
   }
 }

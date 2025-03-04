@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_rtc/src/bloc/call_enums.dart';
 import 'package:flutter_rtc/src/bloc/call_events.dart';
 
 import 'flutter_rtc.dart';
@@ -24,12 +25,10 @@ class FlutterRTC {
     SignalingInterface? customSignaling,
     GlobalKey<NavigatorState>? navigatorKey,
   }) : navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>() {
-    signaling = customSignaling ??
+    signaling =
+        customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(
-            brokerUrl: 'broker.emqx.io',
-            clientId: clientId,
-          ),
+          config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
     callBloc = CallBloc(callManager: callManager);
@@ -39,24 +38,32 @@ class FlutterRTC {
   Future<void> initialize(BuildContext context) async {
     await callManager.setupIncomingCallListener();
     await signaling.connect();
+
+    callManager.callEvents.listen((event) {
+      if (event == CallLifecycleStatus.incoming) {
+        _showCallScreen();
+      }
+    });
   }
 
   /// Initiates an outgoing call and navigates to the call UI.
   Future<void> makeCall(String targetPeerId) async {
-
     callBloc.add(StartOutgoingCallEvent(targetPeerId: targetPeerId));
-    // Navigate to the call UI using the internal navigator.
-    // This ensures that the call screen is displayed regardless of where
-    // the user is in the app's navigation.
+    await _showCallScreen();
+  }
+
+  // Navigate to the call UI using the internal navigator.
+  // This ensures that the call screen is displayed regardless of where
+  // the user is in the app's navigation.
+  Future<void> _showCallScreen() async {
+
     navigatorKey.currentState?.push(
       MaterialPageRoute(
-        builder: (_) =>
-            BlocProvider.value(
-              value: callBloc,
-              child: EnhancedCallScreen(
-                callBloc: callBloc,
-              ),
-            ),
+        builder:
+            (_) => BlocProvider.value(
+          value: callBloc,
+          child: EnhancedCallScreen(callBloc: callBloc),
+        ),
       ),
     );
   }
@@ -64,8 +71,6 @@ class FlutterRTC {
   /// Hangs up the call and resets the navigation.
   Future<void> hangUp() async {
     callBloc.add(HangUpCallEvent());
-    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    // navigatorKey.currentState?.pop();
   }
 }
-
-

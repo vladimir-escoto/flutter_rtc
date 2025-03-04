@@ -36,13 +36,6 @@ class UIEvent extends CallBlocEvent {
   UIEvent({required this.event, this.value});
 }
 
-/// Event for signaling-related updates.
-class SignalingBlocEvent extends CallBlocEvent {
-  final SignalingEventType event;
-  final dynamic value;
-  SignalingBlocEvent({required this.event, this.value});
-}
-
 /// Event representing an error in the call process.
 class CallErrorEvent extends CallBlocEvent {
   final String errorMessage;
@@ -66,9 +59,12 @@ class StartOutgoingCallEvent extends CallBlocEvent {
   final String targetPeerId;
   StartOutgoingCallEvent({required this.targetPeerId});
 }
+
 /// New event: Hang up the current call.
 class HangUpCallEvent extends CallBlocEvent {}
+
 /// New event: Hang up the current call.
 class RedialCallEvent extends CallBlocEvent {}
+
 /// New event for switching the camera.
 class SwitchCameraEvent extends CallBlocEvent {}

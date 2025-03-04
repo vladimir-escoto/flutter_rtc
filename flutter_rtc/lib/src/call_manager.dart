@@ -1,14 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../flutter_rtc.dart';
-
-/// Internal events emitted during the call process.
-enum CallEvent { remoteStreamAdded, callStarted, callEnded }
+import 'bloc/call_enums.dart';
 
 class CallManager {
   final SignalingInterface signaling;
@@ -18,12 +14,14 @@ class CallManager {
   MediaStream? remoteStream;
   String? _currentCallPeerId;
 
-  final StreamController<CallEvent> _callEventController =
-      StreamController<CallEvent>.broadcast();
+  final List<RTCIceCandidate> _iceCandidates = [];
+  Map<String, dynamic>? _offer;
 
-  Stream<CallEvent> get callEvents => _callEventController.stream;
+  final StreamController<CallLifecycleStatus> _callEventController =
+      StreamController<CallLifecycleStatus>.broadcast();
 
-  // Data channel for sending control messages (e.g., toggle mic, camera, etc.)
+  Stream<CallLifecycleStatus> get callEvents => _callEventController.stream;
+
   RTCDataChannel? dataChannel;
   final StreamController<Map<String, dynamic>> _remoteControlController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -32,7 +30,6 @@ class CallManager {
 
   CallManager({required this.signaling, required this.clientId});
 
-  /// Ensures that required permissions (camera, mic, notifications) are granted.
   Future<bool> _ensurePermissions() async {
     final statuses =
         await [
@@ -40,11 +37,14 @@ class CallManager {
           Permission.microphone,
           Permission.notification,
         ].request();
+
     final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
     final microphoneGranted = statuses[Permission.microphone]?.isGranted ?? false;
+
     if (!cameraGranted || !microphoneGranted) {
+      _callEventController.add(CallLifecycleStatus.failed);
       debugPrint(
-        "[CallManager] Permissions not granted. Camera: $cameraGranted, Microphone: $microphoneGranted",
+        "[CallManager] Permissions denied. Camera: $cameraGranted, Microphone: $microphoneGranted",
       );
       return false;
     }
@@ -59,10 +59,13 @@ class CallManager {
       throw Exception("No current call to redial.");
     }
   }
+
   /// Starts an outgoing call by ensuring permissions, obtaining local media,
   /// creating the peer connection and establishing a data channel.
   Future<void> startOutgoingCall(String targetPeerId) async {
+    _callEventController.add(CallLifecycleStatus.calling);
     _currentCallPeerId = targetPeerId;
+
     final permissionsGranted = await _ensurePermissions();
     if (!permissionsGranted) {
       debugPrint("[CallManager] Required permissions not granted. Aborting call start.");
@@ -85,6 +88,7 @@ class CallManager {
 
       // Add local tracks.
       localStream?.getTracks().forEach((track) {
+        debugPrint("[CallManager] Adding local track: $track");
         _peerConnection?.addTrack(track, localStream!);
       });
 
@@ -93,8 +97,10 @@ class CallManager {
         'control',
         RTCDataChannelInit(),
       );
+
       dataChannel?.onMessage = (RTCDataChannelMessage message) {
         try {
+          debugPrint("[CallManager] Received control message: ${message.text}");
           final data = jsonDecode(message.text);
           _remoteControlController.add(data);
         } catch (e) {
@@ -103,39 +109,76 @@ class CallManager {
       };
 
       // Handle ICE candidates.
+      _iceCandidates.clear();
       _peerConnection?.onIceCandidate = (candidate) {
-        if (_currentCallPeerId != null) {
-          signaling.sendIceCandidate(_currentCallPeerId!, candidate.toMap());
-        }
+        _iceCandidates.add(candidate);
       };
 
-      // Handle remote stream.
       _peerConnection?.onAddStream = (stream) {
+        debugPrint("[CallManager] Received remote stream: $stream");
         remoteStream = stream;
-        _callEventController.add(CallEvent.remoteStreamAdded);
+      };
+
+      _peerConnection?.onSignalingState = (state) {
+        debugPrint("[CallManager] Signaling state changed: $state");
+      };
+
+      _peerConnection?.onIceConnectionState = (state) {
+        debugPrint("[CallManager] Ice connection state changed: $state");
+      };
+
+      _peerConnection?.onIceGatheringState = (state) {
+        debugPrint("[CallManager] Ice gathering state changed: $state");
+      };
+
+      _peerConnection?.onConnectionState = (state) {
+        debugPrint("[CallManager] Connection state changed: $state");
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _callEventController.add(CallLifecycleStatus.ended);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          _callEventController.add(CallLifecycleStatus.failed);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          _callEventController.add(CallLifecycleStatus.connected);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
+          _callEventController.add(CallLifecycleStatus.connecting);
+        }
       };
 
       // Create offer and send via signaling.
       RTCSessionDescription offer = await _peerConnection!.createOffer();
       await _peerConnection!.setLocalDescription(offer);
+      debugPrint("[CallManager] Sent offer: $offer");
       await signaling.sendOffer(targetPeerId, offer.toMap());
-      _callEventController.add(CallEvent.callStarted);
     } catch (e) {
+      _callEventController.add(CallLifecycleStatus.failed);
       debugPrint("[CallManager] Error starting outgoing call: $e");
     }
   }
 
   /// Answers an incoming call by obtaining permissions, local media,
   /// creating the peer connection and handling the incoming data channel.
-  Future<void> answerIncomingCall(String senderId, dynamic offer) async {
-    _currentCallPeerId = senderId;
-    final permissionsGranted = await _ensurePermissions();
-    if (!permissionsGranted) {
-      signaling.sendCallDecline(senderId, {"reason": "permissions not granted"});
-      return;
-    }
-
+  Future<void> answerIncomingCall() async {
+    debugPrint("[CallManager] Answering incoming call.");
     try {
+      if (_currentCallPeerId == null) {
+        throw Exception("No current call senderId to answer.");
+      }
+
+      if (_offer == null || _offer!.isEmpty) {
+        throw Exception("No current offer to answer.");
+      }
+
+      String senderId = _currentCallPeerId!;
+      var offer = _offer!;
+
+      final permissionsGranted = await _ensurePermissions();
+      if (!permissionsGranted) {
+        signaling.sendCallDecline(senderId, {"reason": "permissions not granted"});
+        return;
+      }
       // Obtain local media stream.
       localStream = await navigator.mediaDevices.getUserMedia({
         'video': true,
@@ -151,13 +194,43 @@ class CallManager {
 
       // Add local tracks.
       localStream?.getTracks().forEach((track) {
+        debugPrint("[CallManager] Adding local track: $track");
         _peerConnection?.addTrack(track, localStream!);
       });
 
       // Set up ICE candidate handler.
       _peerConnection?.onIceCandidate = (candidate) {
         if (_currentCallPeerId != null) {
+          debugPrint("[CallManager] Sending IceCandidate [B]");
           signaling.sendIceCandidate(_currentCallPeerId!, candidate.toMap());
+        }
+      };
+
+      _peerConnection?.onSignalingState = (state) {
+        debugPrint("[CallManager] Signaling state changed: $state");
+      };
+
+      _peerConnection?.onIceConnectionState = (state) {
+        debugPrint("[CallManager] Ice connection state changed: $state");
+      };
+
+      _peerConnection?.onIceGatheringState = (state) {
+        debugPrint("[CallManager] Ice gathering state changed: $state");
+      };
+
+      _peerConnection?.onConnectionState = (state) {
+        debugPrint("[CallManager] Connection state changed: $state");
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _callEventController.add(CallLifecycleStatus.ended);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          _callEventController.add(CallLifecycleStatus.failed);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          _callEventController.add(CallLifecycleStatus.connected);
+        }
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
+          _callEventController.add(CallLifecycleStatus.connecting);
         }
       };
 
@@ -167,6 +240,7 @@ class CallManager {
         dataChannel?.onMessage = (RTCDataChannelMessage message) {
           try {
             final data = jsonDecode(message.text);
+            debugPrint("[CallManager] Received control message: $data");
             _remoteControlController.add(data);
           } catch (e) {
             debugPrint("[CallManager] Error decoding incoming data channel message: $e");
@@ -176,8 +250,8 @@ class CallManager {
 
       // Handle remote stream.
       _peerConnection?.onAddStream = (stream) {
+        debugPrint("[CallManager] Received remote stream: $stream");
         remoteStream = stream;
-        _callEventController.add(CallEvent.remoteStreamAdded);
       };
 
       // Set remote description from the received offer.
@@ -187,9 +261,12 @@ class CallManager {
       // Create answer.
       RTCSessionDescription answer = await _peerConnection!.createAnswer();
       await _peerConnection!.setLocalDescription(answer);
+      debugPrint("[CallManager] Sent answer: $answer");
       await signaling.sendAnswer(senderId, answer.toMap());
-      _callEventController.add(CallEvent.callStarted);
+
+      _callEventController.add(CallLifecycleStatus.connecting);
     } catch (e) {
+      _callEventController.add(CallLifecycleStatus.failed);
       debugPrint("[CallManager] Error answering incoming call: $e");
     }
   }
@@ -210,13 +287,15 @@ class CallManager {
   /// Hangs up the call.
   Future<void> hangUp() async {
     try {
+      localStream?.getTracks().forEach((track) => track.stop());
+      remoteStream?.getTracks().forEach((track) => track.stop());
       await _peerConnection?.close();
     } catch (e) {
       debugPrint("[CallManager] Error during hang up: $e");
     }
     _peerConnection = null;
     _currentCallPeerId = null;
-    _callEventController.add(CallEvent.callEnded);
+    _callEventController.add(CallLifecycleStatus.ended);
   }
 
   /// Sends a control message over the data channel.
@@ -246,13 +325,14 @@ class CallManager {
             await _handleIncomingIceCandidate(event.data);
             break;
           case SignalingEventType.callDeclined:
-            _handleCallDeclined();
+            _callEventController.add(CallLifecycleStatus.declined);
             break;
           default:
-            debugPrint("[CallManager] unknown signaling event: $event");
+            debugPrint("[CallManager] unknown signaling event: ${event.type}");
             break;
         }
       } catch (e) {
+        _callEventController.add(CallLifecycleStatus.failed);
         debugPrint("[CallManager] Error handling signaling event: $e");
       }
     });
@@ -262,12 +342,11 @@ class CallManager {
   /// and emitting the appropriate event.
   Future<void> _handleIncomingOffer(dynamic data) async {
     final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
-    final String senderId = parsedData['senderId'];
-    final dynamic offer = parsedData['offer'];
 
-    // Automatically answer the call.
-    await answerIncomingCall(senderId, offer);
-    _callEventController.add(CallEvent.callStarted);
+    _currentCallPeerId = parsedData['senderId'];
+    _offer = parsedData['offer'];
+    // Emit event to notify an incoming call.
+    _callEventController.add(CallLifecycleStatus.incoming);
   }
 
   /// Handles an incoming answer by setting the remote description.
@@ -277,10 +356,18 @@ class CallManager {
     await _peerConnection?.setRemoteDescription(
       RTCSessionDescription(answer['sdp'], answer['type']),
     );
-    _callEventController.add(CallEvent.callStarted);
+    debugPrint("[CallManager] Receive answer: $answer");
+    // Notify that the receiver is ringing
+    _callEventController.add(CallLifecycleStatus.ringing);
+
+    if (_currentCallPeerId?.isNotEmpty ?? false) {
+      debugPrint("[CallManager] Sending IceCandidate [A] [${_iceCandidates.length}]");
+      for (var candidate in _iceCandidates) {
+        signaling.sendIceCandidate(_currentCallPeerId!, candidate.toMap());
+      }
+    }
   }
 
-  /// Handles an incoming ICE candidate.
   Future<void> _handleIncomingIceCandidate(dynamic data) async {
     final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
     final dynamic candidate = parsedData['candidate'];
@@ -290,10 +377,6 @@ class CallManager {
       candidate['sdpMLineIndex'],
     );
     await _peerConnection?.addCandidate(rtcCandidate);
-  }
-
-  /// Handles the call-declined event.
-  void _handleCallDeclined() {
-    _callEventController.add(CallEvent.callEnded);
+    debugPrint("[CallManager] Receive IceCandidate: ${rtcCandidate.toMap()}");
   }
 }

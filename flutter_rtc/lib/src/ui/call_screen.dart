@@ -89,7 +89,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         // For an outgoing video call that is not yet connected,
         // display the local stream full screen.
         if (state.callMode == CallMode.video &&
-            (state.lifecycleStatus == CallLifecycleStatus.outgoing ||
+            (state.lifecycleStatus == CallLifecycleStatus.calling ||
                 state.lifecycleStatus == CallLifecycleStatus.connecting) &&
             state.remoteStream == null) {
           return _buildOutgoingLocalOnlyView(state);
@@ -129,9 +129,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                   icon: const Icon(Icons.call_end, color: Colors.red),
                   onPressed: () async {
                     widget.callBloc.add(HangUpCallEvent());
-                    // if (mounted) {
-                    //   Navigator.of(context).popUntil((route) => route.isFirst);
-                    // }
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                    }
                   },
                 ),
               ],
@@ -178,6 +178,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   FloatingActionButton(
+                    heroTag: 'declined',
                     onPressed: () {
                       widget.callBloc.add(
                         DeclineIncomingCallEvent(reason: "declined by user"),
@@ -187,6 +188,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                     child: const Icon(Icons.call_end, size: 30),
                   ),
                   FloatingActionButton(
+                    heroTag: 'Call',
                     onPressed: () {
                       widget.callBloc.add(
                         AcceptIncomingCallEvent(callMode: state.callMode),
@@ -388,6 +390,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           icon: const Icon(Icons.call_end, color: Colors.red),
           onPressed: () async {
             widget.callBloc.add(HangUpCallEvent());
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
           },
         ),
       ],
@@ -415,6 +420,9 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                   icon: const Icon(Icons.close, color: Colors.red, size: 40),
                   onPressed: () async {
                     widget.callBloc.add(HangUpCallEvent());
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                    }
                   },
                 ),
               ],
@@ -429,10 +437,8 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   /// Maps the call lifecycle status to a user-friendly string.
   String _mapLifecycleStatusToText(CallLifecycleStatus status) {
     switch (status) {
-      case CallLifecycleStatus.initiated:
-        return "Initiated";
-      case CallLifecycleStatus.outgoing:
-        return "Outgoing";
+      case CallLifecycleStatus.calling:
+        return "Calling";
       case CallLifecycleStatus.incoming:
         return "Incoming";
       case CallLifecycleStatus.ringing:
@@ -445,12 +451,8 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         return "Ended";
       case CallLifecycleStatus.declined:
         return "Declined";
-      case CallLifecycleStatus.cancelled:
-        return "Cancelled";
       case CallLifecycleStatus.failed:
         return "Failed";
-      case CallLifecycleStatus.timedOut:
-        return "Timed Out";
       default:
         return "";
     }

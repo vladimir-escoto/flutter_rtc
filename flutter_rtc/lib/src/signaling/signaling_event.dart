@@ -6,6 +6,8 @@ enum SignalingEventType {
   incomingAnswer,
   incomingIceCandidate,
   callDeclined,
+  dataChannelMessage,
+  connectionQualityChanged,
   error,
 }
 

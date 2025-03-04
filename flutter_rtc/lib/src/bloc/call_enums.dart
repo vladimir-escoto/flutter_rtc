@@ -5,17 +5,14 @@
 /// Enum representing the different lifecycle statuses of a call.
 enum CallLifecycleStatus {
   initial,    // No call has been initiated.
-  initiated,  // Call process has started.
-  outgoing,   // Outgoing call is in progress.
+  calling,    // Outgoing call is in progress.
   incoming,   // Incoming call received.
   ringing,    // Incoming call is ringing.
   connecting, // Negotiation (offer/answer/ICE) is in progress.
   connected,  // Call has been successfully connected.
   ended,      // Call has ended normally.
-  declined,   // Call was declined.
-  cancelled,  // Outgoing call was cancelled before answer.
+  declined,   // Outgoing call was cancelled before answer.
   failed,     // Call failed due to an error.
-  timedOut,   // Call timed out (no answer within expected time).
 }
 
 /// Enum for local control types.
@@ -41,13 +38,6 @@ enum UIEventType {
   dragged,
   callTimerUpdated,
   callStatusChanged,
-}
-
-/// Enum for signaling event types.
-enum SignalingEventType {
-  iceCandidate,
-  dataChannelMessage,
-  connectionQualityChanged,
 }
 
 /// Enum for call mode.
