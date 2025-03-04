@@ -1,14 +1,11 @@
-// lib/call_manager.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:flutter_rtc/src/signaling/signaling_event.dart';
-import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
-import 'package:flutter_rtc/src/ui/incoming_call_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../flutter_rtc.dart';
 
-/// Events emitted during the call process.
+/// Internal events emitted during the call process.
 enum CallEvent { remoteStreamAdded, callStarted, callEnded }
 
 class CallManager {
@@ -18,61 +15,35 @@ class CallManager {
   MediaStream? localStream;
   MediaStream? remoteStream;
   String? _currentCallPeerId;
-  final StreamController<CallEvent> _callEventController = StreamController<CallEvent>.broadcast();
+
+  final StreamController<CallEvent> _callEventController =
+      StreamController<CallEvent>.broadcast();
+
   Stream<CallEvent> get callEvents => _callEventController.stream;
 
   // Data channel for sending control messages (e.g., toggle mic, camera, etc.)
   RTCDataChannel? dataChannel;
-  final StreamController<Map<String, dynamic>> _remoteControlController = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _remoteControlController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
   Stream<Map<String, dynamic>> get remoteControlEvents => _remoteControlController.stream;
 
   CallManager({required this.signaling, required this.clientId});
 
-  /// Checks and requests notification permission.
-  Future<void> checkNotificationPermission(BuildContext context) async {
-    final status = await Permission.notification.status;
-    if (!status.isGranted) {
-      if (status.isPermanentlyDenied) {
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Permission Required'),
-            content: const Text(
-              'Notification permission is permanently denied. Please open settings and enable it to receive call notifications.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  openAppSettings();
-                },
-                child: const Text('Open Settings'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        final result = await Permission.notification.request();
-        if (!result.isGranted) {
-          debugPrint("Notification permission not granted");
-        }
-      }
-    }
-  }
-
-  /// Checks and requests camera and microphone permissions.
+  /// Ensures that required permissions (camera, mic, notifications) are granted.
   Future<bool> _ensurePermissions() async {
-    final statuses = await [
-      Permission.camera,
-      Permission.microphone,
-      Permission.notification,
-    ].request();
-
+    final statuses =
+        await [
+          Permission.camera,
+          Permission.microphone,
+          Permission.notification,
+        ].request();
     final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
     final microphoneGranted = statuses[Permission.microphone]?.isGranted ?? false;
-
     if (!cameraGranted || !microphoneGranted) {
-      debugPrint("[CallManager] Permissions not granted. Camera: $cameraGranted, Microphone: $microphoneGranted");
+      debugPrint(
+        "[CallManager] Permissions not granted. Camera: $cameraGranted, Microphone: $microphoneGranted",
+      );
       return false;
     }
     return true;
@@ -90,7 +61,10 @@ class CallManager {
 
     try {
       // Obtain local media stream.
-      localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
+      localStream = await navigator.mediaDevices.getUserMedia({
+        'video': true,
+        'audio': true,
+      });
 
       // Create the peer connection.
       _peerConnection = await createPeerConnection({
@@ -105,7 +79,10 @@ class CallManager {
       });
 
       // Create a data channel for control messages.
-      dataChannel = await _peerConnection!.createDataChannel('control', RTCDataChannelInit());
+      dataChannel = await _peerConnection!.createDataChannel(
+        'control',
+        RTCDataChannelInit(),
+      );
       dataChannel?.onMessage = (RTCDataChannelMessage message) {
         try {
           final data = jsonDecode(message.text);
@@ -115,7 +92,7 @@ class CallManager {
         }
       };
 
-      // Set up ICE candidate handler.
+      // Handle ICE candidates.
       _peerConnection?.onIceCandidate = (candidate) {
         if (_currentCallPeerId != null) {
           signaling.sendIceCandidate(_currentCallPeerId!, candidate.toMap());
@@ -150,7 +127,10 @@ class CallManager {
 
     try {
       // Obtain local media stream.
-      localStream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': true});
+      localStream = await navigator.mediaDevices.getUserMedia({
+        'video': true,
+        'audio': true,
+      });
 
       // Create the peer connection.
       _peerConnection = await createPeerConnection({
@@ -191,7 +171,9 @@ class CallManager {
       };
 
       // Set remote description from the received offer.
-      await _peerConnection!.setRemoteDescription(RTCSessionDescription(offer['sdp'], offer['type']));
+      await _peerConnection!.setRemoteDescription(
+        RTCSessionDescription(offer['sdp'], offer['type']),
+      );
       // Create answer.
       RTCSessionDescription answer = await _peerConnection!.createAnswer();
       await _peerConnection!.setLocalDescription(answer);
@@ -202,68 +184,17 @@ class CallManager {
     }
   }
 
-  /// Listens to signaling events for incoming calls.
-  /// Since this is a library, we manage navigation internally.
-  Future<void> setupIncomingCallListener(BuildContext context) async {
-    await _ensurePermissions();
-    signaling.events.listen((event) async {
-      try {
-        if (event.type == SignalingEventType.incomingOffer) {
-          final data = event.data as Map<String, dynamic>;
-          final String senderId = data['senderId'];
-          final dynamic _ = data['offer'];
-          // Show incoming call UI.
-          await Navigator.of(context).push(MaterialPageRoute(
-            fullscreenDialog: true,
-            builder: (_) => IncomingCallScreen(
-              callerName: senderId,
-              onAccept: () async {
-                // await answerIncomingCall(senderId, offer);
-                // _callEventController.add(CallEvent.callStarted);
-                // Navigator.of(context).pop(); // Close incoming call screen.
-                // // Navigate to active call screen.
-                // Navigator.of(context).push(MaterialPageRoute(
-                //   builder: (_) => EnhancedCallScreen(
-                //     callManager: this,
-                //     onHangUp: () async {
-                //       await hangUp();
-                //       Navigator.of(context).popUntil((route) => route.isFirst);
-                //     },
-                //     onRedial: () {
-                //       // Implement re-dial logic if desired.
-                //     },
-                //   ),
-                // ));
-              },
-              onDecline: () {
-                signaling.sendCallDecline(senderId, {"reason": "declined by user"});
-                Navigator.of(context).pop();
-              },
-            ),
-          ));
-        } else if (event.type == SignalingEventType.incomingAnswer) {
-          final data = event.data as Map<String, dynamic>;
-          final answer = data['answer'];
-          await _peerConnection?.setRemoteDescription(
-            RTCSessionDescription(answer['sdp'], answer['type']),
-          );
-          _callEventController.add(CallEvent.callStarted);
-        } else if (event.type == SignalingEventType.incomingIceCandidate) {
-          final data = event.data as Map<String, dynamic>;
-          final candidate = data['candidate'];
-          final rtcCandidate = RTCIceCandidate(
-            candidate['candidate'],
-            candidate['sdpMid'],
-            candidate['sdpMLineIndex'],
-          );
-          await _peerConnection?.addCandidate(rtcCandidate);
-        } else if (event.type == SignalingEventType.callDeclined) {
-          _callEventController.add(CallEvent.callEnded);
-        }
-      } catch (e) {
-        debugPrint("[CallManager] Error handling signaling event: $e");
+  Future<void> switchCamera() async {
+    try {
+      final videoTrack = localStream?.getVideoTracks().first;
+      if (videoTrack != null) {
+        Helper.switchCamera(videoTrack);
       }
-    });
+
+      sendControlMessage("switch_camera", true);
+    } catch (e) {
+      debugPrint("[CallManager] Error during switch Camera: $e");
+    }
   }
 
   /// Hangs up the call.
@@ -279,7 +210,6 @@ class CallManager {
   }
 
   /// Sends a control message over the data channel.
-  /// For example: {"event": "toggle_mic", "value": true}
   Future<void> sendControlMessage(String event, dynamic value) async {
     if (dataChannel != null) {
       try {
@@ -289,5 +219,71 @@ class CallManager {
         debugPrint("[CallManager] Error sending control message: $e");
       }
     }
+  }
+
+  Future<void> setupIncomingCallListener() async {
+    await _ensurePermissions();
+    signaling.events.listen((event) async {
+      try {
+        switch (event.type) {
+          case SignalingEventType.incomingOffer:
+            await _handleIncomingOffer(event.data);
+            break;
+          case SignalingEventType.incomingAnswer:
+            await _handleIncomingAnswer(event.data);
+            break;
+          case SignalingEventType.incomingIceCandidate:
+            await _handleIncomingIceCandidate(event.data);
+            break;
+          case SignalingEventType.callDeclined:
+            _handleCallDeclined();
+            break;
+          default:
+            debugPrint("[CallManager] unknown signaling event: $event");
+            break;
+        }
+      } catch (e) {
+        debugPrint("[CallManager] Error handling signaling event: $e");
+      }
+    });
+  }
+
+  /// Handles an incoming offer by automatically answering it
+  /// and emitting the appropriate event.
+  Future<void> _handleIncomingOffer(dynamic data) async {
+    final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
+    final String senderId = parsedData['senderId'];
+    final dynamic offer = parsedData['offer'];
+
+    // Automatically answer the call.
+    await answerIncomingCall(senderId, offer);
+    _callEventController.add(CallEvent.callStarted);
+  }
+
+  /// Handles an incoming answer by setting the remote description.
+  Future<void> _handleIncomingAnswer(dynamic data) async {
+    final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
+    final dynamic answer = parsedData['answer'];
+    await _peerConnection?.setRemoteDescription(
+      RTCSessionDescription(answer['sdp'], answer['type']),
+    );
+    _callEventController.add(CallEvent.callStarted);
+  }
+
+  /// Handles an incoming ICE candidate.
+  Future<void> _handleIncomingIceCandidate(dynamic data) async {
+    final Map<String, dynamic> parsedData = data as Map<String, dynamic>;
+    final dynamic candidate = parsedData['candidate'];
+    final rtcCandidate = RTCIceCandidate(
+      candidate['candidate'],
+      candidate['sdpMid'],
+      candidate['sdpMLineIndex'],
+    );
+    await _peerConnection?.addCandidate(rtcCandidate);
+  }
+
+  /// Handles the call-declined event.
+  void _handleCallDeclined() {
+    _callEventController.add(CallEvent.callEnded);
   }
 }

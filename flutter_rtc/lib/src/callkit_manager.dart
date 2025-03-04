@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_callkit_incoming/entities/android_params.dart';
 import 'package:flutter_callkit_incoming/entities/call_event.dart';
 import 'package:flutter_callkit_incoming/entities/call_kit_params.dart';
@@ -77,14 +78,14 @@ class CallKitManager {
         } else if (event.event == Event.actionCallDecline) {
           _callKitEventController.add(CallKitEvent.declined);
         } else {
-          print("[CallKit] Unknown action: $event.event");
+          debugPrint("[CallKit] Unknown action: $event.event");
         }
       } else {
-        print("[CallKit] Unknown event type: $event");
+        debugPrint("[CallKit] Unknown event type: $event");
       }
     });
 
-    print("[CallKit] Showing incoming call from $callerName (id: $callId)");
+    debugPrint("[CallKit] Showing incoming call from $callerName (id: $callId)");
     await FlutterCallkitIncoming.showCallkitIncoming(params);
   }
 

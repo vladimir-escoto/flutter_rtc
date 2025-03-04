@@ -15,13 +15,6 @@ class CallLifecycleEvent extends CallBlocEvent {
   CallLifecycleEvent({required this.status, this.details});
 }
 
-/// Event for local control actions (with an explicit value).
-class LocalControlEvent extends CallBlocEvent {
-  final LocalControlType control;
-  final bool value;
-  LocalControlEvent({required this.control, required this.value});
-}
-
 /// **New Event:** Event for toggling a local control.
 /// Instead of providing a new value, the BLoC will compute the toggle.
 class ToggleLocalControlEvent extends CallBlocEvent {
@@ -71,3 +64,6 @@ class DeclineIncomingCallEvent extends CallBlocEvent {
 
 /// New event: Hang up the current call.
 class HangUpCallEvent extends CallBlocEvent {}
+
+/// New event for switching the camera.
+class SwitchCameraEvent extends CallBlocEvent {}

@@ -4,13 +4,14 @@
 // UI state (e.g., minimized and position), call duration, and an optional error message.
 
 import 'dart:ui'; // for Offset
+import 'package:equatable/equatable.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'call_enums.dart';
 
 /// The state for the call, including lifecycle, local and remote control statuses,
 /// UI state, call duration, and any error message.
-class CallBlocState {
+class CallBlocState extends Equatable {
   // Call lifecycle status.
   final CallLifecycleStatus lifecycleStatus;
 
@@ -39,7 +40,7 @@ class CallBlocState {
   final MediaStream? localStream;
   final MediaStream? remoteStream;
 
-  const CallBlocState( {
+  const CallBlocState({
     required this.localStream,
     required this.remoteStream,
     required this.lifecycleStatus,
@@ -88,9 +89,9 @@ class CallBlocState {
       uiMinimized: uiMinimized ?? this.uiMinimized,
       uiPosition: uiPosition ?? this.uiPosition,
       callDuration: callDuration ?? this.callDuration,
-      errorMessage: errorMessage?? this.errorMessage,
-      localStream: localStream??this.localStream,
-      remoteStream: remoteStream??this.remoteStream,
+      errorMessage: errorMessage ?? this.errorMessage,
+      localStream: localStream ?? this.localStream,
+      remoteStream: remoteStream ?? this.remoteStream,
     );
   }
 
@@ -98,6 +99,25 @@ class CallBlocState {
   String toString() {
     return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode, remoteMicOn: $remoteMicOn, remoteCameraOn: $remoteCameraOn, uiMinimized: $uiMinimized, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
   }
+
+  @override
+  List<Object?> get props => [
+    localStream,
+    remoteStream,
+    lifecycleStatus,
+    localMicOn,
+    localCameraOn,
+    localSpeakerOn,
+    localScreenShareOn,
+    callMode,
+    remoteMicOn,
+    remoteCameraOn,
+    remoteScreenShareOn,
+    uiMinimized,
+    uiPosition,
+    callDuration,
+    errorMessage,
+  ];
 }
 
 /// The initial state for the call BLoC.

@@ -5,7 +5,6 @@ export 'src/signaling/signaling_event.dart';
 export 'src/call_manager.dart';
 export 'src/ui/call_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
-export 'src/ui/incoming_call_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/src/call_manager.dart';
@@ -34,7 +33,7 @@ class FlutterRTC {
   }
 
   Future<void> initialize(BuildContext context) async {
-    await callManager.setupIncomingCallListener(context);
+    await callManager.setupIncomingCallListener();
     await signaling.connect();
   }
 
@@ -53,7 +52,6 @@ class FlutterRTC {
 
   Future<void> hangUp() async {
     await callManager.hangUp();
-    await signaling.disconnect();
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
   }
 }

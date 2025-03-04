@@ -16,12 +16,13 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   final CallManager callManager;
 
   CallBloc({required this.callManager})
-      : super(initialCallBlocState.copyWith(
-    localStream: callManager.localStream,
-    remoteStream: callManager.remoteStream,
-  )) {
+    : super(
+        initialCallBlocState.copyWith(
+          localStream: callManager.localStream,
+          remoteStream: callManager.remoteStream,
+        ),
+      ) {
     on<CallLifecycleEvent>(_handleLifecycleEvent);
-    on<LocalControlEvent>(_handleLocalControlEvent);
     on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
     on<RemoteControlEvent>(_handleRemoteControlEvent);
     on<UIEvent>(_handleUIEvent);
@@ -37,39 +38,22 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
     // When connected, update remoteStream from the callManager.
     if (event.status == CallLifecycleStatus.connected) {
-      emit(state.copyWith(
-        lifecycleStatus: event.status,
-        remoteStream: callManager.remoteStream,
-      ));
+      emit(
+        state.copyWith(
+          lifecycleStatus: event.status,
+          remoteStream: callManager.remoteStream,
+        ),
+      );
     } else {
       emit(state.copyWith(lifecycleStatus: event.status));
     }
   }
 
-  /// Handles explicit local control events.
-  void _handleLocalControlEvent(LocalControlEvent event, Emitter<CallBlocState> emit) {
-    switch (event.control) {
-      case LocalControlType.mic:
-        emit(state.copyWith(localMicOn: event.value));
-        break;
-      case LocalControlType.camera:
-        emit(state.copyWith(localCameraOn: event.value));
-        break;
-      case LocalControlType.speaker:
-        emit(state.copyWith(localSpeakerOn: event.value));
-        break;
-      case LocalControlType.screenshare:
-        emit(state.copyWith(localScreenShareOn: event.value));
-        break;
-      case LocalControlType.callMode:
-      // event.value: true for video, false for audio.
-        emit(state.copyWith(callMode: event.value ? CallMode.video : CallMode.audio));
-        break;
-    }
-  }
-
   /// Handles toggle events by reading the current state and toggling it.
-  void _handleToggleLocalControlEvent(ToggleLocalControlEvent event, Emitter<CallBlocState> emit) {
+  void _handleToggleLocalControlEvent(
+    ToggleLocalControlEvent event,
+    Emitter<CallBlocState> emit,
+  ) {
     switch (event.control) {
       case LocalControlType.mic:
         emit(state.copyWith(localMicOn: !state.localMicOn));
@@ -84,9 +68,11 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         emit(state.copyWith(localScreenShareOn: !state.localScreenShareOn));
         break;
       case LocalControlType.callMode:
-        emit(state.copyWith(
-          callMode: state.callMode == CallMode.video ? CallMode.audio : CallMode.video,
-        ));
+        emit(
+          state.copyWith(
+            callMode: state.callMode == CallMode.video ? CallMode.audio : CallMode.video,
+          ),
+        );
         break;
     }
   }
@@ -126,7 +112,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         }
         break;
       case UIEventType.callStatusChanged:
-      // Additional UI updates if needed.
+        // Additional UI updates if needed.
         break;
     }
   }
@@ -144,36 +130,49 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   }
 
   /// New handler: Accept an incoming call.
-  void _handleAcceptIncomingCallEvent(AcceptIncomingCallEvent event, Emitter<CallBlocState> emit) {
-    emit(state.copyWith(
-      lifecycleStatus: CallLifecycleStatus.connected,
-      callDuration: Duration.zero,
-      // Optionally update streams from callManager.
-      localStream: callManager.localStream,
-      remoteStream: callManager.remoteStream,
-    ));
+  void _handleAcceptIncomingCallEvent(
+    AcceptIncomingCallEvent event,
+    Emitter<CallBlocState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        lifecycleStatus: CallLifecycleStatus.connected,
+        callDuration: Duration.zero,
+        // Optionally update streams from callManager.
+        localStream: callManager.localStream,
+        remoteStream: callManager.remoteStream,
+      ),
+    );
   }
 
   /// New handler: Decline an incoming call.
-  void _handleDeclineIncomingCallEvent(DeclineIncomingCallEvent event, Emitter<CallBlocState> emit) {
-    emit(state.copyWith(
-      lifecycleStatus: CallLifecycleStatus.declined,
-      errorMessage: event.reason,
-    ));
+  void _handleDeclineIncomingCallEvent(
+    DeclineIncomingCallEvent event,
+    Emitter<CallBlocState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        lifecycleStatus: CallLifecycleStatus.declined,
+        errorMessage: event.reason,
+      ),
+    );
   }
 
   /// New handler: Hang up the current call.
-  void _handleHangUpCallEvent(HangUpCallEvent event, Emitter<CallBlocState> emit) {
+  Future<void> _handleHangUpCallEvent(
+    HangUpCallEvent event,
+    Emitter<CallBlocState> emit,
+  ) async {
+    await callManager.hangUp();
     emit(state.copyWith(lifecycleStatus: CallLifecycleStatus.ended));
   }
 
   /// New handler: Switch camera.
-  void _handleSwitchCameraEvent(SwitchCameraEvent event, Emitter<CallBlocState> emit) {
+  Future<void> _handleSwitchCameraEvent(
+    SwitchCameraEvent event,
+    Emitter<CallBlocState> emit,
+  ) async {
     // CallManager is used to send the switch camera command.
-    callManager.sendControlMessage("switch_camera", true);
-    // No state change required.
+    await callManager.switchCamera();
   }
 }
-
-/// New event for switching the camera.
-class SwitchCameraEvent extends CallBlocEvent {}
