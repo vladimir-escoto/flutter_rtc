@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
+import 'package:uuid/uuid.dart';
 import 'signaling_interface.dart';
 import 'signaling_event.dart';
 import 'signaling_configuration.dart';
@@ -15,24 +16,7 @@ class MQTTSignaling implements SignalingInterface {
   int _reconnectAttempts = 0;
   final int _maxReconnectAttempts = 5;
 
-  MQTTSignaling({required this.config}) {
-    _client = MqttServerClient(config.brokerUrl, config.clientId);
-    _client.port = config.port;
-    _client.logging(on: false);
-    _client.keepAlivePeriod = 20; // Keep the connection alive
-    _client.onConnected = _onConnected;
-    _client.onDisconnected = _onDisconnected;
-    _client.onSubscribed = _onSubscribed;
-    _client.onSubscribeFail = _onSubscribeFail;
-    _client.onUnsubscribed = _onUnsubscribed;
-    _client.pongCallback = _onPong;
-
-    final connMess =
-        MqttConnectMessage()
-            .withClientIdentifier(config.clientId)
-            .startClean(); // Non persistent session for testing
-    _client.connectionMessage = connMess;
-  }
+  MQTTSignaling({required this.config});
 
   @override
   Stream<SignalingEvent> get events => _eventController.stream;
@@ -40,6 +24,20 @@ class MQTTSignaling implements SignalingInterface {
   @override
   Future<void> connect() async {
     try {
+      final uuid = Uuid().v4();
+      _client = MqttServerClient(config.brokerUrl, uuid);
+      _client.port = config.port;
+      _client.logging(on: false);
+      _client.keepAlivePeriod = 30; // Keep the connection alive
+      _client.onConnected = _onConnected;
+      _client.onDisconnected = _onDisconnected;
+      _client.onSubscribed = _onSubscribed;
+      _client.onSubscribeFail = _onSubscribeFail;
+      _client.onUnsubscribed = _onUnsubscribed;
+      _client.pongCallback = _onPong;
+
+      final connMess = MqttConnectMessage().withClientIdentifier(uuid).startSession();
+      _client.connectionMessage = connMess;
       debugPrint("[MQTT] Connecting to broker ${config.brokerUrl}...");
       await _client.connect();
     } catch (e) {
@@ -73,10 +71,6 @@ class MQTTSignaling implements SignalingInterface {
   void _onConnected() {
     debugPrint("[MQTT] Connection established");
     _eventController.add(SignalingEvent(type: SignalingEventType.connected));
-    _reconnectAttempts = 0;
-
-    debugPrint("[MQTT] Connected to MQTT 5 broker");
-    _reconnectAttempts = 0;
 
     // Subscribe to the client's topic
     final topic = '${config.topicPrefix}/${config.clientId}';
@@ -110,7 +104,7 @@ class MQTTSignaling implements SignalingInterface {
   }
 
   void _onPong() {
-    debugPrint("[MQTT] Ping response received");
+    //debugPrint("[MQTT] Ping response received");
   }
 
   Future<void> _publishMessage(String topic, Map<String, dynamic> message) async {

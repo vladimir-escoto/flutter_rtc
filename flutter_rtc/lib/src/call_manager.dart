@@ -65,7 +65,7 @@ class CallManager {
   Future<void> startOutgoingCall(String targetPeerId) async {
     _callEventController.add(CallLifecycleStatus.initial);
 
-    Future.delayed(const Duration(milliseconds: 500));
+
 
     _callEventController.add(CallLifecycleStatus.calling);
     _currentCallPeerId = targetPeerId;
@@ -142,7 +142,7 @@ class CallManager {
     debugPrint("[CallManager] Answering incoming call.");
     try {
       _callEventController.add(CallLifecycleStatus.initial);
-      Future.delayed(const Duration(milliseconds: 500));
+
       if (_currentCallPeerId == null) {
         throw Exception("No current call senderId to answer.");
       }
