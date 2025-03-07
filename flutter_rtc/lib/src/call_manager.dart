@@ -18,10 +18,10 @@ class CallManager {
   final List<RTCIceCandidate> _iceCandidates = [];
   Map<String, dynamic>? _offer;
 
-  final StreamController<CallLifecycleStatus> _callEventController =
-      StreamController<CallLifecycleStatus>.broadcast();
+  final StreamController<CallEvent> _callEventController =
+      StreamController<CallEvent>.broadcast();
 
-  Stream<CallLifecycleStatus> get callEvents => _callEventController.stream;
+  Stream<CallEvent> get callEvents => _callEventController.stream;
 
   RTCDataChannel? dataChannel;
   final StreamController<Map<String, dynamic>> _remoteControlController =
@@ -32,6 +32,10 @@ class CallManager {
   StreamSubscription? _signalingSubscription;
 
   CallManager({required this.signaling, required this.clientId});
+
+  void _sendCallEvent(CallLifecycleStatus status, {dynamic value}) {
+    _callEventController.add(CallEvent(type: status, value: value));
+  }
 
   /// Ensures that necessary permissions are granted.
   Future<bool> _ensurePermissions() async {
@@ -47,7 +51,7 @@ class CallManager {
     final notificationGranted = statuses[Permission.notification]?.isGranted ?? false;
 
     if (!cameraGranted || !microphoneGranted) {
-      _callEventController.add(CallLifecycleStatus.failed);
+      _sendCallEvent(CallLifecycleStatus.failed);
       debugPrint(
         "[CallManager] Permissions denied. Camera: $cameraGranted, Microphone: $microphoneGranted, Notification: $notificationGranted",
       );
@@ -100,9 +104,9 @@ class CallManager {
   /// peer connection, data channel and sending the offer via signaling.
   Future<void> startOutgoingCall(String targetPeerId, bool enableVideo) async {
     try {
-      _callEventController.add(CallLifecycleStatus.initial);
+      _sendCallEvent(CallLifecycleStatus.initial);
       _currentCallPeerId = targetPeerId;
-      _callEventController.add(CallLifecycleStatus.calling);
+      _sendCallEvent(CallLifecycleStatus.calling);
 
       if (!await _ensurePermissions()) {
         debugPrint(
@@ -131,10 +135,10 @@ class CallManager {
       RTCSessionDescription offer = await _peerConnection!.createOffer();
       await _peerConnection!.setLocalDescription(offer);
       debugPrint("[CallManager] Sent offer: $offer");
-      await signaling.sendOffer(targetPeerId, offer.toMap());
+      await signaling.sendOffer(targetPeerId, offer.toMap(), enableVideo);
     } catch (e) {
       debugPrint("[CallManager] Error starting outgoing call: $e");
-      _callEventController.add(CallLifecycleStatus.failed);
+      _sendCallEvent(CallLifecycleStatus.failed);
     }
   }
 
@@ -143,7 +147,7 @@ class CallManager {
   Future<void> answerIncomingCall() async {
     try {
       debugPrint("[CallManager] Answering incoming call.");
-      _callEventController.add(CallLifecycleStatus.initial);
+      _sendCallEvent(CallLifecycleStatus.initial);
       if (_currentCallPeerId == null) {
         throw Exception("No current call senderId to answer.");
       }
@@ -188,10 +192,10 @@ class CallManager {
       debugPrint("[CallManager] Sent answer: $answer");
       await signaling.sendAnswer(senderId, answer.toMap());
 
-      _callEventController.add(CallLifecycleStatus.connecting);
+      _sendCallEvent(CallLifecycleStatus.connecting);
     } catch (e) {
       debugPrint("[CallManager] Error answering incoming call: $e");
-      _callEventController.add(CallLifecycleStatus.failed);
+      _sendCallEvent(CallLifecycleStatus.failed);
     }
   }
 
@@ -269,7 +273,7 @@ class CallManager {
       }
       localStream?.getTracks().forEach((track) => track.stop());
       localStream = null;
-      _callEventController.add(CallLifecycleStatus.connected);
+      _sendCallEvent(CallLifecycleStatus.connected);
       debugPrint("[CallManager] Screen sharing started.");
     } catch (e) {
       debugPrint("[CallManager] Error starting screen sharing: $e");
@@ -296,7 +300,7 @@ class CallManager {
       }
       screenStream?.getTracks().forEach((track) => track.stop());
       screenStream = null;
-      _callEventController.add(CallLifecycleStatus.connected);
+      _sendCallEvent(CallLifecycleStatus.connected);
       debugPrint("[CallManager] Screen sharing stopped.");
     } catch (e) {
       debugPrint("[CallManager] Error stopping screen sharing: $e");
@@ -319,11 +323,11 @@ class CallManager {
             await _handleIncomingIceCandidate(event.data);
             break;
           case SignalingEventType.callDeclined:
-            _callEventController.add(CallLifecycleStatus.declined);
+            _sendCallEvent(CallLifecycleStatus.declined);
             break;
           case SignalingEventType.callEnded:
             await _disposeCall();
-            _callEventController.add(CallLifecycleStatus.ended);
+            _sendCallEvent(CallLifecycleStatus.ended);
             break;
           default:
             debugPrint("[CallManager] Unknown signaling event: ${event.type}");
@@ -331,7 +335,7 @@ class CallManager {
         }
       } catch (e) {
         await _disposeCall();
-        _callEventController.add(CallLifecycleStatus.failed);
+        _sendCallEvent(CallLifecycleStatus.failed);
         debugPrint("[CallManager] Error handling signaling event: $e");
       }
     });
@@ -390,21 +394,21 @@ class CallManager {
     debugPrint("[CallManager] Connection state changed: $state");
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
       _disposeCall();
-      _callEventController.add(CallLifecycleStatus.ended);
+      _sendCallEvent(CallLifecycleStatus.ended);
     }
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
       _disposeCall();
-      _callEventController.add(CallLifecycleStatus.failed);
+      _sendCallEvent(CallLifecycleStatus.failed);
     }
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
       _disposeCall();
-      _callEventController.add(CallLifecycleStatus.failed);
+      _sendCallEvent(CallLifecycleStatus.failed);
     }
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-      _callEventController.add(CallLifecycleStatus.connected);
+      _sendCallEvent(CallLifecycleStatus.connected);
     }
     if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
-      _callEventController.add(CallLifecycleStatus.connecting);
+      _sendCallEvent(CallLifecycleStatus.connecting);
     }
   }
 
@@ -426,7 +430,7 @@ class CallManager {
     debugPrint("[CallManager] Received offer: $parsedData");
     _currentCallPeerId = parsedData['senderId'];
     _offer = parsedData['offer'];
-    _callEventController.add(CallLifecycleStatus.incoming);
+    _sendCallEvent(CallLifecycleStatus.incoming, value: parsedData);
   }
 
   /// Handles an incoming answer by setting the remote description
@@ -438,7 +442,7 @@ class CallManager {
       RTCSessionDescription(answer['sdp'], answer['type']),
     );
     debugPrint("[CallManager] Received answer: $answer");
-    _callEventController.add(CallLifecycleStatus.ringing);
+    _sendCallEvent(CallLifecycleStatus.ringing);
 
     if (_currentCallPeerId?.isNotEmpty ?? false) {
       debugPrint(
@@ -486,7 +490,7 @@ class CallManager {
       await signaling.sendCallEnded(_currentCallPeerId!, "");
     }
     await _disposeCall();
-    _callEventController.add(CallLifecycleStatus.ended);
+    _sendCallEvent(CallLifecycleStatus.ended);
   }
 
   /// Declines an incoming call.
@@ -495,7 +499,7 @@ class CallManager {
       await signaling.sendCallDecline(_currentCallPeerId!, "");
     }
     await _disposeCall();
-    _callEventController.add(CallLifecycleStatus.ended);
+    _sendCallEvent(CallLifecycleStatus.ended);
   }
 
   /// Dispose method to cancel subscriptions and close stream controllers.

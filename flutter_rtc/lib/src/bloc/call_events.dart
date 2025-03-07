@@ -10,10 +10,9 @@ abstract class CallBlocEvent {}
 
 /// Event representing a change in the call lifecycle.
 class CallLifecycleEvent extends CallBlocEvent {
-  final CallLifecycleStatus status;
-  final String? details;
+  final CallEvent status;
 
-  CallLifecycleEvent({required this.status, this.details});
+  CallLifecycleEvent({required this.status});
 }
 
 /// **New Event:** Event for toggling a local control.

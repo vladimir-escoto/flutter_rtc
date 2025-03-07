@@ -40,6 +40,9 @@ class CallBlocState extends Equatable {
   final MediaStream? localStream;
   final MediaStream? remoteStream;
 
+  bool get isVideoCall => callMode == CallMode.video;
+  bool get isAudioCall => callMode == CallMode.audio;
+
   const CallBlocState({
     required this.localStream,
     required this.remoteStream,

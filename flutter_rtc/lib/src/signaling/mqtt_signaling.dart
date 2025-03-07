@@ -129,7 +129,7 @@ class MQTTSignaling implements SignalingInterface {
           _eventController.add(
             SignalingEvent(
               type: SignalingEventType.incomingOffer,
-              data: {'senderId': data['senderId'], 'offer': data['offer']},
+              data: {'senderId': data['senderId'], 'offer': data['offer'], 'enableVideo': data['enableVideo']},
             ),
           );
           break;
@@ -175,11 +175,12 @@ class MQTTSignaling implements SignalingInterface {
   }
 
   @override
-  Future<void> sendOffer(String peerId, dynamic offer) async {
+  Future<void> sendOffer(String peerId, dynamic offer, bool enableVideo) async {
     await _publishMessage('${config.topicPrefix}/$peerId', {
       'event': 'incomingOffer',
       'senderId': config.clientId,
       'offer': offer,
+      'enableVideo': enableVideo,
     });
   }
 

@@ -69,10 +69,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
               notificationTitle: 'Screen Sharing',
               notificationText: 'you are sharing the screen.',
               notificationImportance: AndroidNotificationImportance.normal,
-              notificationIcon: AndroidResource(
-                name: 'ic_launcher',
-                defType: 'mipmap',
-              ),
+              notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
             );
             hasPermissions = await FlutterBackground.initialize(
               androidConfig: androidConfig,
@@ -122,10 +119,17 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
       },
       builder: (context, state) {
         // Set the renderer sources from the state.
-        if (state.localStream != null && _localRenderer.textureId != null) {
+        if (state.localStream != null &&
+            state.isVideoCall &&
+            state.localCameraOn &&
+            _localRenderer.textureId != null) {
           _localRenderer.srcObject = state.localStream;
         }
-        if (state.remoteStream != null && _localRenderer.textureId != null) {
+
+        if (state.remoteStream != null &&
+            state.isVideoCall &&
+            state.remoteCameraOn &&
+            _localRenderer.textureId != null) {
           _remoteRenderer.srcObject = state.remoteStream;
         }
         // If an incoming call is detected, show the incoming call view.
@@ -134,7 +138,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         }
         // For an outgoing video call that is not yet connected,
         // display the local stream full screen.
-        if (state.callMode == CallMode.video &&
+        if (state.isVideoCall &&
             (state.lifecycleStatus == CallLifecycleStatus.calling ||
                 state.lifecycleStatus == CallLifecycleStatus.connecting) &&
             state.remoteStream == null) {
@@ -258,14 +262,20 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
           // Remote video or placeholder if remote camera is off.
           Positioned.fill(
             child:
-                state.remoteStream != null && state.remoteCameraOn
-                    ? RTCVideoView(_remoteRenderer)
-                    : Container(
-                      color: Colors.black,
-                      child: const Center(
-                        child: Icon(Icons.videocam_off, color: Colors.white, size: 60),
-                      ),
-                    ),
+                state.isVideoCall
+                    ? state.remoteStream != null && state.remoteCameraOn
+                        ? RTCVideoView(_remoteRenderer)
+                        : Container(
+                          color: Colors.black,
+                          child: const Center(
+                            child: Icon(
+                              Icons.videocam_off,
+                              color: Colors.white,
+                              size: 60,
+                            ),
+                          ),
+                        )
+                    : Container(),
           ),
           // Top bar: contact info and call status.
           Positioned(

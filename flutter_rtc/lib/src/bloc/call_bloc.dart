@@ -28,12 +28,25 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
 
   /// **🔹 Handling of call lifecycle events**
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
-    if (event.status == CallLifecycleStatus.initial) {
+    if (event.status.type == CallLifecycleStatus.initial) {
       emit(initialCallBlocState);
+    } else if (event.status.type == CallLifecycleStatus.incoming) {
+      bool isVideoEnable = event.status.value['enableVideo'];
+      emit(
+        state.copyWith(
+          lifecycleStatus: event.status.type,
+          localStream: callManager.localStream,
+          remoteStream: callManager.remoteStream,
+          callMode: isVideoEnable ? CallMode.video : CallMode.audio,
+          localCameraOn: isVideoEnable,
+          remoteCameraOn: isVideoEnable,
+          localSpeakerOn: isVideoEnable,
+        ),
+      );
     } else {
       emit(
         state.copyWith(
-          lifecycleStatus: event.status,
+          lifecycleStatus: event.status.type,
           localStream: callManager.localStream,
           remoteStream: callManager.remoteStream,
         ),
@@ -149,9 +162,16 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     StartOutgoingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    var enableVideo = event.callMode == CallMode.video;
-    await callManager.startOutgoingCall(event.targetPeerId, enableVideo);
-    emit(state.copyWith(callMode: event.callMode));
+    var isVideoEnable = event.callMode == CallMode.video;
+    await callManager.startOutgoingCall(event.targetPeerId, isVideoEnable);
+    emit(
+      state.copyWith(
+        callMode: isVideoEnable ? CallMode.video : CallMode.audio,
+        localCameraOn: isVideoEnable,
+        remoteCameraOn: isVideoEnable,
+        localSpeakerOn: isVideoEnable,
+      ),
+    );
   }
 
   /// **🔹 Handles the end of a call**

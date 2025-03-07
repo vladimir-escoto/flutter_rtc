@@ -14,7 +14,7 @@ abstract class SignalingInterface {
   Future<void> disconnect();
 
   // Send an offer (SDP) to the target peer.
-  Future<void> sendOffer(String peerId, dynamic offer);
+  Future<void> sendOffer(String peerId, dynamic offer, bool enableVideo);
 
   // Send an answer (SDP) to the target peer.
   Future<void> sendAnswer(String peerId, dynamic answer);
