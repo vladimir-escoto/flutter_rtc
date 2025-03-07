@@ -16,6 +16,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   final String clientId;
+
   const MyApp({required this.clientId, super.key});
 
   @override
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final String clientId;
+
   const HomeScreen({required this.clientId, super.key});
 
   @override
@@ -48,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Assuming FlutterRTCWidget.of(context) returns the FlutterRTC instance.
     final flutterRTC = FlutterRTCWidget.of(context);
 
     return Scaffold(
@@ -67,14 +68,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                final targetId = _callIdController.text.trim();
-                if (targetId.isNotEmpty) {
-                  flutterRTC?.makeCall(targetId);
-                }
-              },
-              child: const Text('Make Call'),
+            Row(
+              children: <Widget>[
+                ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim();
+                    if (targetId.isNotEmpty) {
+                      flutterRTC?.makeVideCall(targetId);
+                    }
+                  },
+                  child: const Text('Make Video Call'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim();
+                    if (targetId.isNotEmpty) {
+                      flutterRTC?.makeAudioCall(targetId);
+                    }
+                  },
+                  child: const Text('Make Audio Call'),
+                ),
+              ],
             ),
           ],
         ),

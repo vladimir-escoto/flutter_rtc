@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/bloc/call_enums.dart';
 import 'package:flutter_rtc/src/bloc/call_events.dart';
-
 import 'flutter_rtc.dart';
 import 'src/bloc/call_bloc.dart';
 
@@ -28,7 +27,10 @@ class FlutterRTC {
     signaling =
         customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(brokerUrl: 'test.mosquitto.org', clientId: clientId),
+          config: SignalingConfiguration(
+            brokerUrl: 'test.mosquitto.org',
+            clientId: clientId,
+          ),
           // config: SignalingConfiguration(brokerUrl: 'broker.hivemq.com', clientId: clientId),
           // config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
         );
@@ -38,7 +40,7 @@ class FlutterRTC {
 
   /// Initializes the signaling and sets up incoming call listeners.
   Future<void> initialize(BuildContext context) async {
-    await callManager.setupIncomingCallListener();
+    await callManager.setupSignalingEventsListener();
     await signaling.connect();
 
     callManager.callEvents.listen((event) {
@@ -49,8 +51,17 @@ class FlutterRTC {
   }
 
   /// Initiates an outgoing call and navigates to the call UI.
-  Future<void> makeCall(String targetPeerId) async {
-    callBloc.add(StartOutgoingCallEvent(targetPeerId: targetPeerId));
+  Future<void> makeVideCall(String targetPeerId) async {
+    callBloc.add(
+      StartOutgoingCallEvent(targetPeerId: targetPeerId, callMode: CallMode.video),
+    );
+    await _showCallScreen();
+  }
+
+  Future<void> makeAudioCall(String targetPeerId) async {
+    callBloc.add(
+      StartOutgoingCallEvent(targetPeerId: targetPeerId, callMode: CallMode.audio),
+    );
     await _showCallScreen();
   }
 

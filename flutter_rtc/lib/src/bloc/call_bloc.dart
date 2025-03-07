@@ -48,23 +48,29 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   ) {
     switch (event.control) {
       case LocalControlType.mic:
+        callManager.toggleMicrophone(!state.localMicOn);
         emit(state.copyWith(localMicOn: !state.localMicOn));
         break;
       case LocalControlType.camera:
+        callManager.toggleVideo(!state.localCameraOn);
         emit(state.copyWith(localCameraOn: !state.localCameraOn));
         break;
       case LocalControlType.speaker:
+        callManager.toggleSpeaker(!state.localSpeakerOn);
         emit(state.copyWith(localSpeakerOn: !state.localSpeakerOn));
         break;
-      case LocalControlType.screenshare:
+      case LocalControlType.screenShare:
+        if (state.localScreenShareOn) {
+          callManager.stopScreenSharing();
+        } else {
+          callManager.startScreenSharing();
+        }
         emit(state.copyWith(localScreenShareOn: !state.localScreenShareOn));
         break;
       case LocalControlType.callMode:
-        emit(
-          state.copyWith(
-            callMode: state.callMode == CallMode.video ? CallMode.audio : CallMode.video,
-          ),
-        );
+        var isVide = state.callMode == CallMode.video;
+        callManager.toggleVideo(!isVide);
+        emit(state.copyWith(callMode: isVide ? CallMode.audio : CallMode.video));
         break;
     }
   }
@@ -78,7 +84,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
       case RemoteControlType.camera:
         emit(state.copyWith(remoteCameraOn: event.value));
         break;
-      case RemoteControlType.screenshare:
+      case RemoteControlType.screenShare:
         emit(state.copyWith(remoteScreenShareOn: event.value));
         break;
     }
@@ -143,7 +149,9 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     StartOutgoingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.startOutgoingCall(event.targetPeerId);
+    var enableVideo = event.callMode == CallMode.video;
+    await callManager.startOutgoingCall(event.targetPeerId, enableVideo);
+    emit(state.copyWith(callMode: event.callMode));
   }
 
   /// **🔹 Handles the end of a call**
@@ -159,7 +167,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     RedialCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.startRedialCall();
+    await callManager.startRedialCall(state.callMode == CallMode.video);
   }
 
   /// **🔹 Handles the camera switch**

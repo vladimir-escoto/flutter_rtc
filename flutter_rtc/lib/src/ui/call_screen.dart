@@ -1,5 +1,6 @@
 // lib/enhanced_call_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -56,8 +57,46 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   void _onToggleSpeaker() =>
       widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
 
-  void _onToggleScreenShare() =>
-      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.screenshare));
+  void _onToggleScreenShare() async {
+    if (WebRTC.platformIsAndroid) {
+      // Android specific
+      Future<void> requestBackgroundPermission([bool isRetry = false]) async {
+        // Required for android screenShare.
+        try {
+          var hasPermissions = await FlutterBackground.hasPermissions;
+          if (!isRetry) {
+            const androidConfig = FlutterBackgroundAndroidConfig(
+              notificationTitle: 'Screen Sharing',
+              notificationText: 'you are sharing the screen.',
+              notificationImportance: AndroidNotificationImportance.normal,
+              notificationIcon: AndroidResource(
+                name: 'ic_launcher',
+                defType: 'mipmap',
+              ),
+            );
+            hasPermissions = await FlutterBackground.initialize(
+              androidConfig: androidConfig,
+            );
+          }
+          if (hasPermissions && !FlutterBackground.isBackgroundExecutionEnabled) {
+            await FlutterBackground.enableBackgroundExecution();
+          }
+        } catch (e) {
+          if (!isRetry) {
+            return await Future<void>.delayed(
+              const Duration(seconds: 1),
+              () => requestBackgroundPermission(true),
+            );
+          }
+          debugPrint('could not publish video: $e');
+        }
+      }
+
+      await requestBackgroundPermission();
+    }
+
+    widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.screenShare));
+  }
 
   void _onSwitchCamera() => widget.callBloc.add(SwitchCameraEvent());
 

@@ -12,6 +12,7 @@ abstract class CallBlocEvent {}
 class CallLifecycleEvent extends CallBlocEvent {
   final CallLifecycleStatus status;
   final String? details;
+
   CallLifecycleEvent({required this.status, this.details});
 }
 
@@ -19,13 +20,16 @@ class CallLifecycleEvent extends CallBlocEvent {
 /// Instead of providing a new value, the BLoC will compute the toggle.
 class ToggleLocalControlEvent extends CallBlocEvent {
   final LocalControlType control;
-  ToggleLocalControlEvent({required this.control});
+  final CallMode? callMode;
+
+  ToggleLocalControlEvent({required this.control, this.callMode});
 }
 
 /// Event for remote control updates (from other participants).
 class RemoteControlEvent extends CallBlocEvent {
   final RemoteControlType control;
   final bool value;
+
   RemoteControlEvent({required this.control, required this.value});
 }
 
@@ -33,12 +37,14 @@ class RemoteControlEvent extends CallBlocEvent {
 class UIEvent extends CallBlocEvent {
   final UIEventType event;
   final dynamic value;
+
   UIEvent({required this.event, this.value});
 }
 
 /// Event representing an error in the call process.
 class CallErrorEvent extends CallBlocEvent {
   final String errorMessage;
+
   CallErrorEvent({required this.errorMessage});
 }
 
@@ -46,18 +52,22 @@ class CallErrorEvent extends CallBlocEvent {
 /// The BLoC can use the provided call mode to set the appropriate UI.
 class AcceptIncomingCallEvent extends CallBlocEvent {
   final CallMode callMode;
+
   AcceptIncomingCallEvent({required this.callMode});
 }
 
 /// New event: Decline an incoming call.
 class DeclineIncomingCallEvent extends CallBlocEvent {
   final String? reason;
+
   DeclineIncomingCallEvent({this.reason});
 }
 
 class StartOutgoingCallEvent extends CallBlocEvent {
   final String targetPeerId;
-  StartOutgoingCallEvent({required this.targetPeerId});
+  final CallMode callMode;
+
+  StartOutgoingCallEvent({required this.callMode, required this.targetPeerId});
 }
 
 /// New event: Hang up the current call.

@@ -20,7 +20,7 @@ enum LocalControlType {
   mic,
   camera,
   speaker,
-  screenshare,
+  screenShare,
   callMode, // Switch between audio and video.
 }
 
@@ -28,7 +28,7 @@ enum LocalControlType {
 enum RemoteControlType {
   mic,
   camera,
-  screenshare,
+  screenShare,
 }
 
 /// Enum for UI event types.
