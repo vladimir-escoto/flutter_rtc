@@ -1,0 +1,4 @@
+
+class CallStats {
+  const CallStats();
+}

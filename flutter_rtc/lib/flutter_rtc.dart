@@ -12,6 +12,15 @@ export 'src/signaling/signaling_event.dart';
 export 'src/signaling/signaling_interface.dart';
 export 'src/ui/call_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
+export 'src/call_screen/call_container.dart';
+export 'src/call_screen/call_content/call_content.dart';
+export 'src/call_screen/incoming_call/incoming_call_content.dart';
+export 'src/models/call.dart';
+export 'src/models/user_info.dart';
+export 'src/call_screen/common/call_background.dart';
+export 'src/call_screen/common/calling_participants.dart';
+export 'src/call_screen/common/participant_avatars.dart';
+export 'src/call_screen/outgoing_call/outgoing_call_content.dart';
 
 class FlutterRTC {
   late final SignalingInterface signaling;
@@ -71,11 +80,11 @@ class FlutterRTC {
   Future<void> _showCallScreen() async {
     navigatorKey.currentState?.push(
       MaterialPageRoute(
-        settings: RouteSettings(name: EnhancedCallScreen.route),
+        settings: RouteSettings(name: CallScreenContainer.route),
         builder:
             (_) => BlocProvider.value(
               value: callBloc,
-              child: EnhancedCallScreen(callBloc: callBloc),
+              child: CallScreenContainer(callBloc: callBloc),
             ),
       ),
     );

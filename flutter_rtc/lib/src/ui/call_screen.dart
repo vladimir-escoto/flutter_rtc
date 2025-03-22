@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_rtc/flutter_rtc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../bloc/call_bloc.dart';
@@ -12,18 +13,18 @@ import '../bloc/call_state.dart';
 /// EnhancedCallScreen displays the call UI using a BLoC for state management.
 /// All call-related information (streams, controls, lifecycle, minimization, etc.)
 /// is maintained within the bloc state.
-class EnhancedCallScreen extends StatefulWidget {
+class CallScreenContainer extends StatefulWidget {
   final CallBloc callBloc;
 
-  static const route = 'enhanced_call_screen';
+  static const route = 'call_screen_container';
 
-  const EnhancedCallScreen({super.key, required this.callBloc});
+  const CallScreenContainer({super.key, required this.callBloc});
 
   @override
-  EnhancedCallScreenState createState() => EnhancedCallScreenState();
+  CallScreenContainerState createState() => CallScreenContainerState();
 }
 
-class EnhancedCallScreenState extends State<EnhancedCallScreen> {
+class CallScreenContainerState extends State<CallScreenContainer> {
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
@@ -102,7 +103,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
     if (mounted && Navigator.canPop(context)) {
       Navigator.of(
         context,
-      ).popUntil((route) => route.settings.name != EnhancedCallScreen.route);
+      ).popUntil((route) => route.settings.name != CallScreenContainer.route);
     }
   }
 
@@ -118,6 +119,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         }
       },
       builder: (context, state) {
+        Widget? child;
         // Set the renderer sources from the state.
         if (state.localStream != null &&
             state.isVideoCall &&
@@ -134,7 +136,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
         }
         // If an incoming call is detected, show the incoming call view.
         if (state.lifecycleStatus == CallLifecycleStatus.incoming) {
-          return _buildIncomingCallView(state);
+          child = _buildIncomingCallView(state.callMode);
         }
         // For an outgoing video call that is not yet connected,
         // display the local stream full screen.
@@ -142,12 +144,14 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
             (state.lifecycleStatus == CallLifecycleStatus.calling ||
                 state.lifecycleStatus == CallLifecycleStatus.connecting) &&
             state.remoteStream == null) {
-          return _buildOutgoingLocalOnlyView(state);
+          child = _buildOutgoingLocalOnlyView(state);
         }
         // Otherwise, show full-screen or minimized view based on state.
-        return state.uiMinimized
-            ? _buildMinimizedView(state)
-            : _buildFullScreenView(state);
+        child =
+            state.uiMinimized ? _buildMinimizedView(state) : _buildFullScreenView(state);
+
+        List<UserInfo> participants = [];
+        return CallBackground(child: child, participants: participants);
       },
     );
   }
@@ -190,8 +194,8 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
   }
 
   /// Builds the incoming call view.
-  Widget _buildIncomingCallView(CallBlocState state) {
-    final bool isVideoCall = state.callMode == CallMode.video;
+  Widget _buildIncomingCallView(CallMode callMode) {
+    final bool isVideoCall = callMode == CallMode.video;
     return Scaffold(
       backgroundColor: Colors.blueGrey[900],
       body: SafeArea(
@@ -238,7 +242,7 @@ class EnhancedCallScreenState extends State<EnhancedCallScreen> {
                     heroTag: 'Call',
                     onPressed: () {
                       widget.callBloc.add(
-                        AcceptIncomingCallEvent(callMode: state.callMode),
+                        AcceptIncomingCallEvent(callMode: callMode),
                       );
                     },
                     backgroundColor: Colors.green,

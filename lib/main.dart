@@ -22,6 +22,29 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The FlutterRTCWidget encapsulates the MaterialApp and internal navigator.
+
+    List<UserInfo> participants = [
+      //UserInfo(id: "0001", name: "John Doe", image: "https://i.pravatar.cc/200"),
+      UserInfo(id: "0002", name: "Juanito LA", image: "https://i.pravatar.cc/200"),
+    ];
+    var call = Call();
+    var callState = CallState(currentUserId: "0001", callCid: "10000001");
+
+    return MaterialApp(
+      builder: (context, child) {
+        return Scaffold(
+          body: StreamCallContent(call: call, callState: callState),
+        );
+        return Scaffold(
+          body: StreamOutgoingCallContent(call: call, callState: callState),
+        );
+        return Scaffold(
+          body: StreamIncomingCallContent(call: call, callState: callState),
+        );
+        return Scaffold(body: CallBackground(participants: participants));
+      },
+    );
+
     return FlutterRTCWidget(
       navigatorKey: GlobalKey<NavigatorState>(),
       clientId: clientId,
