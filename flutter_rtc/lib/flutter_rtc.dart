@@ -10,7 +10,7 @@ export 'src/signaling/mqtt_signaling.dart';
 export 'src/signaling/signaling_configuration.dart';
 export 'src/signaling/signaling_event.dart';
 export 'src/signaling/signaling_interface.dart';
-export 'src/ui/call_screen.dart';
+export 'src/ui/call_container_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
 
 class FlutterRTC {
@@ -71,11 +71,11 @@ class FlutterRTC {
   Future<void> _showCallScreen() async {
     navigatorKey.currentState?.push(
       MaterialPageRoute(
-        settings: RouteSettings(name: EnhancedCallScreen.route),
+        settings: RouteSettings(name: CallContainerScreen.route),
         builder:
             (_) => BlocProvider.value(
               value: callBloc,
-              child: EnhancedCallScreen(callBloc: callBloc),
+              child: CallContainerScreen(callBloc: callBloc),
             ),
       ),
     );

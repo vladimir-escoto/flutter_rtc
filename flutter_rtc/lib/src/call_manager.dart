@@ -192,7 +192,7 @@ class CallManager {
       debugPrint("[CallManager] Sent answer: $answer");
       await signaling.sendAnswer(senderId, answer.toMap());
 
-      _sendCallEvent(CallLifecycleStatus.connecting);
+      //_sendCallEvent(CallLifecycleStatus.connecting);
     } catch (e) {
       debugPrint("[CallManager] Error answering incoming call: $e");
       _sendCallEvent(CallLifecycleStatus.failed);

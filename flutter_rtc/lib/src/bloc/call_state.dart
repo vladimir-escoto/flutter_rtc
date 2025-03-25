@@ -43,6 +43,10 @@ class CallBlocState extends Equatable {
   bool get isVideoCall => callMode == CallMode.video;
   bool get isAudioCall => callMode == CallMode.audio;
 
+  bool get isIncomingCall => lifecycleStatus == CallLifecycleStatus.incoming;
+  bool get isOutgoingCall => lifecycleStatus == CallLifecycleStatus.calling || lifecycleStatus == CallLifecycleStatus.ringing;
+
+
   const CallBlocState({
     required this.localStream,
     required this.remoteStream,

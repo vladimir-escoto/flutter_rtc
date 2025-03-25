@@ -13,7 +13,7 @@ enum CallLifecycleStatus {
   initial, // No call has been initiated.
   calling, // Outgoing call is in progress.
   incoming, // Incoming call received.
-  ringing, // Incoming call is ringing.
+  ringing, // Outgoing call is ringing.
   connecting, // Negotiation (offer/answer/ICE) is in progress.
   connected, // Call has been successfully connected.
   ended, // Call has ended normally.
