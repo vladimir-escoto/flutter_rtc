@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_rtc/flutter_rtc.dart';
 
 /// Generates a random 6-digit client ID.
@@ -41,6 +42,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _callIdController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+  }
 
   @override
   void dispose() {

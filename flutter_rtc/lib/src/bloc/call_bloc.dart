@@ -30,7 +30,8 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
     if (event.status.type == CallLifecycleStatus.initial) {
       emit(initialCallBlocState);
-    } else if (event.status.type == CallLifecycleStatus.incoming) {
+    } else if (event.status.type == CallLifecycleStatus.incoming ||
+        event.status.type == CallLifecycleStatus.calling) {
       bool isVideoEnable = event.status.value['enableVideo'];
       emit(
         state.copyWith(
@@ -139,14 +140,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     Emitter<CallBlocState> emit,
   ) {
     callManager.answerIncomingCall();
-    emit(
-      state.copyWith(
-        lifecycleStatus: CallLifecycleStatus.connected,
-        callDuration: Duration.zero,
-        localStream: callManager.localStream,
-        remoteStream: callManager.remoteStream,
-      ),
-    );
   }
 
   /// New handler: Decline an incoming call.
@@ -154,7 +147,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     DeclineIncomingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.declineCall();
+    callManager.declineCall();
   }
 
   /// **🔹 Handles the start of an outgoing call**
@@ -162,16 +155,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     StartOutgoingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    var isVideoEnable = event.callMode == CallMode.video;
-    await callManager.startOutgoingCall(event.targetPeerId, isVideoEnable);
-    emit(
-      state.copyWith(
-        callMode: isVideoEnable ? CallMode.video : CallMode.audio,
-        localCameraOn: isVideoEnable,
-        remoteCameraOn: isVideoEnable,
-        localSpeakerOn: isVideoEnable,
-      ),
-    );
+    callManager.startOutgoingCall(event.targetPeerId, event.callMode == CallMode.video);
   }
 
   /// **🔹 Handles the end of a call**
@@ -179,7 +163,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     HangUpCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.hangUp();
+    callManager.hangUp();
   }
 
   /// **🔹 Handles the retry of a call**
@@ -187,7 +171,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     RedialCallEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.startRedialCall(state.callMode == CallMode.video);
+    callManager.startRedialCall(state.callMode == CallMode.video);
   }
 
   /// **🔹 Handles the camera switch**
@@ -195,6 +179,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     SwitchCameraEvent event,
     Emitter<CallBlocState> emit,
   ) async {
-    await callManager.switchCamera();
+    callManager.switchCamera();
   }
 }

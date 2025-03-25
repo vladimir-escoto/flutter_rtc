@@ -106,7 +106,7 @@ class CallManager {
     try {
       _sendCallEvent(CallLifecycleStatus.initial);
       _currentCallPeerId = targetPeerId;
-      _sendCallEvent(CallLifecycleStatus.calling);
+      _sendCallEvent(CallLifecycleStatus.calling, value: {"enableVideo": enableVideo});
 
       if (!await _ensurePermissions()) {
         debugPrint(
@@ -136,6 +136,7 @@ class CallManager {
       await _peerConnection!.setLocalDescription(offer);
       debugPrint("[CallManager] Sent offer: $offer");
       await signaling.sendOffer(targetPeerId, offer.toMap(), enableVideo);
+      _sendCallEvent(CallLifecycleStatus.ringing);
     } catch (e) {
       debugPrint("[CallManager] Error starting outgoing call: $e");
       _sendCallEvent(CallLifecycleStatus.failed);
@@ -147,7 +148,6 @@ class CallManager {
   Future<void> answerIncomingCall() async {
     try {
       debugPrint("[CallManager] Answering incoming call.");
-      _sendCallEvent(CallLifecycleStatus.initial);
       if (_currentCallPeerId == null) {
         throw Exception("No current call senderId to answer.");
       }
