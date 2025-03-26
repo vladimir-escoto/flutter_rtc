@@ -44,7 +44,7 @@ class FlutterRTC {
     await signaling.connect();
 
     callManager.callEvents.listen((event) {
-      if (event == CallLifecycleStatus.incoming) {
+      if (event.type == CallLifecycleStatus.incoming) {
         _showCallScreen();
       }
     });

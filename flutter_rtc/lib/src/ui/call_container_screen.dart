@@ -4,8 +4,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../bloc/call_bloc.dart';
 import '../bloc/call_enums.dart';
-import '../bloc/call_events.dart';
 import '../bloc/call_state.dart';
+import 'call_container_screen/call_screen_view.dart';
+import 'call_container_screen/decline_call_view.dart';
+import 'call_container_screen/minimized_call_view.dart';
+import 'incoming_call/incoming_call_view.dart';
+import 'outgoing_call/outgoing_call_view.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
@@ -40,13 +44,13 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
     _remoteRenderer.dispose();
     super.dispose();
   }
+
   Future<void> _initializeRenderer() async {
-    await  _localRenderer.initialize();
+    await _localRenderer.initialize();
     await _remoteRenderer.initialize();
   }
 
   void _updateRenderers(CallBlocState state) {
-
     if (state.isVideoCall && state.localCameraOn && _localRenderer.textureId != null) {
       _localRenderer.srcObject = state.localStream;
     }
@@ -63,7 +67,7 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
       listener: (context, state) {
         if (state.lifecycleStatus == CallLifecycleStatus.ended) {
           Navigator.of(context).pop();
-        } else {}
+        }
       },
       builder: (context, state) {
         _updateRenderers(state);
@@ -86,7 +90,7 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
                   state: state,
                   remoteRenderer: _remoteRenderer,
                 )
-                : ConnectedCallView(
+                : CallScreenView(
                   callBloc: widget.callBloc,
                   state: state,
                   localRenderer: _localRenderer,
@@ -94,357 +98,12 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
                 );
           case CallLifecycleStatus.failed:
           case CallLifecycleStatus.declined:
-            return ErrorCallView(callBloc: widget.callBloc);
+            return DeclineCallView(callBloc: widget.callBloc);
           default:
             return const SizedBox.shrink();
         }
       },
     );
-  }
-}
-
-class IncomingCallView extends StatelessWidget {
-  final CallBloc callBloc;
-  final CallBlocState state;
-
-  const IncomingCallView({required this.callBloc, required this.state, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.blueGrey[900],
-      body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(height: 40),
-            const CircleAvatar(
-              radius: 50,
-              backgroundImage: NetworkImage("https://i.pravatar.cc/100"),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Incoming Call",
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-            Text(
-              state.isVideoCall ? "Video Call" : "Audio Call",
-              style: const TextStyle(color: Colors.white70, fontSize: 18),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 40.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FloatingActionButton(
-                    heroTag: 'declined',
-                    backgroundColor: Colors.red,
-                    onPressed: () {
-                      callBloc.add(DeclineIncomingCallEvent(reason: "declined by user"));
-                    },
-                    child: const Icon(Icons.call_end),
-                  ),
-                  FloatingActionButton(
-                    heroTag: 'Call',
-                    backgroundColor: Colors.green,
-                    onPressed: () {
-                      callBloc.add(AcceptIncomingCallEvent(callMode: state.callMode));
-                    },
-                    child: const Icon(Icons.call),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class OutgoingCallView extends StatelessWidget {
-  final CallBloc callBloc;
-  final CallBlocState state;
-  final RTCVideoRenderer localRenderer;
-
-  const OutgoingCallView({
-    required this.callBloc,
-    required this.state,
-    required this.localRenderer,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (state.isVideoCall && state.localStream != null)
-            Positioned.fill(child: RTCVideoView(localRenderer, mirror: true))
-          else
-            const Positioned.fill(
-              child: Center(
-                child: CircleAvatar(
-                  radius: 70,
-                  backgroundImage: NetworkImage("https://i.pravatar.cc/140"),
-                ),
-              ),
-            ),
-          Positioned(
-            top: 40,
-            left: 20,
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundImage: const NetworkImage("https://i.pravatar.cc/48"),
-                  backgroundColor: Colors.grey[800],
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Calling",
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                    Text(
-                      "Contact Name",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  iconSize: 30,
-                  icon: Icon(
-                    state.localMicOn ? Icons.mic : Icons.mic_off,
-                    color: Colors.white,
-                  ),
-                  onPressed:
-                      () => callBloc.add(
-                        ToggleLocalControlEvent(control: LocalControlType.mic),
-                      ),
-                ),
-                IconButton(
-                  iconSize: 30,
-                  icon: Icon(
-                    state.localSpeakerOn ? Icons.volume_up : Icons.volume_off,
-                    color: Colors.white,
-                  ),
-                  onPressed:
-                      () => callBloc.add(
-                        ToggleLocalControlEvent(control: LocalControlType.speaker),
-                      ),
-                ),
-                FloatingActionButton(
-                  heroTag: "endCall",
-                  backgroundColor: Colors.red,
-                  onPressed: () => callBloc.add(HangUpCallEvent()),
-                  child: const Icon(Icons.call_end),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ConnectedCallView extends StatelessWidget {
-  final CallBloc callBloc;
-  final CallBlocState state;
-  final RTCVideoRenderer localRenderer;
-  final RTCVideoRenderer remoteRenderer;
-
-  const ConnectedCallView({
-    required this.callBloc,
-    required this.state,
-    required this.localRenderer,
-    required this.remoteRenderer,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child:
-                state.isVideoCall && state.remoteCameraOn
-                    ? RTCVideoView(remoteRenderer)
-                    : Center(child: Icon(Icons.person, color: Colors.white, size: 80)),
-          ),
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    state.localMicOn ? Icons.mic : Icons.mic_off,
-                    color: Colors.white,
-                  ),
-                  onPressed:
-                      () => callBloc.add(
-                        ToggleLocalControlEvent(control: LocalControlType.mic),
-                      ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    state.localCameraOn ? Icons.videocam : Icons.videocam_off,
-                    color: Colors.white,
-                  ),
-                  onPressed:
-                      () => callBloc.add(
-                        ToggleLocalControlEvent(control: LocalControlType.camera),
-                      ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.call_end, color: Colors.red),
-                  onPressed: () => callBloc.add(HangUpCallEvent()),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class MinimizedCallView extends StatelessWidget {
-  final CallBloc callBloc;
-  final CallBlocState state;
-  final RTCVideoRenderer remoteRenderer;
-
-  const MinimizedCallView({
-    required this.callBloc,
-    required this.state,
-    required this.remoteRenderer,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned(
-          left: state.uiPosition.dx,
-          top: state.uiPosition.dy,
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              final newOffset = state.uiPosition + details.delta;
-              callBloc.add(UIEvent(event: UIEventType.dragged, value: newOffset));
-            },
-            onTap: () {
-              callBloc.add(UIEvent(event: UIEventType.maximized));
-            },
-            child: Container(
-              width: 150,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  state.remoteStream != null && state.remoteCameraOn
-                      ? RTCVideoView(remoteRenderer)
-                      : Container(color: Colors.black),
-                  Positioned(
-                    top: 5,
-                    left: 5,
-                    child: Text(
-                      _mapLifecycleStatusToText(state.lifecycleStatus),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                  const Positioned(
-                    bottom: 5,
-                    right: 5,
-                    child: Icon(Icons.call, color: Colors.white, size: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class ErrorCallView extends StatelessWidget {
-  final CallBloc callBloc;
-
-  const ErrorCallView({required this.callBloc, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black54,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error, color: Colors.red, size: 50),
-            const SizedBox(height: 20),
-            const Text(
-              'Call failed or declined',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => callBloc.add(RedialCallEvent()),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _mapLifecycleStatusToText(CallLifecycleStatus status) {
-  switch (status) {
-    case CallLifecycleStatus.calling:
-      return "Calling";
-    case CallLifecycleStatus.incoming:
-      return "Incoming";
-    case CallLifecycleStatus.ringing:
-      return "Ringing";
-    case CallLifecycleStatus.connecting:
-      return "Connecting";
-    case CallLifecycleStatus.connected:
-      return "Connected";
-    case CallLifecycleStatus.ended:
-      return "Ended";
-    case CallLifecycleStatus.declined:
-      return "Declined";
-    case CallLifecycleStatus.failed:
-      return "Failed";
-    default:
-      return "";
   }
 }
 
