@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../call_manager.dart';
 import 'call_enums.dart';
-import 'call_events.dart';
+import 'call_event.dart';
 import 'call_state.dart';
 
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
@@ -126,14 +126,6 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     Emitter<CallBlocState> emit,
   ) {
     callManager.answerIncomingCall();
-    emit(
-      state.copyWith(
-        lifecycleStatus: CallLifecycleStatus.connected,
-        callDuration: Duration.zero,
-        localStream: callManager.localStream,
-        remoteStream: callManager.remoteStream,
-      ),
-    );
   }
 
   /// New handler: Decline an incoming call.

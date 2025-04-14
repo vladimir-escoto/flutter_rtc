@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/bloc/call_enums.dart';
-import 'package:flutter_rtc/src/bloc/call_events.dart';
+import 'package:flutter_rtc/src/bloc/call_event.dart';
 import 'flutter_rtc.dart';
 import 'src/bloc/call_bloc.dart';
 

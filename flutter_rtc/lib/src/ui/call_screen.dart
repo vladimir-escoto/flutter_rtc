@@ -6,7 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../bloc/call_bloc.dart';
 import '../bloc/call_enums.dart';
-import '../bloc/call_events.dart';
+import '../bloc/call_event.dart';
 import '../bloc/call_state.dart';
 
 /// EnhancedCallScreen displays the call UI using a BLoC for state management.
