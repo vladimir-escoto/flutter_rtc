@@ -58,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final flutterRTC = FlutterRTCWidget.of(context);
+    final callId = CallCoordinator.instance.startSingleCall("userId", "targetUserId");
 
     return Scaffold(
       appBar: AppBar(title: const Text('RTC Demo')),
@@ -65,12 +66,15 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            Text('Client ID: ${widget.clientId}',style: TextStyle(
-              decoration: TextDecoration.none,
-              fontSize: 20,
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-            ),),
+            Text(
+              'Client ID: ${widget.clientId}',
+              style: TextStyle(
+                decoration: TextDecoration.none,
+                fontSize: 20,
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 20),
             TextField(
               controller: _callIdController,

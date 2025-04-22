@@ -5,7 +5,7 @@ import '../../bloc/call_events.dart';
 import '../../bloc/call_state.dart';
 
 class IncomingCallView extends StatelessWidget {
-  final CallBloc callBloc;
+  final CallBlocOld callBloc;
   final CallBlocState state;
 
   const IncomingCallView({required this.callBloc, required this.state, super.key});

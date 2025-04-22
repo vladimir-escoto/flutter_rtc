@@ -7,7 +7,7 @@ import '../../bloc/call_events.dart';
 import '../../bloc/call_state.dart';
 
 class MinimizedCallView extends StatelessWidget {
-  final CallBloc callBloc;
+  final CallBlocOld callBloc;
   final CallBlocState state;
   final RTCVideoRenderer remoteRenderer;
 

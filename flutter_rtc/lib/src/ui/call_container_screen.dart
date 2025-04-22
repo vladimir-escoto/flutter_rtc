@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_rtc/src/ui/widgets/incoming_call_view.dart';
+import 'package:flutter_rtc/src/ui/widgets/outgoing_call_view.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../bloc/call_bloc.dart';
@@ -8,21 +10,36 @@ import '../bloc/call_state.dart';
 import 'call_container_screen/call_screen_view.dart';
 import 'call_container_screen/decline_call_view.dart';
 import 'call_container_screen/minimized_call_view.dart';
-import 'incoming_call/incoming_call_view.dart';
-import 'outgoing_call/outgoing_call_view.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
+typedef CallViewBuilder = Widget Function(BuildContext, CallBlocOld, CallBlocState);
 
 /// CallContainerScreen displays the call UI using a BLoC for state management.
 /// All call-related information (streams, controls, lifecycle, minimization, etc.)
 /// is maintained within the bloc state.
 class CallContainerScreen extends StatefulWidget {
-  final CallBloc callBloc;
-
   static const route = 'call_container_screen';
 
-  const CallContainerScreen({super.key, required this.callBloc});
+  final CallBlocOld callBloc;
+
+  final CallViewBuilder? outgoingView;
+  final CallViewBuilder? incomingView;
+  final CallViewBuilder? activeCallView;
+  final CallViewBuilder? endedView;
+  final CallViewBuilder? declineView;
+  final CallViewBuilder? errorView;
+
+  const CallContainerScreen({
+    super.key,
+    required this.callBloc,
+    this.outgoingView,
+    this.incomingView,
+    this.activeCallView,
+    this.endedView,
+    this.declineView,
+    this.errorView,
+  });
 
   @override
   State<CallContainerScreen> createState() => _CallContainerScreenState();
@@ -62,7 +79,7 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<CallBloc, CallBlocState>(
+    return BlocConsumer<CallBlocOld, CallBlocState>(
       bloc: widget.callBloc,
       listener: (context, state) {
         if (state.lifecycleStatus == CallLifecycleStatus.ended) {
@@ -72,38 +89,65 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
       builder: (context, state) {
         _updateRenderers(state);
         switch (state.lifecycleStatus) {
-          case CallLifecycleStatus.initial:
-            return const SizedBox.shrink();
           case CallLifecycleStatus.incoming:
-            return IncomingCallView(callBloc: widget.callBloc, state: state);
+            return _buildIncoming(context, widget.callBloc, state);
           case CallLifecycleStatus.calling:
           case CallLifecycleStatus.ringing:
-            return OutgoingCallView(
-              callBloc: widget.callBloc,
-              state: state,
-              localRenderer: _localRenderer,
-            );
+            return _buildOutgoing(context, widget.callBloc, state);
           case CallLifecycleStatus.connected:
-            return state.uiMinimized
-                ? MinimizedCallView(
-                  callBloc: widget.callBloc,
-                  state: state,
-                  remoteRenderer: _remoteRenderer,
-                )
-                : CallScreenView(
-                  callBloc: widget.callBloc,
-                  state: state,
-                  localRenderer: _localRenderer,
-                  remoteRenderer: _remoteRenderer,
-                );
+            return _buildActive(context, widget.callBloc, state);
           case CallLifecycleStatus.failed:
+            return _buildError(context, widget.callBloc, state);
           case CallLifecycleStatus.declined:
-            return DeclineCallView(callBloc: widget.callBloc);
+            return _buildDecline(context, widget.callBloc, state);
           default:
             return const SizedBox.shrink();
         }
       },
     );
+  }
+
+  // Default fallback UIs
+  Widget _buildOutgoing(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+    return widget.outgoingView?.call(context, bloc, state) ??
+        OutgoingCallView(callBloc: bloc, state: state, localRenderer: _localRenderer);
+  }
+
+  Widget _buildIncoming(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+    return widget.incomingView?.call(context, bloc, state) ??
+        IncomingCallView(callBloc: bloc, state: state);
+  }
+
+  Widget _buildActive(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+    var view =
+        state.uiMinimized
+            ? MinimizedCallView(
+              callBloc: bloc,
+              state: state,
+              remoteRenderer: _remoteRenderer,
+            )
+            : CallScreenView(
+              callBloc: bloc,
+              state: state,
+              localRenderer: _localRenderer,
+              remoteRenderer: _remoteRenderer,
+            );
+    return widget.activeCallView?.call(context, bloc, state) ?? view;
+  }
+
+  Widget _buildDecline(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+    return widget.declineView?.call(context, bloc, state) ??
+        DeclineCallView(callBloc: bloc);
+  }
+
+  Widget _buildError(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+    return widget.errorView?.call(context, bloc, state) ??
+        Center(
+          child: Text(
+            'Call error: ${state.errorMessage}',
+            style: const TextStyle(color: Colors.red),
+          ),
+        );
   }
 }
 

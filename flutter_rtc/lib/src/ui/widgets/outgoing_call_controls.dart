@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../call_controls/call_control_option.dart';
+import 'call_control_option.dart';
 
 /// Represents a set of controls the user can use on the calling screen
 /// to cancel the call, toggle their audio and video state.

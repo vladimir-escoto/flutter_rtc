@@ -7,7 +7,7 @@ import '../../bloc/call_events.dart';
 import '../../bloc/call_state.dart';
 
 class CallScreenView extends StatefulWidget {
-  final CallBloc callBloc;
+  final CallBlocOld callBloc;
   final CallBlocState state;
   final RTCVideoRenderer localRenderer;
   final RTCVideoRenderer remoteRenderer;

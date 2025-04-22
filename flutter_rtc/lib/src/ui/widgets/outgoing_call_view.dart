@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -9,7 +8,7 @@ import '../../bloc/call_state.dart';
 import 'outgoing_call_controls.dart';
 
 class OutgoingCallView extends StatelessWidget {
-  final CallBloc callBloc;
+  final CallBlocOld callBloc;
   final CallBlocState state;
   final RTCVideoRenderer localRenderer;
 

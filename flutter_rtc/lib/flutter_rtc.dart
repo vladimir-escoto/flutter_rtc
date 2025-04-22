@@ -13,10 +13,13 @@ export 'src/signaling/signaling_interface.dart';
 export 'src/ui/call_container_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
 
+export 'src/coordinator/call_coordinator.dart';
+
+
 class FlutterRTC {
   late final SignalingInterface signaling;
   late final CallManager callManager;
-  late final CallBloc callBloc;
+  late final CallBlocOld callBloc;
   final GlobalKey<NavigatorState> navigatorKey;
 
   FlutterRTC({
@@ -27,15 +30,12 @@ class FlutterRTC {
     signaling =
         customSignaling ??
         MQTTSignaling(
-          config: SignalingConfiguration(
-            brokerUrl: 'test.mosquitto.org',
-            clientId: clientId,
-          ),
+          config: SignalingConfiguration(brokerUrl: 'test.mosquitto.org', clientId: clientId),
           // config: SignalingConfiguration(brokerUrl: 'broker.hivemq.com', clientId: clientId),
           // config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
         );
     callManager = CallManager(signaling: signaling, clientId: clientId);
-    callBloc = CallBloc(callManager: callManager);
+    callBloc = CallBlocOld(callManager: callManager);
   }
 
   /// Initializes the signaling and sets up incoming call listeners.

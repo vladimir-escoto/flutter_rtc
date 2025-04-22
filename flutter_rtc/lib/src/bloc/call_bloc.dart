@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../call_manager.dart';
+import '../../../flutter_rtc.dart';
 import 'call_enums.dart';
 import 'call_events.dart';
 import 'call_state.dart';
 
-class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
+class CallBlocOld extends Bloc<CallBlocEvent, CallBlocState> {
   final CallManager callManager;
 
-  CallBloc({required this.callManager}) : super(initialCallBlocState) {
+  CallBlocOld({required this.callManager}) : super(initialCallBlocState) {
     on<CallLifecycleEvent>(_handleLifecycleEvent);
     on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
     on<RemoteControlEvent>(_handleRemoteControlEvent);

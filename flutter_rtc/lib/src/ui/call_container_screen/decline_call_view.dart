@@ -4,7 +4,7 @@ import '../../bloc/call_bloc.dart';
 import '../../bloc/call_events.dart';
 
 class DeclineCallView extends StatelessWidget {
-  final CallBloc callBloc;
+  final CallBlocOld callBloc;
 
   const DeclineCallView({required this.callBloc, super.key});
 
