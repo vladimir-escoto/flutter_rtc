@@ -1,31 +1,37 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
 import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
-
 import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
+import 'package:flutter_rtc/src/context/bloc/call_events.dart';
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
 
 class CallContext {
   final SignalingInterface signaling;
+  final String callId;
+  final String userId;
+  final bool isCaller;
 
   late final RTCManager _rtcManager;
   late final CallBloc bloc;
-  late CallInfo _callInfo;
 
   bool _disposed = false;
 
-  String get callId => _callInfo.callId;
-
   CallContext({
-    required String callId,
-    required String userId,
-    required List<Participant> participants,
+    required this.callId,
+    required this.userId,
     required this.signaling,
-    required bool isCaller,
+    required this.isCaller,
     required CallMode mode,
+    required List<Participant> participants,
   }) {
-    _callInfo = CallInfo(
+    if (participants.any((p) => p.userId == userId)) {
+      participants.add(Participant(userId: userId));
+    }
+
+    final callInfo = CallInfo(
       callId: callId,
       userId: userId,
       participants: participants,
@@ -36,31 +42,54 @@ class CallContext {
 
     _rtcManager = RTCManager(callId: callId, userId: userId, signaling: signaling);
 
-    bloc = CallBloc(callId: callId, rtcManager: _rtcManager);
+    bloc = CallBloc(callInfo: callInfo, rtcManager: _rtcManager);
   }
 
   /// Called by the initiator to start the call
-  Future<void> initiateCall() async {
-    await _rtcManager.createOfferFor(_callInfo.participants, _callInfo.callMode);
-  }
-
-  /// Called when receiving an incoming call offer
-  void handleIncomingOffer(Map<String, dynamic> offer) {
-    _rtcManager.handleOffer(offer);
-    for (final participant in _callInfo.participants) {
-      if (participant.userId == offer['from']) continue;
-      //TODO:Implement Group participants negotiation here, send offer to all participants
-    }
-  }
+  void initiateCall() => bloc.add(StartOutgoingCallEvent());
 
   /// Routes signaling events to the RTC manager
-  void handleSignalingEvent(String from, dynamic event) {
-    _rtcManager.handleRemoteEvent(from, event);
+  void handleSignalingEvent(CallEventData data) {
+    switch (data.type) {
+      case CallDataEventType.offer:
+        _rtcManager.handleIncomingOffer(data);
+        break;
+      case CallDataEventType.answer:
+        _rtcManager.handleIncomingAnswer(data);
+        break;
+      case CallDataEventType.iceCandidate:
+        _rtcManager.handleIncomingCandidate(data);
+        break;
+      case CallDataEventType.callDeclined:
+      case CallDataEventType.callEnded:
+        _rtcManager.removeParticipant(data.from);
+        break;
+      default:
+        debugPrint('[CallContext] Unhandled event type: ${data.type}');
+    }
   }
 
   /// Ends the call and notifies all participants
   void end() {
     _rtcManager.close();
+  }
+
+  void pause() {
+    _rtcManager.pause();
+    bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.paused)));
+  }
+
+  void resume() {
+    _rtcManager.resume();
+    bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.resumed)));
+  }
+
+  Future<void> setConnectionStatus(bool connected, dynamic error) async {
+    //Todo: Manage connection status
+  }
+
+  void setAppLifecycleState(AppLifecycleState status) {
+    bloc.add(AppLifecycleStateEvent(status: status));
   }
 
   /// Frees all resources
@@ -69,37 +98,5 @@ class CallContext {
     _disposed = true;
     bloc.close();
     _rtcManager.dispose();
-  }
-
-  /// Rehydrate from previously saved state
-  static CallContext fromPersisted({
-    required String callId,
-    required String userId,
-    required SignalingInterface signaling,
-    required Map<String, dynamic> savedState,
-  }) {
-    final participants = ParticipantListExtension.fromJsonList(
-      savedState['participants'] as List<dynamic>? ?? [],
-    );
-
-    final isCaller = savedState['isCaller'] ?? false;
-    final mode = CallMode.values.firstWhere(
-      (c) => c.name == savedState['mode'],
-      orElse: () => CallMode.audio,
-    );
-
-    final context = CallContext(
-      callId: callId,
-      userId: userId,
-      participants: participants,
-      signaling: signaling,
-      isCaller: isCaller,
-      mode: mode,
-    );
-
-    // Restore bloc state if needed
-    // context.bloc.restore(savedState['blocState']);
-
-    return context;
   }
 }

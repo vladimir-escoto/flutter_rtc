@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
 import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
@@ -67,13 +68,15 @@ class PeerConnectionWrapper {
     _pc.onIceCandidate = (candidate) {
       debugPrint("[CallManager] Sending ICE candidate immediately: ${candidate.toMap()}");
 
-      signaling.sendEvent({
-        'type': 'candidate',
-        'callId': callId,
-        'from': localUserId,
-        'to': remoteUserId,
-        'candidate': candidate.toMap(),
-      });
+      var candidateMap = candidate.toMap();
+
+      // signaling.sendEvent({
+      //   'type': 'candidate',
+      //   'callId': callId,
+      //   'from': localUserId,
+      //   'to': remoteUserId,
+      //   'candidate': candidate.toMap(),
+      // });
     };
 
     // Remote stream handler.
@@ -97,46 +100,34 @@ class PeerConnectionWrapper {
     final offer = await _pc.createOffer();
     await _pc.setLocalDescription(offer);
 
-    signaling.sendEvent({
-      'type': 'offer',
-      'callId': callId,
-      'to': remoteUserId,
-      'from': localUserId,
-      'sdp': offer.sdp,
-      'sdpType': offer.type,
-      'mode': mode.name,
-      'participants': participants.toJsonList(),
-    });
+    final callOffer = CallOffer.fromSessionDescription(offer, mode, participants);
+    final data = CallEventData.fromOffer(callOffer, callId, localUserId, remoteUserId);
+    debugPrint("[CallManager] Sent offer");
+
+    signaling.sendEvent(data);
   }
 
-  Future<void> handleOffer(Map<String, dynamic> offer) async {
-    await _pc.setRemoteDescription(RTCSessionDescription(offer['sdp'], offer['sdpType']));
+  Future<void> answerToOffer(CallOffer offer) async {
+    await _pc.setRemoteDescription(offer);
 
     final answer = await _pc.createAnswer();
     await _pc.setLocalDescription(answer);
 
-    signaling.sendEvent({
-      'type': 'answer',
-      'callId': callId,
-      'to': remoteUserId,
-      'from': localUserId,
-      'sdp': answer.sdp,
-      'sdpType': answer.type,
-    });
+    debugPrint("[CallManager] Sent answer: $answer");
+
+    final data = CallEventData.fromAnswer(answer, callId, localUserId, remoteUserId);
+    debugPrint("[CallManager] Sent offer");
+
+    signaling.sendEvent(data);
   }
 
-  Future<void> setRemoteDescription(String sdp, String type) async {
-    await _pc.setRemoteDescription(RTCSessionDescription(sdp, type));
+  Future<void> handleIncomingAnswer(RTCSessionDescription answer) async {
+    await _pc.setRemoteDescription(answer);
+    //TODO:Send Ice candidates
   }
 
-  Future<void> addIceCandidate(Map<String, dynamic> candidate) async {
-    await _pc.addCandidate(
-      RTCIceCandidate(
-        candidate['candidate'],
-        candidate['sdpMid'],
-        candidate['sdpMLineIndex'],
-      ),
-    );
+  Future<void> addIceCandidate(RTCIceCandidate candidate) async {
+    await _pc.addCandidate(candidate);
   }
 
   Future<void> replaceVideoTrack(MediaStreamTrack newTrack) async {
@@ -154,14 +145,14 @@ class PeerConnectionWrapper {
     final offer = await _pc.createOffer();
     await _pc.setLocalDescription(offer);
 
-    signaling.sendEvent({
-      'type': 'offer',
-      'callId': callId,
-      'to': remoteUserId,
-      'from': localUserId,
-      'sdp': offer.sdp,
-      'sdpType': offer.type,
-    });
+    // signaling.sendEvent({
+    //   'type': 'offer',
+    //   'callId': callId,
+    //   'to': remoteUserId,
+    //   'from': localUserId,
+    //   'sdp': offer.sdp,
+    //   'sdpType': offer.type,
+    // });
   }
 
   Future<void> sendControlMessage(String event, dynamic value) async {
@@ -184,6 +175,4 @@ class PeerConnectionWrapper {
     }
     _remoteStream = null;
   }
-
-  void toggleMic(bool enabled) {}
 }

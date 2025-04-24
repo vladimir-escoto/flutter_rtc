@@ -22,6 +22,11 @@ final class CallInfo extends Equatable {
   Participant get self =>
       participants.firstWhere((p) => p.userId == userId, orElse: () => throw Exception('Local participant not found'));
 
+  set self(Participant participant) {
+    participants.removeWhere((p) => p.userId == userId);
+    participants.add(participant);
+  }
+
   List<Participant> get remoteParticipants => participants.where((p) => !p.isLocal).toList();
 
   CallInfo copyWith({

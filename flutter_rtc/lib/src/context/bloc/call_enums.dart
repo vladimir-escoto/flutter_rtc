@@ -5,6 +5,7 @@
 class CallEvent {
   final CallLifecycleStatus type;
   final dynamic value;
+
   CallEvent({required this.type, this.value});
 }
 
@@ -19,6 +20,8 @@ enum CallLifecycleStatus {
   ended, // Call has ended normally.
   declined, // Outgoing call was cancelled before answer.
   failed, // Call failed due to an error.
+  paused, // Call has been paused.
+  resumed, // Call has been resumed.
 }
 
 /// Enum for local control types.

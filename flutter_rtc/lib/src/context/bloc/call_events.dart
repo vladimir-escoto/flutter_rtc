@@ -3,6 +3,8 @@
 // This file defines all events that the CallBloc can receive.
 // It now includes the new ToggleLocalControlEvent for toggling a control.
 
+import 'dart:ui';
+
 import 'call_enums.dart';
 
 /// Base abstract class for all call events.
@@ -47,14 +49,6 @@ class CallErrorEvent extends CallBlocEvent {
   CallErrorEvent({required this.errorMessage});
 }
 
-/// New event: Accept an incoming call.
-/// The BLoC can use the provided call mode to set the appropriate UI.
-class AcceptIncomingCallEvent extends CallBlocEvent {
-  final CallMode callMode;
-
-  AcceptIncomingCallEvent({required this.callMode});
-}
-
 /// New event: Decline an incoming call.
 class DeclineIncomingCallEvent extends CallBlocEvent {
   final String? reason;
@@ -62,12 +56,18 @@ class DeclineIncomingCallEvent extends CallBlocEvent {
   DeclineIncomingCallEvent({this.reason});
 }
 
-class StartOutgoingCallEvent extends CallBlocEvent {
-  final String targetPeerId;
-  final CallMode callMode;
+/// New event for  AppLifecycle
+class AppLifecycleStateEvent extends CallBlocEvent {
+  final AppLifecycleState status;
 
-  StartOutgoingCallEvent({required this.callMode, required this.targetPeerId});
+  AppLifecycleStateEvent({required this.status});
 }
+
+/// New event: Accept an incoming call.
+/// The BLoC can use the provided call mode to set the appropriate UI.
+class AcceptIncomingCallEvent extends CallBlocEvent {}
+
+class StartOutgoingCallEvent extends CallBlocEvent {}
 
 /// New event: Hang up the current call.
 class HangUpCallEvent extends CallBlocEvent {}

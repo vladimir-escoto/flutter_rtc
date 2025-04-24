@@ -6,8 +6,12 @@ import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
 
 import 'package:flutter_rtc/src/context/model/participant.dart';
 import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
 
-typedef GlobalEventCallback = void Function(String userId, dynamic event);
+export 'package:flutter_rtc/src/context/bloc/call_enums.dart';
+export 'package:flutter_rtc/src/context/model/participant.dart';
+
+typedef GlobalEventCallback = void Function(dynamic event);
 
 class CallCoordinator {
   static final CallCoordinator instance = CallCoordinator._internal();
@@ -19,6 +23,9 @@ class CallCoordinator {
 
   GlobalEventCallback? onGlobalEvent;
 
+  CallUserSession? getUserSessionByCallId(String callId) =>
+      _userSessions.values.where((s) => s.containsCall(callId)).firstOrNull;
+
   bool _initialized = false;
 
   /// Initializes the coordinator with a shared signaling interface.
@@ -26,7 +33,8 @@ class CallCoordinator {
     if (_initialized) return;
     signaling = signalingInterface;
     onGlobalEvent = onEvent;
-    signaling.setOnMessage(_handleSignalingEvent);
+    signaling.setOnSignalingEvent(_handleSignalingEvent);
+    signaling.setOnCallEvent(_handleCallEvent);
     _initialized = true;
   }
 
@@ -51,13 +59,11 @@ class CallCoordinator {
     String userId,
     String targetUserId, {
     CallMode mode = CallMode.audio,
-  }) async {
-    return await startCall(
-      userId: userId,
-      participants: [Participant(userId: targetUserId)],
-      mode: CallMode.video,
-    );
-  }
+  }) async => await startCall(
+    userId: userId,
+    participants: [Participant(userId: targetUserId)],
+    mode: CallMode.video,
+  );
 
   Future<String> startCall({
     required String userId,
@@ -70,6 +76,7 @@ class CallCoordinator {
 
   /// Returns a session for a given user.
   CallUserSession _getUserSession(String userId) {
+    registerUser(userId);
     final session = _userSessions[userId];
     if (session == null) {
       throw Exception('User session not found for userId: $userId');
@@ -78,18 +85,27 @@ class CallCoordinator {
   }
 
   /// Dispatches signaling events to the correct session and logs globally if needed.
-  void _handleSignalingEvent(Map<String, dynamic> event) {
-    final to = event['to'];
-    if (to == null) return;
+  void _handleSignalingEvent(SignalingEvent event) {
+    debugPrint('[CallCoordinator] Received event: ${event.type}');
+    onGlobalEvent?.call(event); // Logging, tracing, analytics, etc.
 
-    final session = _userSessions[to];
+    for (final session in _userSessions.values) {
+      session.setConnectionStatus(
+        event.type == SignalingEventType.disconnected,
+        event.data,
+      );
+    }
+  }
+
+  void _handleCallEvent(CallEventData data) {
+    var session = getUserSessionByCallId(data.callId);
+
     if (session == null) {
-      debugPrint('[SignalingDispatcher] No active session for userId: $to');
+      debugPrint('[CallCoordinator] No active session for call $data');
       return;
     }
 
-    onGlobalEvent?.call(session.userId, event); // Logging, tracing, analytics, etc.
-    session.handleSignalingEvent(event);
+    session.handleSignalingEvent(data);
   }
 
   /// Clears all active sessions (used for logout or reset).
@@ -100,10 +116,16 @@ class CallCoordinator {
     _userSessions.clear();
   }
 
-  /// Optional: restore session from persistence layer.
-  void restoreSession(String userId, dynamic savedState) {
-    final session = CallUserSession(userId, signaling);
-    session.restoreFromState(savedState);
-    _userSessions[userId] = session;
+  void endCall(String callId) {
+    final session = getUserSessionByCallId(callId);
+    if (session != null) {
+      session.endCall(callId);
+    }
+  }
+
+  void setAppLifecycleState(AppLifecycleState status) {
+    for (final session in _userSessions.values) {
+      session.setAppLifecycleState(status);
+    }
   }
 }

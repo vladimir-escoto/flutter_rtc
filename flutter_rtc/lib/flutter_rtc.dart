@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/bloc/call_enums.dart';
 import 'package:flutter_rtc/src/bloc/call_events.dart';
-import 'flutter_rtc.dart';
-import 'src/bloc/call_bloc.dart';
+import 'package:flutter_rtc/src/bloc/call_bloc.dart';
+import 'package:flutter_rtc/src/call_manager.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
+import 'package:flutter_rtc/src/signaling/signaling_configuration.dart';
+import 'package:flutter_rtc/src/ui/call_container_screen.dart';
 
-export 'src/call_manager.dart';
 export 'src/signaling/mqtt_signaling.dart';
 export 'src/signaling/signaling_configuration.dart';
 export 'src/signaling/signaling_event.dart';
-export 'src/signaling/signaling_interface.dart';
 export 'src/ui/call_container_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
-
-export 'src/coordinator/call_coordinator.dart';
 
 
 class FlutterRTC {

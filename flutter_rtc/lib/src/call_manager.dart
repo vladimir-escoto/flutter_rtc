@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:flutter_rtc/src/signaling/signaling_event.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../flutter_rtc.dart';
-import 'bloc/call_enums.dart';
+import 'package:flutter_rtc/src/bloc/call_enums.dart';
+
 
 class CallManager {
   final SignalingInterface signaling;

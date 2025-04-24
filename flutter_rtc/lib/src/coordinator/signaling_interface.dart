@@ -1,7 +1,13 @@
 // lib/src/coordinator/signaling_interface.dart
-typedef OnMessageCallback = void Function(Map<String, dynamic> message);
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+
+typedef OnSignalingEventCallback = void Function(SignalingEvent event);
+typedef OnCallEventDataCallback = void Function(CallEventData event);
 
 abstract class SignalingInterface {
+  // Stream of signaling events.
+  Stream<SignalingEvent> get events;
+
   /// Connects the signaling channel (e.g., MQTT, WebSocket...)
   Future<void> connect();
 
@@ -9,10 +15,12 @@ abstract class SignalingInterface {
   Future<void> disconnect();
 
   /// Sends a signaling event with a free structure (Map)
-  Future<void> sendEvent(Map<String, dynamic> payload);
+  Future<void> sendEvent(CallEventData payload);
 
   /// Defines the callback to be executed upon receiving a message
-  void setOnMessage(OnMessageCallback onMessage);
+  void setOnCallEvent(OnCallEventDataCallback onEvent);
+
+  void setOnSignalingEvent(OnSignalingEventCallback onEvent);
 
   /// Informs that a user is active and should receive events
   void registerUser(String userId);

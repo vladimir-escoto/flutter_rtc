@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../flutter_rtc.dart';
-import 'call_enums.dart';
-import 'call_events.dart';
-import 'call_state.dart';
+import 'package:flutter_rtc/src/call_manager.dart';
+import 'package:flutter_rtc/src/bloc/call_enums.dart';
+import 'package:flutter_rtc/src/bloc/call_events.dart';
+import 'package:flutter_rtc/src/bloc/call_state.dart';
 
 class CallBlocOld extends Bloc<CallBlocEvent, CallBlocState> {
   final CallManager callManager;

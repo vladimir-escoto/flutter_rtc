@@ -5,27 +5,29 @@
 
 import 'dart:ui'; // for Offset
 import 'package:equatable/equatable.dart';
+import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-import 'call_enums.dart';
+import 'package:flutter_rtc/src/coordinator/call_coordinator.dart';
 
 /// The state for the call, including lifecycle, local and remote control statuses,
 /// UI state, call duration, and any error message.
 class CallBlocState extends Equatable {
+  final CallInfo callInfo;
+
   // Call lifecycle status.
   final CallLifecycleStatus lifecycleStatus;
 
   // Local control states.
-  final bool localMicOn;
-  final bool localCameraOn;
-  final bool localSpeakerOn;
-  final bool localScreenShareOn;
-  final CallMode callMode;
+  bool get localMicOn => callInfo.self.micEnabled;
 
-  // Remote control states.
-  final bool remoteMicOn;
-  final bool remoteCameraOn;
-  final bool remoteScreenShareOn;
+  bool get localCameraOn => callInfo.self.cameraEnabled;
+
+  bool get localSpeakerOn => callInfo.self.speakerEnable;
+
+  bool get localScreenShareOn => callInfo.self.screenShareEnabled;
+
+  CallMode get callMode => callInfo.callMode;
 
   // UI state.
   final bool uiMinimized;
@@ -38,46 +40,53 @@ class CallBlocState extends Equatable {
   final String? errorMessage;
 
   final MediaStream? localStream;
-  final MediaStream? remoteStream;
 
   bool get isVideoCall => callMode == CallMode.video;
+
   bool get isAudioCall => callMode == CallMode.audio;
 
-  bool get isIncomingCall => lifecycleStatus == CallLifecycleStatus.incoming;
-  bool get isOutgoingCall => lifecycleStatus == CallLifecycleStatus.calling || lifecycleStatus == CallLifecycleStatus.ringing;
+  bool get isIncomingCall => !callInfo.isCaller;
 
+  bool get isOutgoingCall => callInfo.isCaller;
 
   const CallBlocState({
+    required this.callInfo,
     required this.localStream,
-    required this.remoteStream,
     required this.lifecycleStatus,
-    required this.localMicOn,
-    required this.localCameraOn,
-    required this.localSpeakerOn,
-    required this.localScreenShareOn,
-    required this.callMode,
-    required this.remoteMicOn,
-    required this.remoteCameraOn,
-    required this.remoteScreenShareOn,
     required this.uiMinimized,
     required this.uiPosition,
     required this.callDuration,
     this.errorMessage,
   });
 
+  factory CallBlocState.fromCallInfo(CallInfo callInfo) {
+    return CallBlocState(
+      callInfo: callInfo,
+      localStream: null,
+      lifecycleStatus: CallLifecycleStatus.initial,
+      uiMinimized: false,
+      uiPosition: const Offset(20, 80),
+      callDuration: Duration(),
+    );
+  }
+
+  Participant get self => callInfo.self;
+
+  CallBlocState copySelf(Participant participant) {
+    callInfo.participants.removeWhere((p) => p.userId == participant.userId);
+    callInfo.participants.add(participant);
+    return copyWith(callInfo: callInfo);
+  }
+
+  CallBlocState copyWithCallInfo(CallInfo callInfo) {
+    return copyWith(callInfo: callInfo);
+  }
+
   /// Returns a copy of the current state with updated values.
   CallBlocState copyWith({
+    CallInfo? callInfo,
     localStream,
-    remoteStream,
     CallLifecycleStatus? lifecycleStatus,
-    bool? localMicOn,
-    bool? localCameraOn,
-    bool? localSpeakerOn,
-    bool? localScreenShareOn,
-    CallMode? callMode,
-    bool? remoteMicOn,
-    bool? remoteCameraOn,
-    bool? remoteScreenShareOn,
     bool? uiMinimized,
     Offset? uiPosition,
     Duration? callDuration,
@@ -85,63 +94,28 @@ class CallBlocState extends Equatable {
   }) {
     return CallBlocState(
       lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
-      localMicOn: localMicOn ?? this.localMicOn,
-      localCameraOn: localCameraOn ?? this.localCameraOn,
-      localSpeakerOn: localSpeakerOn ?? this.localSpeakerOn,
-      localScreenShareOn: localScreenShareOn ?? this.localScreenShareOn,
-      callMode: callMode ?? this.callMode,
-      remoteMicOn: remoteMicOn ?? this.remoteMicOn,
-      remoteCameraOn: remoteCameraOn ?? this.remoteCameraOn,
-      remoteScreenShareOn: remoteScreenShareOn ?? this.remoteScreenShareOn,
       uiMinimized: uiMinimized ?? this.uiMinimized,
       uiPosition: uiPosition ?? this.uiPosition,
       callDuration: callDuration ?? this.callDuration,
       errorMessage: errorMessage ?? this.errorMessage,
       localStream: localStream ?? this.localStream,
-      remoteStream: remoteStream ?? this.remoteStream,
+      callInfo: callInfo ?? this.callInfo,
     );
   }
 
   @override
   String toString() {
-    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode, remoteMicOn: $remoteMicOn, remoteCameraOn: $remoteCameraOn, uiMinimized: $uiMinimized, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
+    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  uiMinimized: $uiMinimized, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
   }
 
   @override
   List<Object?> get props => [
+    callInfo,
     localStream,
-    remoteStream,
     lifecycleStatus,
-    localMicOn,
-    localCameraOn,
-    localSpeakerOn,
-    localScreenShareOn,
-    callMode,
-    remoteMicOn,
-    remoteCameraOn,
-    remoteScreenShareOn,
     uiMinimized,
     uiPosition,
     callDuration,
     errorMessage,
   ];
 }
-
-/// The initial state for the call BLoC.
-final CallBlocState initialCallBlocState = CallBlocState(
-  lifecycleStatus: CallLifecycleStatus.initial,
-  localMicOn: true,
-  localCameraOn: false,
-  localSpeakerOn: false,
-  localScreenShareOn: false,
-  callMode: CallMode.video,
-  remoteMicOn: true,
-  remoteCameraOn: false,
-  remoteScreenShareOn: false,
-  uiMinimized: false,
-  uiPosition: const Offset(20, 80),
-  callDuration: Duration.zero,
-  errorMessage: null,
-  localStream: null,
-  remoteStream: null,
-);

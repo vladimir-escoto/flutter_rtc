@@ -8,6 +8,7 @@ final class Participant extends Equatable {
   final String displayName;
   final bool isLocal;
 
+  final bool speakerEnable;
   final bool micEnabled;
   final bool cameraEnabled;
   final bool screenShareEnabled;
@@ -19,6 +20,7 @@ final class Participant extends Equatable {
     this.displayName = 'unknown',
     this.isLocal = false,
     this.micEnabled = true,
+    this.speakerEnable = false,
     this.cameraEnabled = false,
     this.screenShareEnabled = false,
     this.mediaStream,
@@ -27,6 +29,7 @@ final class Participant extends Equatable {
   Participant copyWith({
     String? displayName,
     bool? micEnabled,
+    bool? speakerEnable,
     bool? cameraEnabled,
     bool? screenShareEnabled,
     MediaStream? mediaStream,
@@ -36,6 +39,7 @@ final class Participant extends Equatable {
       displayName: displayName ?? this.displayName,
       isLocal: isLocal,
       micEnabled: micEnabled ?? this.micEnabled,
+      speakerEnable: speakerEnable ?? this.speakerEnable,
       cameraEnabled: cameraEnabled ?? this.cameraEnabled,
       screenShareEnabled: screenShareEnabled ?? this.screenShareEnabled,
       mediaStream: mediaStream ?? this.mediaStream,
@@ -48,6 +52,7 @@ final class Participant extends Equatable {
       'displayName': displayName,
       'isLocal': isLocal,
       'micEnabled': micEnabled,
+      'speakerEnable': speakerEnable,
       'cameraEnabled': cameraEnabled,
       'screenShareEnabled': screenShareEnabled,
     };
@@ -59,30 +64,31 @@ final class Participant extends Equatable {
       displayName: json['displayName'],
       isLocal: json['isLocal'],
       micEnabled: json['micEnabled'],
+      speakerEnable: json['speakerEnable'],
       cameraEnabled: json['cameraEnabled'],
       screenShareEnabled: json['screenShareEnabled'],
     );
   }
+
   @override
   List<Object?> get props => [
     userId,
     displayName,
     isLocal,
     micEnabled,
+    speakerEnable,
     cameraEnabled,
     screenShareEnabled,
     mediaStream,
   ];
 
-  static fromJsonList(List<dynamic> list) {}
 }
 
 extension ParticipantListExtension on List<Participant> {
   List<Map<String, dynamic>> toJsonList() => map((e) => e.toJson()).toList();
 
-  static List<Participant> fromJsonList(List<dynamic> jsonList) => jsonList
-      .map((json) => Participant.fromJson(json as Map<String, dynamic>))
-      .toList();
+  static List<Participant> fromJsonList(List<dynamic> jsonList) =>
+      jsonList.map((json) => Participant.fromJson(json as Map<String, dynamic>)).toList();
 
   String toJsonString() => jsonEncode(toJsonList());
 

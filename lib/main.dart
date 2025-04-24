@@ -58,7 +58,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final flutterRTC = FlutterRTCWidget.of(context);
-    final callId = CallCoordinator.instance.startSingleCall("userId", "targetUserId");
+
+   //  CallCoordinator.instance.registerUser("@Vladimir");
+   //  CallCoordinator.instance.registerUser("@romeo");
+   //
+   //  CallCoordinator.instance.unregisterUser("@Vladimir");
+   //
+   //  CallCoordinator.instance.startSingleCall("@Vladimir", "@Jose");
+   //
+   //  CallCoordinator.instance.startSingleCall("@Vladimir", "@Jose", mode: CallMode.video);
+   //
+   // final callid =  CallCoordinator.instance.startCall(
+   //    userId: "@Vladimir",
+   //    participants: [Participant(userId: "@Jose"), Participant(userId: "@Andy")],
+   //    mode: CallMode.video,
+   //  );
+
+
 
     return Scaffold(
       appBar: AppBar(title: const Text('RTC Demo')),

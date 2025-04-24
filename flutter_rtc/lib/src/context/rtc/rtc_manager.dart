@@ -1,142 +1,136 @@
 // lib/src/context/rtc/rtc_manager.dart
 
-import 'package:flutter_rtc/src/context/model/participant.dart' show Participant;
+import 'dart:async';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_rtc/src/context/model/participant.dart';
 import 'package:flutter_rtc/src/context/rtc/peer_connection_wrapper.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
-
 import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+
+part 'rtc_media_handler.dart';
+
+part 'rtc_peer_manager.dart';
+
+part 'rtc_device_handler.dart';
+
+part 'rtc_event_manager.dart';
 
 class RTCManager {
   final String callId;
   final String userId;
   final SignalingInterface signaling;
 
-  final Map<String, PeerConnectionWrapper> _peers = {};
+  late final _RTCPeerManager _peerManager;
+  late final _RTCMediaHandler _mediaHandler;
+  late final _RTCDeviceHandler _deviceHandler;
+  late final _RTCEventHandler _eventHandler;
 
-  MediaStream? _localStream;
-  bool _isScreenSharing = false;
+  Stream<CallEvent> get callEvents => _eventHandler.callEvents;
 
-  RTCManager({required this.callId, required this.userId, required this.signaling});
-
-  Future<void> _ensureLocalStream({
-    bool enableAudio = true,
-    bool enableVideo = false,
-  }) async {
-    if (_localStream != null) return;
-    _localStream = await navigator.mediaDevices.getUserMedia({
-      'audio': enableAudio,
-      'video': enableVideo ? {'facingMode': 'user'} : false,
-    });
+  RTCManager({required this.callId, required this.userId, required this.signaling}) {
+    _eventHandler = _RTCEventHandler();
+    _mediaHandler = _RTCMediaHandler();
+    _deviceHandler = _RTCDeviceHandler();
+    _peerManager = _RTCPeerManager(userId, callId, signaling, _eventHandler);
   }
 
-  /// Create offer for participants in the call.
-  /// It creates peer connection for each participant and sends offer.
+  //----------------CallManager Controller---------------------------------
+
+  /// Starts an outgoing call by initializing permissions, local media,
+  /// peer connection, data channel and sending the offer via signaling.
+  Future<void> startOutgoingCall(List<Participant> participants, CallMode mode) async {
+    try {
+      _eventHandler._sendCallEvent(CallLifecycleStatus.initial);
+      _eventHandler._sendCallEvent(CallLifecycleStatus.calling);
+
+      await _mediaHandler._ensureHasPermissions(mode == CallMode.video);
+
+      createOfferFor(participants, mode);
+
+      _eventHandler._sendCallEvent(CallLifecycleStatus.ringing);
+    } catch (e) {
+      debugPrint("[CallManager] Error starting outgoing call: $e");
+      _eventHandler._sendCallEvent(CallLifecycleStatus.failed, value: e.toString());
+    }
+  }
+
+  /// Answers an incoming call by obtaining permissions, local media,
+  /// setting up the peer connection and sending the answer via signaling.
+  Future<void> answerIncomingCall(CallEventData data) async {
+    try {
+      debugPrint("[CallManager] Answering incoming call.");
+
+      await _mediaHandler._ensureHasPermissions(data.toOffer().mode == CallMode.video);
+
+      await _mediaHandler.ensureLocalStream();
+      await _peerManager.answerToOffer(data, _mediaHandler.localStream!);
+    } catch (e) {
+      debugPrint("[CallManager] Error answering incoming call: $e");
+      _eventHandler._sendCallEvent(CallLifecycleStatus.failed, value: e.toString());
+    }
+  }
+
   Future<void> createOfferFor(List<Participant> participants, CallMode mode) async {
-    await _ensureLocalStream(enableVideo: mode == CallMode.video);
-    for (final participant in participants) {
-      final peer = await _getOrCreatePeer(participant.userId);
-      await peer.createOffer(mode, participants);
-    }
+    await _mediaHandler.ensureLocalStream(enableVideo: mode == CallMode.video);
+    await _peerManager.createOffersFor(participants, _mediaHandler.localStream!, mode);
   }
 
-  void handleOffer(Map<String, dynamic> offer) async {
-    final from = offer['from'];
-    await _ensureLocalStream();
-    final peer = await _getOrCreatePeer(from);
-    await peer.handleOffer(offer);
+  /// Handles an incoming offer by storing the offer data and notifying listeners.
+  void handleIncomingOffer(CallEventData offer) async {
+    debugPrint("[CallManager] Received offer: $offer");
+    _eventHandler._sendCallEvent(CallLifecycleStatus.incoming, value: offer);
   }
 
-  void handleRemoteEvent(String from, dynamic event) async {
-    final peer = _peers[from];
-    if (peer == null) return;
+  void handleIncomingAnswer(CallEventData data) =>
+      _peerManager.handleIncomingAnswer(data);
 
-    switch (event['type']) {
-      case 'answer':
-        await peer.setRemoteDescription(event['sdp'], event['sdpType']);
-        break;
-      case 'candidate':
-        await peer.addIceCandidate(event['candidate']);
-        break;
-      case 'end':
-        removeParticipant(from);
-        break;
-    }
-  }
+  void handleIncomingCandidate(CallEventData data) =>
+      _peerManager.handleIncomingCandidate(data);
 
   Future<void> joinParticipant(String remoteId) async {
-    await _ensureLocalStream();
-    await _getOrCreatePeer(remoteId);
+    await _mediaHandler.ensureLocalStream();
+    await _peerManager.getOrCreatePeer(remoteId, _mediaHandler.localStream!);
   }
 
-  void removeParticipant(String remoteId) {
-    _peers[remoteId]?.dispose();
-    _peers.remove(remoteId);
-  }
+  void removeParticipant(String remoteId) => _peerManager.removePeer(remoteId);
 
-  void toggleMic(bool enabled) {
-    _localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
-    _peers.forEach((_, peer) => peer.toggleMic(enabled));
-  }
+  //----------------_mediaHandler Controller---------------------------------
 
-  void toggleCamera(bool enabled) {
-    _localStream?.getVideoTracks().forEach((t) => t.enabled = enabled);
-  }
+  void toggleMicrophone(bool enabled) => _mediaHandler.toggleAudio(enabled);
+
+  void toggleCamera(bool enabled) => _mediaHandler.toggleVideo(enabled);
+
+  void toggleSpeaker(bool enabled) => _deviceHandler.setSpeakerphone(enabled);
 
   Future<void> switchCamera() async {
-    if (_isScreenSharing || _localStream == null) return;
-    final videoTrack = _localStream!.getVideoTracks().first;
-    await Helper.switchCamera(videoTrack);
+    if (_mediaHandler._localStream == null) return;
+    _deviceHandler.switchCamera(_mediaHandler.videoTrack);
   }
 
-  void switchSpeaker(bool enabled) {
-    Helper.setSpeakerphoneOn(enabled);
-  }
-
-  Future<void> startScreenSharing() async {
-    if (_isScreenSharing) return;
-    final screenStream = await navigator.mediaDevices.getDisplayMedia({'video': true});
-    for (final peer in _peers.values) {
-      await peer.replaceVideoTrack(screenStream.getVideoTracks().first);
-    }
-    _isScreenSharing = true;
-  }
-
-  Future<void> stopScreenSharing() async {
-    if (!_isScreenSharing) return;
-    final cameraStream = await navigator.mediaDevices.getUserMedia({'video': true});
-    final videoTrack = cameraStream.getVideoTracks().first;
-    for (final peer in _peers.values) {
-      await peer.replaceVideoTrack(videoTrack);
-    }
-    _isScreenSharing = false;
-  }
-
-  Future<PeerConnectionWrapper> _getOrCreatePeer(String remoteId) async {
-    if (_peers.containsKey(remoteId)) return _peers[remoteId]!;
-
-    final wrapper = PeerConnectionWrapper(
-      localUserId: userId,
-      remoteUserId: remoteId,
-      callId: callId,
-      signaling: signaling,
-      localStream: _localStream!,
-    );
-
-    await wrapper.initialize();
-    _peers[remoteId] = wrapper;
-    return wrapper;
-  }
+  Future<void> toggleScreenSharing(
+    bool isScreenSharing,
+  ) => _mediaHandler.toggleScreenSharing(
+    isScreenSharing: isScreenSharing,
+    onStart: (stream) => _peerManager.replaceVideoTracks(stream.getVideoTracks().first),
+    onStop: (stream) => _peerManager.replaceVideoTracks(stream.getVideoTracks().first),
+  );
 
   void close() {
-    for (final peer in _peers.values) {
-      peer.dispose();
-    }
-    _peers.clear();
-    _localStream?.dispose();
+    _peerManager.disposeAll();
+    _mediaHandler.dispose();
   }
 
-  void dispose() {
-    close();
+  void dispose() => close();
+
+  void resume() {
+    _peerManager.resume();
+  }
+
+  void pause() {
+    _peerManager.pause();
   }
 }

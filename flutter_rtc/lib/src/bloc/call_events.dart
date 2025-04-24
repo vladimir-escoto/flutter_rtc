@@ -3,7 +3,7 @@
 // This file defines all events that the CallBloc can receive.
 // It now includes the new ToggleLocalControlEvent for toggling a control.
 
-import 'call_enums.dart';
+import 'package:flutter_rtc/src/bloc/call_enums.dart';
 
 /// Base abstract class for all call events.
 abstract class CallBlocEvent {}
