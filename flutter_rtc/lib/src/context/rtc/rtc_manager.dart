@@ -31,6 +31,14 @@ class RTCManager {
 
   Stream<CallEvent> get callEvents => _eventHandler.callEvents;
 
+  MediaStream? get localStream => _mediaHandler.localStream;
+
+  Map<String, MediaStream?> get mediaStreams {
+    _peerManager.remoteMediaStream.putIfAbsent(userId, () => localStream);
+
+    return _peerManager.remoteMediaStream;
+  }
+
   RTCManager({required this.callId, required this.userId, required this.signaling}) {
     _eventHandler = _RTCEventHandler();
     _mediaHandler = _RTCMediaHandler();
@@ -83,6 +91,7 @@ class RTCManager {
   void handleIncomingOffer(CallEventData offer) async {
     debugPrint("[CallManager] Received offer: $offer");
     _eventHandler._sendCallEvent(CallLifecycleStatus.incoming, value: offer);
+
   }
 
   void handleIncomingAnswer(CallEventData data) =>
@@ -90,6 +99,11 @@ class RTCManager {
 
   void handleIncomingCandidate(CallEventData data) =>
       _peerManager.handleIncomingCandidate(data);
+
+  Future<void> handleDeclineIncomingCall(String? reason) async =>
+      await _peerManager.handleDeclineIncomingCall(reason);
+
+  Future<void> handleEndCall() async => await _peerManager.handleEndCall();
 
   Future<void> joinParticipant(String remoteId) async {
     await _mediaHandler.ensureLocalStream();

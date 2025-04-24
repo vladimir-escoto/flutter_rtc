@@ -5,6 +5,8 @@
 
 import 'dart:ui';
 
+import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+
 import 'call_enums.dart';
 
 /// Base abstract class for all call events.
@@ -28,10 +30,15 @@ class ToggleLocalControlEvent extends CallBlocEvent {
 
 /// Event for remote control updates (from other participants).
 class RemoteControlEvent extends CallBlocEvent {
+  final String participantId;
   final RemoteControlType control;
   final bool value;
 
-  RemoteControlEvent({required this.control, required this.value});
+  RemoteControlEvent({
+    required this.participantId,
+    required this.control,
+    required this.value,
+  });
 }
 
 /// Event for UI interactions.
@@ -65,7 +72,11 @@ class AppLifecycleStateEvent extends CallBlocEvent {
 
 /// New event: Accept an incoming call.
 /// The BLoC can use the provided call mode to set the appropriate UI.
-class AcceptIncomingCallEvent extends CallBlocEvent {}
+class AcceptIncomingCallEvent extends CallBlocEvent {
+  final CallEventData data;
+
+  AcceptIncomingCallEvent({required this.data});
+}
 
 class StartOutgoingCallEvent extends CallBlocEvent {}
 

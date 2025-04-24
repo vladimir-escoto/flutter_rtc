@@ -27,6 +27,8 @@ class CallBlocState extends Equatable {
 
   bool get localScreenShareOn => callInfo.self.screenShareEnabled;
 
+  Participant get self => callInfo.self;
+
   CallMode get callMode => callInfo.callMode;
 
   // UI state.
@@ -70,12 +72,50 @@ class CallBlocState extends Equatable {
     );
   }
 
-  Participant get self => callInfo.self;
+  CallBlocState copyWithStream(Map<String, MediaStream?> remoteStream) {
+    return copyWithCallInfo(callInfo.copyAndUpdateStream(remoteStream));
+  }
+
+  CallBlocState toggleControl({
+    bool? speakerEnable,
+    bool? micEnabled,
+    bool? cameraEnabled,
+    bool? screenShareEnabled,
+  }) {
+    return copySelf(
+      self.copyWith(
+        speakerEnable: speakerEnable ?? self.speakerEnable,
+        micEnabled: micEnabled ?? self.micEnabled,
+        cameraEnabled: cameraEnabled ?? self.cameraEnabled,
+        screenShareEnabled: screenShareEnabled ?? self.screenShareEnabled,
+      ),
+    );
+  }
+
+  CallBlocState setRemoteControl(
+    String remoteId, {
+    bool? micEnabled,
+    bool? cameraEnabled,
+    bool? screenShareEnabled,
+  }) {
+    var participant =
+        callInfo.participants.where((p) => p.userId == remoteId).firstOrNull;
+    if (participant == null) return this;
+
+    return copySelf(
+      participant.copyWith(
+        micEnabled: micEnabled ?? participant.micEnabled,
+        cameraEnabled: cameraEnabled ?? participant.cameraEnabled,
+        screenShareEnabled: screenShareEnabled ?? participant.screenShareEnabled,
+      ),
+    );
+  }
 
   CallBlocState copySelf(Participant participant) {
-    callInfo.participants.removeWhere((p) => p.userId == participant.userId);
-    callInfo.participants.add(participant);
-    return copyWith(callInfo: callInfo);
+    var participants = List<Participant>.from(callInfo.participants);
+    participants.removeWhere((p) => p.userId == participant.userId);
+    participants.add(participant);
+    return copyWithCallInfo(callInfo.copyWith(participants: participants));
   }
 
   CallBlocState copyWithCallInfo(CallInfo callInfo) {

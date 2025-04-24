@@ -1,6 +1,8 @@
 // lib/src/coordinator/call_coordinator.dart
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_rtc/src/callkit_manager.dart';
+import 'package:flutter_rtc/src/context/call_context.dart';
 import 'package:flutter_rtc/src/session/call_user_session.dart';
 import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
 
@@ -18,7 +20,11 @@ class CallCoordinator {
 
   CallCoordinator._internal();
 
+  final callKitManager = CallKitManager();
+
   final Map<String, CallUserSession> _userSessions = {};
+
+
   late final SignalingInterface signaling;
 
   GlobalEventCallback? onGlobalEvent;
@@ -33,15 +39,16 @@ class CallCoordinator {
     if (_initialized) return;
     signaling = signalingInterface;
     onGlobalEvent = onEvent;
+    callKitManager.setGlobalEventCallback(_handCallKitGlobalEvent);
     signaling.setOnSignalingEvent(_handleSignalingEvent);
     signaling.setOnCallEvent(_handleCallEvent);
     _initialized = true;
   }
 
   /// Registers a new user and creates a session for them.
-  void registerUser(String userId) {
+  void registerUser(String userId, {Map<String, dynamic> params = const {}}) {
     if (_userSessions.containsKey(userId)) return;
-    final session = CallUserSession(userId, signaling);
+    final session = CallUserSession(userId, signaling, params);
     _userSessions[userId] = session;
     signaling.registerUser(userId);
   }
@@ -97,7 +104,7 @@ class CallCoordinator {
     }
   }
 
-  void _handleCallEvent(CallEventData data) {
+  Future<void> _handleCallEvent(CallEventData data) async {
     var session = getUserSessionByCallId(data.callId);
 
     if (session == null) {
@@ -105,11 +112,30 @@ class CallCoordinator {
       return;
     }
 
-    session.handleSignalingEvent(data);
+    await session.handleSignalingCallEvent(data);
+  }
+
+  ///handler callkit incoming events, for backGround proposes
+  void _handCallKitGlobalEvent(CallKitEventData event) {
+    debugPrint('[CallCoordinator] Received callkit event: ${event.event}');
+    if (event.event == CallKitEvent.incoming) {
+      debugPrint('[CallCoordinator] Received callkit Incoming event: ${event.body}');
+      var callData = CallEventData.fromJson(event.body as Map<String, dynamic>);
+      debugPrint(
+        '[CallCoordinator] UserSession Exist? [${_userSessions.containsKey(callData.to)}]',
+      );
+      //Todo: Validate if the user session exist
+      final session = _getUserSession(callData.to);
+      session.receiveIncomingCall(callData);
+    } else if (event.event == CallKitEvent.start) {
+      // TODO: started an outgoing call
+      // TODO: show screen calling in Flutter
+    }
   }
 
   /// Clears all active sessions (used for logout or reset).
   void clearAllSessions() {
+    callKitManager.endAllCalls();
     for (final session in _userSessions.values) {
       session.dispose();
     }

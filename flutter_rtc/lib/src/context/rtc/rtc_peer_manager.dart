@@ -8,6 +8,9 @@ class _RTCPeerManager {
   final Map<String, PeerConnectionWrapper> _peers = {};
   final _RTCEventHandler _eventHandler;
 
+  Map<String, MediaStream?> get remoteMediaStream =>
+      Map.fromEntries(_peers.values.map((p) => p.remoteMediaStream).toList());
+
   _RTCPeerManager(this._localUserId, this._callId, this._signaling, this._eventHandler);
 
   Future<void> createOffersFor(
@@ -43,6 +46,18 @@ class _RTCPeerManager {
     final peer = _peers[data.from];
     if (peer == null) return;
     peer.addIceCandidate(data.toCandidate());
+  }
+
+  Future<void> handleDeclineIncomingCall(String? reason) async {
+    for (final peer in _peers.values) {
+      await peer.declineCall(reason);
+    }
+  }
+
+  Future<void> handleEndCall() async {
+    for (final peer in _peers.values) {
+      await peer.endCall();
+    }
   }
 
   Future<PeerConnectionWrapper> getOrCreatePeer(

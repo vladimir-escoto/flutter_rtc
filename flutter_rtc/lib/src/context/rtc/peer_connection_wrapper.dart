@@ -18,8 +18,11 @@ class PeerConnectionWrapper {
   final String callId;
   final SignalingInterface signaling;
   final MediaStream localStream;
-  MediaStream? _remoteStream;
+  MediaStream? remoteStream;
   RTCDataChannel? dataChannel;
+
+  MapEntry<String, MediaStream> get remoteMediaStream =>
+      MapEntry(remoteUserId, localStream);
 
   final ConnectionStateCallback? onConnectionState;
   final ErrorCallback? onError;
@@ -68,21 +71,20 @@ class PeerConnectionWrapper {
     _pc.onIceCandidate = (candidate) {
       debugPrint("[CallManager] Sending ICE candidate immediately: ${candidate.toMap()}");
 
-      var candidateMap = candidate.toMap();
+      var data = CallEventData.fromCandidate(
+        candidate,
+        callId,
+        localUserId,
+        remoteUserId,
+      );
 
-      // signaling.sendEvent({
-      //   'type': 'candidate',
-      //   'callId': callId,
-      //   'from': localUserId,
-      //   'to': remoteUserId,
-      //   'candidate': candidate.toMap(),
-      // });
+      signaling.sendEvent(data);
     };
 
     // Remote stream handler.
     _pc.onAddStream = (stream) {
       debugPrint("[CallManager] Received remote stream: $stream");
-      _remoteStream = stream;
+      remoteStream = stream;
     };
 
     // Connection state change handler.
@@ -91,9 +93,9 @@ class PeerConnectionWrapper {
     };
 
     // // Create a data channel for control messages.
-    // dataChannel = await _pc.createDataChannel('control', RTCDataChannelInit());
+    dataChannel = await _pc.createDataChannel('control', RTCDataChannelInit());
     // // Setup data channel messages callback.
-    // dataChannel?.onMessage = (message) {};
+    dataChannel?.onMessage = (message) {};
   }
 
   Future<void> createOffer(CallMode mode, List<Participant> participants) async {
@@ -117,6 +119,38 @@ class PeerConnectionWrapper {
 
     final data = CallEventData.fromAnswer(answer, callId, localUserId, remoteUserId);
     debugPrint("[CallManager] Sent offer");
+
+    signaling.sendEvent(data);
+  }
+
+  Future<void> declineCall(String? reason) async {
+    dispose();
+
+    final data = CallEventData(
+      type: CallDataEventType.callDeclined,
+      callId: callId,
+      from: localUserId,
+      to: remoteUserId,
+      data: {"reason": reason ?? ""},
+    );
+
+    debugPrint("[CallManager] Sent decline");
+
+    signaling.sendEvent(data);
+  }
+
+  Future<void> endCall() async {
+    dispose();
+
+    final data = CallEventData(
+      type: CallDataEventType.callEnded,
+      callId: callId,
+      from: localUserId,
+      to: remoteUserId,
+      data: {},
+    );
+
+    debugPrint("[CallManager] Sent decline");
 
     signaling.sendEvent(data);
   }
@@ -169,10 +203,10 @@ class PeerConnectionWrapper {
   void dispose() {
     try {
       _pc.close();
-      _remoteStream?.dispose();
+      remoteStream?.dispose();
     } catch (e) {
       debugPrint("[CallManager] Error during hang up: $e");
     }
-    _remoteStream = null;
+    remoteStream = null;
   }
 }

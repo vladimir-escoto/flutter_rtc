@@ -37,7 +37,7 @@ enum LocalControlType {
 enum RemoteControlType { mic, camera, screenShare }
 
 /// Enum for UI event types.
-enum UIEventType { minimized, maximized, dragged, callTimerUpdated, callStatusChanged }
+enum UIEventType { minimized, maximized, dragged, callTimerUpdated }
 
 /// Enum for call mode.
 enum CallMode { audio, video }
