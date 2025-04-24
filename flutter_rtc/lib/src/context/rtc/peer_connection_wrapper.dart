@@ -19,10 +19,12 @@ class PeerConnectionWrapper {
   final MediaStream localStream;
   MediaStream? remoteStream;
   RTCDataChannel? dataChannel;
+  bool _accepted = false;
 
   MapEntry<String, MediaStream> get remoteMediaStream =>
       MapEntry(remoteUserId, localStream);
 
+  final List<RTCIceCandidate> _iceCandidates = [];
   final ConnectionStateCallback? onConnectionState;
   final ErrorCallback? onError;
 
@@ -68,16 +70,11 @@ class PeerConnectionWrapper {
 
     // ICE candidate handler.
     _pc.onIceCandidate = (candidate) {
-      debugPrint("[CallManager] Sending ICE candidate immediately: ${candidate.toMap()}");
-
-      var data = CallEventData.fromCandidate(
-        candidate,
-        callId,
-        localUserId,
-        remoteUserId,
-      );
-
-      signaling.sendEvent(data);
+      if (_accepted) {
+        _senIceCandidate(candidate);
+      } else {
+        _iceCandidates.add(candidate);
+      }
     };
 
     // Remote stream handler.
@@ -114,12 +111,15 @@ class PeerConnectionWrapper {
     final answer = await _pc.createAnswer();
     await _pc.setLocalDescription(answer);
 
-    debugPrint("[CallManager] Sent answer: $answer");
-
     final data = CallEventData.fromAnswer(answer, callId, localUserId, remoteUserId);
-    debugPrint("[CallManager] Sent offer");
 
+    debugPrint("[CallManager] Sent answer: $answer");
     signaling.sendEvent(data);
+    _accepted = true;
+
+    for (var candidate in _iceCandidates) {
+      _senIceCandidate(candidate);
+    }
   }
 
   Future<void> declineCall(String? reason) async {
@@ -156,7 +156,10 @@ class PeerConnectionWrapper {
 
   Future<void> handleIncomingAnswer(RTCSessionDescription answer) async {
     await _pc.setRemoteDescription(answer);
-    //TODO:Send Ice candidates
+    _accepted = true;
+    for (var candidate in _iceCandidates) {
+      _senIceCandidate(candidate);
+    }
   }
 
   Future<void> addIceCandidate(RTCIceCandidate candidate) async {
@@ -207,5 +210,12 @@ class PeerConnectionWrapper {
       debugPrint("[CallManager] Error during hang up: $e");
     }
     remoteStream = null;
+  }
+
+  void _senIceCandidate(RTCIceCandidate candidate) {
+    debugPrint("[CallManager] Sending ICE candidate immediately: ${candidate.toMap()}");
+    signaling.sendEvent(
+      CallEventData.fromCandidate(candidate, callId, localUserId, remoteUserId),
+    );
   }
 }
