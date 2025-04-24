@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_rtc/src/ui/widgets/incoming_call_view.dart';
-import 'package:flutter_rtc/src/ui/widgets/outgoing_call_view.dart';
+import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-import '../bloc/call_bloc.dart';
-import '../bloc/call_enums.dart';
-import '../bloc/call_state.dart';
-import 'call_container_screen/call_screen_view.dart';
-import 'call_container_screen/decline_call_view.dart';
-import 'call_container_screen/minimized_call_view.dart';
+part 'call_container_screen/call_screen_view.dart';
+
+part 'call_container_screen/decline_call_view.dart';
+
+part 'call_container_screen/minimized_call_view.dart';
+
+part 'widgets/call_control_option.dart';
+
+part 'widgets/call_overlay.dart';
+
+part 'widgets/call_status_widget.dart';
+
+part 'widgets/incoming_call_controls.dart';
+
+part 'widgets/outgoing_call_controls.dart';
+
+part 'widgets/incoming_call_view.dart';
+
+part 'widgets/outgoing_call_view.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
-typedef CallViewBuilder = Widget Function(BuildContext, CallBlocOld, CallBlocState);
+typedef CallViewBuilder = Widget Function(BuildContext, CallBloc, CallBlocState);
 
 /// CallContainerScreen displays the call UI using a BLoC for state management.
 /// All call-related information (streams, controls, lifecycle, minimization, etc.)
@@ -21,7 +33,7 @@ typedef CallViewBuilder = Widget Function(BuildContext, CallBlocOld, CallBlocSta
 class CallContainerScreen extends StatefulWidget {
   static const route = 'call_container_screen';
 
-  final CallBlocOld callBloc;
+  final CallBloc callBloc;
 
   final CallViewBuilder? outgoingView;
   final CallViewBuilder? incomingView;
@@ -79,7 +91,7 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<CallBlocOld, CallBlocState>(
+    return BlocConsumer<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
       listener: (context, state) {
         if (state.lifecycleStatus == CallLifecycleStatus.ended) {
@@ -108,17 +120,17 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
   }
 
   // Default fallback UIs
-  Widget _buildOutgoing(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+  Widget _buildOutgoing(BuildContext context, CallBloc bloc, CallBlocState state) {
     return widget.outgoingView?.call(context, bloc, state) ??
         OutgoingCallView(callBloc: bloc, state: state, localRenderer: _localRenderer);
   }
 
-  Widget _buildIncoming(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+  Widget _buildIncoming(BuildContext context, CallBloc bloc, CallBlocState state) {
     return widget.incomingView?.call(context, bloc, state) ??
         IncomingCallView(callBloc: bloc, state: state);
   }
 
-  Widget _buildActive(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+  Widget _buildActive(BuildContext context, CallBloc bloc, CallBlocState state) {
     var view =
         state.uiMinimized
             ? MinimizedCallView(
@@ -135,12 +147,12 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
     return widget.activeCallView?.call(context, bloc, state) ?? view;
   }
 
-  Widget _buildDecline(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+  Widget _buildDecline(BuildContext context, CallBloc bloc, CallBlocState state) {
     return widget.declineView?.call(context, bloc, state) ??
         DeclineCallView(callBloc: bloc);
   }
 
-  Widget _buildError(BuildContext context, CallBlocOld bloc, CallBlocState state) {
+  Widget _buildError(BuildContext context, CallBloc bloc, CallBlocState state) {
     return widget.errorView?.call(context, bloc, state) ??
         Center(
           child: Text(

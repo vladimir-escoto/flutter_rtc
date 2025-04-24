@@ -2,6 +2,8 @@
 // This file contains enums used to represent the lifecycle status of a call,
 // the type of controls, UI events, signaling events, and the call mode.
 
+part of 'call_bloc.dart';
+
 class CallEvent {
   final CallLifecycleStatus type;
   final dynamic value;

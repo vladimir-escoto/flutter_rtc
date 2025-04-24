@@ -1,14 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-
-import '../../bloc/call_bloc.dart';
-import '../../bloc/call_enums.dart';
-import '../../bloc/call_events.dart';
-import '../../bloc/call_state.dart';
-import 'outgoing_call_controls.dart';
+part of "../call_container_screen.dart";
 
 class OutgoingCallView extends StatelessWidget {
-  final CallBlocOld callBloc;
+  final CallBloc callBloc;
   final CallBlocState state;
   final RTCVideoRenderer localRenderer;
 

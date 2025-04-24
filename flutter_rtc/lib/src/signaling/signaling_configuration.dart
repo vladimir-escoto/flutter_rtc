@@ -1,14 +1,18 @@
+part of 'signaling_interface.dart';
+
 // Configuration for the MQTT signaling.
 class SignalingConfiguration {
   final String brokerUrl;
   final int port;
   final String clientId;
   final String topicPrefix;
+  final int keepAlive;
 
   SignalingConfiguration({
     required this.brokerUrl,
-    this.port = 1883,
+    required this.port,
     required this.clientId,
-    this.topicPrefix = 'flutter_rtc',
+    required this.topicPrefix,
+    required this.keepAlive,
   });
 }

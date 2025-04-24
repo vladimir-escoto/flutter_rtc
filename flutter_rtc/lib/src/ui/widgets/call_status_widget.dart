@@ -1,6 +1,6 @@
 // lib/src/ui/widgets/call_status_widget.dart
 
-import 'package:flutter/material.dart';
+part of "../call_container_screen.dart";
 
 class CallStatusWidget extends StatelessWidget {
   final String message;

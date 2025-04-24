@@ -3,11 +3,7 @@
 // This file defines all events that the CallBloc can receive.
 // It now includes the new ToggleLocalControlEvent for toggling a control.
 
-import 'dart:ui';
-
-import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
-
-import 'call_enums.dart';
+part of 'call_bloc.dart';
 
 /// Base abstract class for all call events.
 abstract class CallBlocEvent {}
@@ -24,8 +20,9 @@ class CallLifecycleEvent extends CallBlocEvent {
 class ToggleLocalControlEvent extends CallBlocEvent {
   final LocalControlType control;
   final CallMode? callMode;
+  final bool? value;
 
-  ToggleLocalControlEvent({required this.control, this.callMode});
+  ToggleLocalControlEvent({required this.control, this.callMode, this.value});
 }
 
 /// Event for remote control updates (from other participants).

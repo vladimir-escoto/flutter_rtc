@@ -4,7 +4,7 @@ part of 'rtc_manager.dart';
 class _RTCPeerManager {
   final String _localUserId;
   final String _callId;
-  final SignalingInterface _signaling;
+  final ISignaling _signaling;
   final Map<String, PeerConnectionWrapper> _peers = {};
   final _RTCEventHandler _eventHandler;
 
@@ -18,7 +18,7 @@ class _RTCPeerManager {
     MediaStream localStream,
     CallMode mode,
   ) async {
-    for (final participant in participants) {
+    for (final participant in participants.where((p)=>p.userId != _localUserId)) {
       final peer = await getOrCreatePeer(participant.userId, localStream);
       await peer.createOffer(mode, participants);
     }
@@ -106,7 +106,7 @@ class _RTCPeerManager {
 
   void disposeAll() {
     for (var peer in _peers.values) {
-      removePeer(peer.remoteUserId);
+      peer.dispose();
     }
     _peers.clear();
   }

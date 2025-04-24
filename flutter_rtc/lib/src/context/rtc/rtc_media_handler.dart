@@ -20,13 +20,13 @@ class _RTCMediaHandler {
     final microphoneGranted = statuses[Permission.microphone]?.isGranted ?? false;
     final _ = statuses[Permission.notification]?.isGranted ?? false;
 
-    if (microphoneGranted) {
+    if (!microphoneGranted) {
       throw Exception("Required microphone permissions not granted");
     }
 
     if (requireCamera) {
       final cameraGranted = statuses[Permission.camera]?.isGranted ?? false;
-      if (cameraGranted) {
+      if (!cameraGranted) {
         throw Exception("Required camera permissions not granted");
       }
     }

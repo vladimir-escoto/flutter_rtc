@@ -3,17 +3,14 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/callkit_manager.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
 import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
-import 'package:flutter_rtc/src/context/bloc/call_events.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 
 class CallContext {
   final callKitManager = CallKitManager();
-  final SignalingInterface signaling;
+  final ISignaling signaling;
   final String callId;
   final String userId;
   final bool isCaller;
@@ -36,7 +33,7 @@ class CallContext {
     required List<Participant> participants,
     Map<String, dynamic> params = const {},
   }) {
-    if (participants.any((p) => p.userId == userId)) {
+    if (!participants.any((p) => p.userId == userId)) {
       participants.add(Participant(userId: userId));
     }
 
@@ -60,10 +57,12 @@ class CallContext {
 
   /// Called by the initiator to start the call
   void startOutgoingCall() {
+    debugPrint('[CallContext] startOutgoingCall');
     _bloc.add(StartOutgoingCallEvent());
   }
 
   Future<void> handleIncomingOffer(CallEventData data) async {
+    debugPrint('[CallContext] handleIncomingOffer: $data');
     _rtcManager.handleIncomingOffer(data);
     await callKitManager.showCallkitIncoming(
       callId: data.callId,
@@ -74,6 +73,7 @@ class CallContext {
 
   /// Routes signaling events to the RTC manager
   Future<void> handleSignalingEvent(CallEventData data) async {
+    debugPrint('[CallContext] handleSignalingEvent: $data');
     switch (data.type) {
       case CallDataEventType.offer:
         await handleIncomingOffer(data);
@@ -96,25 +96,30 @@ class CallContext {
 
   /// Ends the call and notifies all participants
   void end() {
+    debugPrint('[CallContext] end');
     _rtcManager.close();
     callKitManager.endCall(callId);
   }
 
   void pause() {
+    debugPrint('[CallContext] pause');
     _rtcManager.pause();
     _bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.paused)));
   }
 
   void resume() {
+    debugPrint('[CallContext] resume');
     _rtcManager.resume();
     _bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.resumed)));
   }
 
   Future<void> setConnectionStatus(bool connected, dynamic error) async {
+    debugPrint('[CallContext] setConnectionStatus: connected=$connected, error=$error');
     //Todo: Manage connection status
   }
 
   void setAppLifecycleState(AppLifecycleState status) {
+    debugPrint('[CallContext] setAppLifecycleState: $status');
     _bloc.add(AppLifecycleStateEvent(status: status));
   }
 
@@ -133,10 +138,12 @@ class CallContext {
     }
 
     callKitManager.muteCall(callId, state.self);
+    debugPrint('[CallContext] _handleBlocState: $state');
   });
 
   StreamSubscription _handleCallKitEvents() =>
       callKitManager.eventsFor(callId).listen((CallKitEventData data) {
+        debugPrint('[CallContext] _handleCallKitEvents: $data');
         switch (data.event) {
           case CallKitEvent.accept:
             var callData = CallEventData.fromJson(data.body);
@@ -155,7 +162,8 @@ class CallContext {
           case CallKitEvent.toggleHold:
             break;
           case CallKitEvent.toggleMute:
-            _bloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
+            debugPrint('[CallContext] toggleMute ${data.body}');
+            _bloc.add(ToggleLocalControlEvent(control: LocalControlType.mic, value: data.body["isMuted"]));
             break;
           case CallKitEvent.toggleDmtf:
             break;
@@ -179,5 +187,6 @@ class CallContext {
     _callSub?.cancel();
     _bloc.close();
     _rtcManager.dispose();
+    debugPrint('[CallContext] dispose');
   }
 }

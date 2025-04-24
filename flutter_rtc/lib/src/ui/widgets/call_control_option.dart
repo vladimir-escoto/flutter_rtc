@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-
+part of "../call_container_screen.dart";
 
 /// Widget that represents a call control option.
 class CallControlOption extends StatelessWidget {

@@ -11,30 +11,26 @@ String generate6DigitClientId() {
 }
 
 void main() {
-  final clientId = generate6DigitClientId();
-  runApp(MyApp(clientId: clientId));
+  WidgetsFlutterBinding.ensureInitialized();
+  CallCoordinator.instance.initialize();
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final String clientId;
-
-  const MyApp({required this.clientId, super.key});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // The FlutterRTCWidget encapsulates the MaterialApp and internal navigator.
     return FlutterRTCWidget(
       navigatorKey: GlobalKey<NavigatorState>(),
-      clientId: clientId,
-      child: HomeScreen(clientId: clientId),
+      child: HomeScreen(),
     );
   }
 }
 
 class HomeScreen extends StatefulWidget {
-  final String clientId;
-
-  const HomeScreen({required this.clientId, super.key});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -42,6 +38,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _callIdController = TextEditingController();
+
+  final clientId = generate6DigitClientId();
 
   @override
   void initState() {
@@ -57,24 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final flutterRTC = FlutterRTCWidget.of(context);
+    // final flutterRTC = FlutterRTCWidget.of(context);
 
-   //  CallCoordinator.instance.registerUser("@Vladimir");
-   //  CallCoordinator.instance.registerUser("@romeo");
-   //
-   //  CallCoordinator.instance.unregisterUser("@Vladimir");
-   //
-   //  CallCoordinator.instance.startSingleCall("@Vladimir", "@Jose");
-   //
-   //  CallCoordinator.instance.startSingleCall("@Vladimir", "@Jose", mode: CallMode.video);
-   //
-   // final callid =  CallCoordinator.instance.startCall(
-   //    userId: "@Vladimir",
-   //    participants: [Participant(userId: "@Jose"), Participant(userId: "@Andy")],
-   //    mode: CallMode.video,
-   //  );
-
-
+    CallCoordinator.instance.onGlobalEvent.listen((event) {
+      if (event is SignalingEvent && event.type == SignalingEventType.connected) {
+        CallCoordinator.instance.registerUser(clientId);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('RTC Demo')),
@@ -83,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             Text(
-              'Client ID: ${widget.clientId}',
+              'Client ID: $clientId',
               style: TextStyle(
                 decoration: TextDecoration.none,
                 fontSize: 20,
@@ -107,7 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {
                     final targetId = _callIdController.text.trim();
                     if (targetId.isNotEmpty) {
-                      flutterRTC?.makeVideCall(targetId);
+                      CallCoordinator.instance.startSingleCall(
+                        clientId,
+                        targetId,
+                        mode: CallMode.video,
+                      );
                     }
                   },
                   child: const Text('Make Video Call'),
@@ -116,10 +107,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {
                     final targetId = _callIdController.text.trim();
                     if (targetId.isNotEmpty) {
-                      flutterRTC?.makeAudioCall(targetId);
+                      CallCoordinator.instance.startSingleCall(clientId, targetId);
                     }
                   },
                   child: const Text('Make Audio Call'),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: <Widget>[
+                ElevatedButton(
+                  onPressed: () {
+                    CallCoordinator.instance.clearAllSessions();
+                  },
+                  child: const Text('Clear All Sessions'),
                 ),
               ],
             ),

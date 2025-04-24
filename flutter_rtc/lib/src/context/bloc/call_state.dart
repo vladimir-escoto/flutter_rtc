@@ -3,12 +3,7 @@
 // It includes lifecycle information, local and remote control statuses,
 // UI state (e.g., minimized and position), call duration, and an optional error message.
 
-import 'dart:ui'; // for Offset
-import 'package:equatable/equatable.dart';
-import 'package:flutter_rtc/src/context/model/call_info.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-
-import 'package:flutter_rtc/src/coordinator/call_coordinator.dart';
+part of 'call_bloc.dart';
 
 /// The state for the call, including lifecycle, local and remote control statuses,
 /// UI state, call duration, and any error message.
@@ -42,6 +37,21 @@ class CallBlocState extends Equatable {
   final String? errorMessage;
 
   final MediaStream? localStream;
+
+  //TODO: Remove this
+  MediaStream? get remoteStream =>
+      callInfo.participants
+          .where((p) => p.userId != callInfo.userId)
+          .firstOrNull
+          ?.mediaStream;
+
+  //TODO: Remove this
+  bool get remoteCameraOn =>
+      callInfo.participants
+          .where((p) => p.userId != callInfo.userId)
+          .firstOrNull
+          ?.cameraEnabled ??
+      false;
 
   bool get isVideoCall => callMode == CallMode.video;
 

@@ -1,7 +1,8 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 
 final class CallInfo extends Equatable {
   final Map<String, dynamic> params;

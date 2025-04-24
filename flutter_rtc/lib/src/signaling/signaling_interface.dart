@@ -1,11 +1,17 @@
 // Abstract signaling interface that all implementations must follow.
-import 'package:flutter_rtc/src/signaling/signaling_event.dart';
+import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:flutter_rtc/src/context/model/participant.dart';
 
-import '../../flutter_rtc.dart';
+part 'signaling_configuration.dart';
 
-abstract class SignalingInterface {
+part 'signaling_event.dart';
+
+abstract class ISignaling {
   // Stream of signaling events.
-  Stream<SignalingEvent> get events;
+  Stream<SignalingEvent> get signalingEvents;
+
+  Stream<CallEventData> get callEvents;
 
   // Connect to the signaling server.
   Future<void> connect();
@@ -13,18 +19,14 @@ abstract class SignalingInterface {
   // Disconnect from the signaling server.
   Future<void> disconnect();
 
-  // Send an offer (SDP) to the target peer.
-  Future<void> sendOffer(String peerId, dynamic offer, bool enableVideo);
+  void dispose();
 
-  // Send an answer (SDP) to the target peer.
-  Future<void> sendAnswer(String peerId, dynamic answer);
+  /// Sends a signaling event with a free structure (Map)
+  Future<void> sendEvent(CallEventData payload);
 
-  // Send an ICE candidate to the target peer.
-  Future<void> sendIceCandidate(String peerId, dynamic candidate);
+  /// Informs that a user is active and should receive events
+  Future<void> registerUser(String userId);
 
-  // Notify the caller that the call was declined.
-  Future<void> sendCallDecline(String peerId, dynamic info);
-
-  // Notify the caller that the call was declined.
-  Future<void> sendCallEnded(String peerId, dynamic info);
+  /// Informs that a user has disconnected
+  Future<void> unregisterUser(String userId);
 }

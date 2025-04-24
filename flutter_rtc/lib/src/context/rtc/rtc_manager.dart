@@ -5,11 +5,12 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
 import 'package:flutter_rtc/src/context/rtc/peer_connection_wrapper.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+
+import '../bloc/call_bloc.dart';
+
 
 part 'rtc_media_handler.dart';
 
@@ -22,7 +23,7 @@ part 'rtc_event_manager.dart';
 class RTCManager {
   final String callId;
   final String userId;
-  final SignalingInterface signaling;
+  final ISignaling signaling;
 
   late final _RTCPeerManager _peerManager;
   late final _RTCMediaHandler _mediaHandler;
@@ -52,6 +53,7 @@ class RTCManager {
   /// peer connection, data channel and sending the offer via signaling.
   Future<void> startOutgoingCall(List<Participant> participants, CallMode mode) async {
     try {
+      debugPrint("[CallManager] startOutgoingCall");
       _eventHandler._sendCallEvent(CallLifecycleStatus.initial);
       _eventHandler._sendCallEvent(CallLifecycleStatus.calling);
 
@@ -83,6 +85,7 @@ class RTCManager {
   }
 
   Future<void> createOfferFor(List<Participant> participants, CallMode mode) async {
+    debugPrint("[CallManager] createOfferFor ${participants.length}");
     await _mediaHandler.ensureLocalStream(enableVideo: mode == CallMode.video);
     await _peerManager.createOffersFor(participants, _mediaHandler.localStream!, mode);
   }

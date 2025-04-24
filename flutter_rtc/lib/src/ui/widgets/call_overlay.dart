@@ -1,7 +1,6 @@
 // lib/src/ui/widgets/call_overlay.dart
 
-import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+part of "../call_container_screen.dart";
 
 class CallOverlay extends StatelessWidget {
   final bool isVideoCall;

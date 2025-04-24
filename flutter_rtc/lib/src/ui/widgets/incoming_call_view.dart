@@ -1,11 +1,7 @@
-import 'package:flutter/material.dart';
-
-import '../../bloc/call_bloc.dart';
-import '../../bloc/call_events.dart';
-import '../../bloc/call_state.dart';
+part of "../call_container_screen.dart";
 
 class IncomingCallView extends StatelessWidget {
-  final CallBlocOld callBloc;
+  final CallBloc callBloc;
   final CallBlocState state;
 
   const IncomingCallView({required this.callBloc, required this.state, super.key});
@@ -49,8 +45,8 @@ class IncomingCallView extends StatelessWidget {
                     heroTag: 'Call',
                     backgroundColor: Colors.green,
                     onPressed: () {
-                      callBloc.add(AcceptIncomingCallEvent(callMode: state.callMode));
-                    },
+                      //callBloc.add(AcceptIncomingCallEvent(data: {});
+                      },
                     child: const Icon(Icons.call),
                   ),
                 ],

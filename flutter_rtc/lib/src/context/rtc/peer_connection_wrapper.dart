@@ -4,10 +4,9 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/context/model/participant.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
+import '../bloc/call_bloc.dart';
 
 typedef ConnectionStateCallback = void Function(String, RTCPeerConnectionState);
 typedef ErrorCallback = void Function(String, String message);
@@ -16,7 +15,7 @@ class PeerConnectionWrapper {
   final String localUserId;
   final String remoteUserId;
   final String callId;
-  final SignalingInterface signaling;
+  final ISignaling signaling;
   final MediaStream localStream;
   MediaStream? remoteStream;
   RTCDataChannel? dataChannel;

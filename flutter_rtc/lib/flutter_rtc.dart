@@ -1,88 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_rtc/src/bloc/call_enums.dart';
-import 'package:flutter_rtc/src/bloc/call_events.dart';
-import 'package:flutter_rtc/src/bloc/call_bloc.dart';
-import 'package:flutter_rtc/src/call_manager.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
-import 'package:flutter_rtc/src/signaling/signaling_configuration.dart';
-import 'package:flutter_rtc/src/ui/call_container_screen.dart';
+import 'package:uuid/uuid.dart';
 
-export 'src/signaling/mqtt_signaling.dart';
-export 'src/signaling/signaling_configuration.dart';
-export 'src/signaling/signaling_event.dart';
+// export 'src/signaling/mqtt_signaling.dart';
+// export 'src/signaling/signaling_configuration.dart';
 export 'src/ui/call_container_screen.dart';
 export 'src/ui/flutter_rtc_widget.dart';
+export 'package:flutter_rtc/src/coordinator/call_coordinator.dart';
+export 'package:flutter_rtc/src/context/call_context.dart';
+export 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
+export 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 
 
-class FlutterRTC {
-  late final SignalingInterface signaling;
-  late final CallManager callManager;
-  late final CallBlocOld callBloc;
-  final GlobalKey<NavigatorState> navigatorKey;
-
-  FlutterRTC({
-    required String clientId,
-    SignalingInterface? customSignaling,
-    GlobalKey<NavigatorState>? navigatorKey,
-  }) : navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>() {
-    signaling =
-        customSignaling ??
-        MQTTSignaling(
-          config: SignalingConfiguration(brokerUrl: 'test.mosquitto.org', clientId: clientId),
-          // config: SignalingConfiguration(brokerUrl: 'broker.hivemq.com', clientId: clientId),
-          // config: SignalingConfiguration(brokerUrl: 'broker.emqx.io', clientId: clientId),
-        );
-    callManager = CallManager(signaling: signaling, clientId: clientId);
-    callBloc = CallBlocOld(callManager: callManager);
-  }
-
-  /// Initializes the signaling and sets up incoming call listeners.
-  Future<void> initialize(BuildContext context) async {
-    await callManager.setupSignalingEventsListener();
-    await signaling.connect();
-
-    callManager.callEvents.listen((event) {
-      if (event.type == CallLifecycleStatus.incoming) {
-        _showCallScreen();
-      }
-    });
-  }
-
-  /// Initiates an outgoing call and navigates to the call UI.
-  Future<void> makeVideCall(String targetPeerId) async {
-    callBloc.add(
-      StartOutgoingCallEvent(targetPeerId: targetPeerId, callMode: CallMode.video),
-    );
-    await _showCallScreen();
-  }
-
-  Future<void> makeAudioCall(String targetPeerId) async {
-    callBloc.add(
-      StartOutgoingCallEvent(targetPeerId: targetPeerId, callMode: CallMode.audio),
-    );
-    await _showCallScreen();
-  }
-
-  // Navigate to the call UI using the internal navigator.
-  // This ensures that the call screen is displayed regardless of where
-  // the user is in the app's navigation.
-  Future<void> _showCallScreen() async {
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        settings: RouteSettings(name: CallContainerScreen.route),
-        builder:
-            (_) => BlocProvider.value(
-              value: callBloc,
-              child: CallContainerScreen(callBloc: callBloc),
-            ),
-      ),
-    );
-  }
-
-  /// Hangs up the call and resets the navigation.
-  Future<void> hangUp() async {
-    callBloc.add(HangUpCallEvent());
-  }
-}
+// class FlutterRTC {
+//   late final ISignaling signaling;
+//   final GlobalKey<NavigatorState> navigatorKey;
+//
+//   FlutterRTC({ISignaling? signaling, GlobalKey<NavigatorState>? navigatorKey})
+//     : navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>() {
+//     signaling =
+//         signaling ??
+//         MQTTSignaling(
+//           config: SignalingConfiguration(
+//             brokerUrl: 'broker.triplecyber.com',
+//             clientId: Uuid().v4(),
+//           ),
+//         );
+//   }
+//
+//   /// Initializes the signaling and sets up incoming call listeners.
+//   Future<void> initialize(BuildContext context) async {
+//
+//   }
+//
+//   /// Initiates an outgoing call and navigates to the call UI.
+//   Future<void> makeVideCall(String targetPeerId) async {
+//
+//
+//     await _showCallScreen();
+//   }
+//
+//   Future<void> makeAudioCall(String targetPeerId) async {
+//
+//     await _showCallScreen();
+//   }
+//
+//   // Navigate to the call UI using the internal navigator.
+//   // This ensures that the call screen is displayed regardless of where
+//   // the user is in the app's navigation.
+//   Future<void> _showCallScreen() async {
+//     // navigatorKey.currentState?.push(
+//     //   MaterialPageRoute(
+//     //     settings: RouteSettings(name: CallContainerScreen.route),
+//     //     builder:
+//     //         (_) => BlocProvider.value(
+//     //           value: callBloc,
+//     //           child: CallContainerScreen(callBloc: callBloc),
+//     //         ),
+//     //   ),
+//     // );
+//   }
+//
+// }

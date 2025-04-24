@@ -1,65 +1,74 @@
 // lib/src/coordinator/call_coordinator.dart
 
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/callkit_manager.dart';
+import 'package:flutter_rtc/src/config/app_constants.dart';
+import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/context/call_context.dart';
-import 'package:flutter_rtc/src/session/call_user_session.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_interface.dart';
-
 import 'package:flutter_rtc/src/context/model/participant.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
-import 'package:flutter_rtc/src/coordinator/signaling_event.dart';
-
-export 'package:flutter_rtc/src/context/bloc/call_enums.dart';
-export 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:uuid/uuid.dart';
 
 typedef GlobalEventCallback = void Function(dynamic event);
+typedef UserData = Map<String, dynamic>;
 
 class CallCoordinator {
   static final CallCoordinator instance = CallCoordinator._internal();
 
   CallCoordinator._internal();
 
-  final callKitManager = CallKitManager();
+  final StreamController<dynamic> _onGlobalEvent = StreamController.broadcast();
 
-  final Map<String, CallUserSession> _userSessions = {};
+  Stream<dynamic> get onGlobalEvent => _onGlobalEvent.stream;
 
+  final Map<String, CallContext> _activeCalls = {};
+  final Map<String, UserData> _users = {};
 
-  late final SignalingInterface signaling;
+  final _callKitManager = CallKitManager();
 
-  GlobalEventCallback? onGlobalEvent;
+  late final ISignaling _signaling;
 
-  CallUserSession? getUserSessionByCallId(String callId) =>
-      _userSessions.values.where((s) => s.containsCall(callId)).firstOrNull;
+  StreamSubscription? _signalingSubscription;
+  StreamSubscription? _callEventsSubscription;
 
   bool _initialized = false;
 
   /// Initializes the coordinator with a shared signaling interface.
-  void initialize(SignalingInterface signalingInterface, {GlobalEventCallback? onEvent}) {
+  void initialize({ISignaling? signaling}) {
     if (_initialized) return;
-    signaling = signalingInterface;
-    onGlobalEvent = onEvent;
-    callKitManager.setGlobalEventCallback(_handCallKitGlobalEvent);
-    signaling.setOnSignalingEvent(_handleSignalingEvent);
-    signaling.setOnCallEvent(_handleCallEvent);
+
+    if (signaling == null) {
+      final config = SignalingConfiguration(
+        brokerUrl: AppConstants.mqttServer,
+        clientId: Uuid().v4(),
+        port: AppConstants.mqttPort,
+        topicPrefix: AppConstants.topicPrefix,
+        keepAlive: AppConstants.keepAlive,
+      );
+
+      signaling = MQTTSignaling(config: config);
+    }
+
+    _signaling = signaling;
+    _callKitManager.setGlobalEventCallback(_handCallKitGlobalEvent);
+    _signaling.callEvents.listen(_handleCallEvent);
+    _signaling.signalingEvents.listen(_handleSignalingEvent);
     _initialized = true;
+    _signaling.connect();
+  }
+
+  void registerUser(String userId, {Map<String, dynamic> params = const {}}) {
+    _users[userId] = params;
+    _signaling.registerUser(userId);
   }
 
   /// Registers a new user and creates a session for them.
-  void registerUser(String userId, {Map<String, dynamic> params = const {}}) {
-    if (_userSessions.containsKey(userId)) return;
-    final session = CallUserSession(userId, signaling, params);
-    _userSessions[userId] = session;
-    signaling.registerUser(userId);
-  }
-
   void unregisterUser(String userId) {
-    final session = _userSessions.remove(userId);
-    if (session != null) {
-      // Dispose the session to release resources.
-      session.dispose();
-      signaling.unregisterUser(userId);
-    }
+    _users.remove(userId);
+    _signaling.unregisterUser(userId);
   }
 
   Future<String> startSingleCall(
@@ -77,42 +86,53 @@ class CallCoordinator {
     required List<Participant> participants,
     CallMode mode = CallMode.audio,
   }) async {
-    final session = _getUserSession(userId);
-    return await session.startCall(participants, mode);
+    final context = _makeCall(userId, participants, mode);
+    context.startOutgoingCall();
+    return context.callId;
   }
 
-  /// Returns a session for a given user.
-  CallUserSession _getUserSession(String userId) {
-    registerUser(userId);
-    final session = _userSessions[userId];
-    if (session == null) {
-      throw Exception('User session not found for userId: $userId');
-    }
-    return session;
+  CallContext _makeCall(String userId, List<Participant> participants, CallMode mode) {
+    final callId = _generateCallId();
+    debugPrint('[CallUserSession] makeCall, callId: $callId');
+
+    final context = CallContext(
+      params: _users[userId] ?? const {},
+      callId: callId,
+      userId: userId,
+      participants: participants,
+      signaling: _signaling,
+      isCaller: true,
+      mode: mode,
+    );
+
+    _activeCalls[callId] = context;
+    return context;
   }
 
   /// Dispatches signaling events to the correct session and logs globally if needed.
   void _handleSignalingEvent(SignalingEvent event) {
     debugPrint('[CallCoordinator] Received event: ${event.type}');
-    onGlobalEvent?.call(event); // Logging, tracing, analytics, etc.
+    _onGlobalEvent.add(event); // Logging, tracing, analytics, etc.
 
-    for (final session in _userSessions.values) {
-      session.setConnectionStatus(
+    for (final context in _activeCalls.values) {
+      context.setConnectionStatus(
         event.type == SignalingEventType.disconnected,
         event.data,
       );
     }
   }
 
+  /// Handles an incoming signaling event and routes it to the correct call context.
   Future<void> _handleCallEvent(CallEventData data) async {
-    var session = getUserSessionByCallId(data.callId);
+    _onGlobalEvent.add(data);
+    var context = _activeCalls[data.callId];
 
-    if (session == null) {
+    if (context == null) {
       debugPrint('[CallCoordinator] No active session for call $data');
       return;
     }
 
-    await session.handleSignalingCallEvent(data);
+    await context.handleSignalingEvent(data);
   }
 
   ///handler callkit incoming events, for backGround proposes
@@ -121,37 +141,55 @@ class CallCoordinator {
     if (event.event == CallKitEvent.incoming) {
       debugPrint('[CallCoordinator] Received callkit Incoming event: ${event.body}');
       var callData = CallEventData.fromJson(event.body as Map<String, dynamic>);
-      debugPrint(
-        '[CallCoordinator] UserSession Exist? [${_userSessions.containsKey(callData.to)}]',
-      );
-      //Todo: Validate if the user session exist
-      final session = _getUserSession(callData.to);
-      session.receiveIncomingCall(callData);
+      receiveIncomingCall(callData);
     } else if (event.event == CallKitEvent.start) {
       // TODO: started an outgoing call
       // TODO: show screen calling in Flutter
     }
   }
 
+  void receiveIncomingCall(CallEventData data) {
+    if (!_activeCalls.containsKey(data.callId)) {
+      debugPrint('[CallUserSession] receiveIncomingCall ${data.callId}');
+      var offer = data.toOffer();
+      var context = _makeCall(data.to, offer.participants, offer.mode);
+      context.handleIncomingOffer(data);
+    }
+  }
+
   /// Clears all active sessions (used for logout or reset).
   void clearAllSessions() {
-    callKitManager.endAllCalls();
-    for (final session in _userSessions.values) {
-      session.dispose();
+    _callKitManager.endAllCalls();
+    debugPrint('[CallUserSession] dispose');
+    for (final context in _activeCalls.values) {
+      context.dispose();
     }
-    _userSessions.clear();
+    _activeCalls.clear();
+    _users.clear();
   }
 
   void endCall(String callId) {
-    final session = getUserSessionByCallId(callId);
-    if (session != null) {
-      session.endCall(callId);
-    }
+    debugPrint('[CallUserSession] endCall $callId');
+    final context = _activeCalls.remove(callId);
+    context?.end();
   }
 
   void setAppLifecycleState(AppLifecycleState status) {
-    for (final session in _userSessions.values) {
-      session.setAppLifecycleState(status);
+    debugPrint('[CallUserSession] setAppLifecycleState $status');
+    for (final context in _activeCalls.values) {
+      context.setAppLifecycleState(status);
     }
+  }
+
+  String _generateCallId() {
+    // For now use timestamp; can be replaced with UUID if needed
+    return '${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  void dispose() {
+    clearAllSessions();
+    _signalingSubscription?.cancel();
+    _callEventsSubscription?.cancel();
+    _signaling.dispose();
   }
 }

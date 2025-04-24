@@ -3,9 +3,16 @@ import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
-import 'package:flutter_rtc/src/context/bloc/call_events.dart';
-import 'package:flutter_rtc/src/context/bloc/call_state.dart';
-import 'package:flutter_rtc/src/context/bloc/call_enums.dart';
+import 'package:equatable/equatable.dart';
+import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:flutter_rtc/src/context/model/participant.dart';
+
+part 'call_state.dart';
+
+part 'call_events.dart';
+
+part 'call_enums.dart';
 
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   final RTCManager rtcManager;
@@ -52,6 +59,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   ) {
     switch (event.control) {
       case LocalControlType.mic:
+        if (event.value == state.localMicOn) return;
         rtcManager.toggleMicrophone(!state.localMicOn);
         emit(state.toggleControl(micEnabled: !state.localMicOn));
         break;

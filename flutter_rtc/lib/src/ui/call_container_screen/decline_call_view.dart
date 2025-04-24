@@ -1,10 +1,7 @@
-import 'package:flutter/material.dart';
-
-import '../../bloc/call_bloc.dart';
-import '../../bloc/call_events.dart';
+part of "../call_container_screen.dart";
 
 class DeclineCallView extends StatelessWidget {
-  final CallBlocOld callBloc;
+  final CallBloc callBloc;
 
   const DeclineCallView({required this.callBloc, super.key});
 
