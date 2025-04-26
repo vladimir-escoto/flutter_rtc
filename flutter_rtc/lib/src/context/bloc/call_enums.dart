@@ -22,8 +22,7 @@ enum CallLifecycleStatus {
   ended, // Call has ended normally.
   declined, // Outgoing call was cancelled before answer.
   failed, // Call failed due to an error.
-  paused, // Call has been paused.
-  resumed, // Call has been resumed.
+  hold, // Call has been paused.
 }
 
 /// Enum for local control types.

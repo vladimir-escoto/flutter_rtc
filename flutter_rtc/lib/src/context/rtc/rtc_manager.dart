@@ -3,7 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/context/rtc/peer_connection_wrapper.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -51,7 +51,7 @@ class RTCManager {
 
   /// Starts an outgoing call by initializing permissions, local media,
   /// peer connection, data channel and sending the offer via signaling.
-  Future<void> startOutgoingCall(List<Participant> participants, CallMode mode) async {
+  Future<void> startOutgoingCall(List<Member> members, CallMode mode) async {
     try {
       debugPrint("[CallManager] startOutgoingCall");
       _eventHandler._sendCallEvent(CallLifecycleStatus.initial);
@@ -59,7 +59,7 @@ class RTCManager {
 
       await _mediaHandler._ensureHasPermissions(mode == CallMode.video);
 
-      createOfferFor(participants, mode);
+      createOfferFor(members, mode);
 
       _eventHandler._sendCallEvent(CallLifecycleStatus.ringing);
     } catch (e) {
@@ -84,10 +84,10 @@ class RTCManager {
     }
   }
 
-  Future<void> createOfferFor(List<Participant> participants, CallMode mode) async {
-    debugPrint("[CallManager] createOfferFor ${participants.length}");
+  Future<void> createOfferFor(List<Member> members, CallMode mode) async {
+    debugPrint("[CallManager] createOfferFor ${members.length}");
     await _mediaHandler.ensureLocalStream(enableVideo: mode == CallMode.video);
-    await _peerManager.createOffersFor(participants, _mediaHandler.localStream!, mode);
+    await _peerManager.createOffersFor(members, _mediaHandler.localStream!, mode);
   }
 
   /// Handles an incoming offer by storing the offer data and notifying listeners.
@@ -96,6 +96,12 @@ class RTCManager {
     _eventHandler._sendCallEvent(CallLifecycleStatus.incoming, value: offer);
 
   }
+
+  void handleIncomingHold(CallEventData data) =>
+      _peerManager.handleIncomingHold(data);
+
+  void handleIncomingResume(CallEventData data) =>
+      _peerManager.handleIncomingResume(data);
 
   void handleIncomingAnswer(CallEventData data) =>
       _peerManager.handleIncomingAnswer(data);
@@ -108,12 +114,12 @@ class RTCManager {
 
   Future<void> handleEndCall() async => await _peerManager.handleEndCall();
 
-  Future<void> joinParticipant(String remoteId) async {
+  Future<void> joinMember(String remoteId) async {
     await _mediaHandler.ensureLocalStream();
     await _peerManager.getOrCreatePeer(remoteId, _mediaHandler.localStream!);
   }
 
-  void removeParticipant(String remoteId) => _peerManager.removePeer(remoteId);
+  void removeMembers(String remoteId) => _peerManager.removePeer(remoteId);
 
   //----------------_mediaHandler Controller---------------------------------
 
@@ -143,11 +149,11 @@ class RTCManager {
 
   void dispose() => close();
 
-  void resume() {
-    _peerManager.resume();
+  void resumeCall() {
+    _peerManager.resumeCall();
   }
 
-  void pause() {
-    _peerManager.pause();
+  void hold() {
+    _peerManager.holdCall();
   }
 }

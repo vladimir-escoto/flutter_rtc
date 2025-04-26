@@ -11,6 +11,7 @@ export 'package:flutter_rtc/src/coordinator/call_coordinator.dart';
 export 'package:flutter_rtc/src/context/call_context.dart';
 export 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 export 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+export 'package:flutter_rtc/src/context/model/member.dart';
 
 
 // class FlutterRTC {

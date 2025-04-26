@@ -7,7 +7,7 @@ import 'package:flutter_rtc/src/callkit_manager.dart';
 import 'package:flutter_rtc/src/config/app_constants.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/context/call_context.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:uuid/uuid.dart';
@@ -77,21 +77,21 @@ class CallCoordinator {
     CallMode mode = CallMode.audio,
   }) async => await startCall(
     userId: userId,
-    participants: [Participant(userId: targetUserId)],
+    members: [Member(userId: targetUserId)],
     mode: CallMode.video,
   );
 
   Future<String> startCall({
     required String userId,
-    required List<Participant> participants,
+    required List<Member> members,
     CallMode mode = CallMode.audio,
   }) async {
-    final context = _makeCall(userId, participants, mode);
+    final context = _makeCall(userId, members, mode);
     context.startOutgoingCall();
     return context.callId;
   }
 
-  CallContext _makeCall(String userId, List<Participant> participants, CallMode mode) {
+  CallContext _makeCall(String userId, List<Member> members, CallMode mode) {
     final callId = _generateCallId();
     debugPrint('[CallUserSession] makeCall, callId: $callId');
 
@@ -99,7 +99,7 @@ class CallCoordinator {
       params: _users[userId] ?? const {},
       callId: callId,
       userId: userId,
-      participants: participants,
+      members: members,
       signaling: _signaling,
       isCaller: true,
       mode: mode,
@@ -152,7 +152,7 @@ class CallCoordinator {
     if (!_activeCalls.containsKey(data.callId)) {
       debugPrint('[CallUserSession] receiveIncomingCall ${data.callId}');
       var offer = data.toOffer();
-      var context = _makeCall(data.to, offer.participants, offer.mode);
+      var context = _makeCall(data.to, offer.members, offer.mode);
       context.handleIncomingOffer(data);
     }
   }
@@ -172,6 +172,16 @@ class CallCoordinator {
     debugPrint('[CallUserSession] endCall $callId');
     final context = _activeCalls.remove(callId);
     context?.end();
+  }
+
+  void holdCall(String callId) {
+    debugPrint('[CallUserSession] holdCall $callId');
+    _activeCalls[callId]?.holdCall();
+  }
+
+  void resumeCall(String callId) {
+    debugPrint('[CallUserSession] holdCall $callId');
+    _activeCalls[callId]?.resumeCall();
   }
 
   void setAppLifecycleState(AppLifecycleState status) {

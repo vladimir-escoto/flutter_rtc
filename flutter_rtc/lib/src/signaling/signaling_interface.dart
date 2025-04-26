@@ -1,7 +1,7 @@
 // Abstract signaling interface that all implementations must follow.
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 
 part 'signaling_configuration.dart';
 

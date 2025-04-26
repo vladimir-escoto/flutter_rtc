@@ -22,7 +22,7 @@ class CallBlocState extends Equatable {
 
   bool get localScreenShareOn => callInfo.self.screenShareEnabled;
 
-  Participant get self => callInfo.self;
+  Member get self => callInfo.self;
 
   CallMode get callMode => callInfo.callMode;
 
@@ -40,14 +40,11 @@ class CallBlocState extends Equatable {
 
   //TODO: Remove this
   MediaStream? get remoteStream =>
-      callInfo.participants
-          .where((p) => p.userId != callInfo.userId)
-          .firstOrNull
-          ?.mediaStream;
+      callInfo.members.where((p) => p.userId != callInfo.userId).firstOrNull?.mediaStream;
 
   //TODO: Remove this
   bool get remoteCameraOn =>
-      callInfo.participants
+      callInfo.members
           .where((p) => p.userId != callInfo.userId)
           .firstOrNull
           ?.cameraEnabled ??
@@ -108,24 +105,23 @@ class CallBlocState extends Equatable {
     bool? cameraEnabled,
     bool? screenShareEnabled,
   }) {
-    var participant =
-        callInfo.participants.where((p) => p.userId == remoteId).firstOrNull;
-    if (participant == null) return this;
+    var member = callInfo.members.where((p) => p.userId == remoteId).firstOrNull;
+    if (member == null) return this;
 
     return copySelf(
-      participant.copyWith(
-        micEnabled: micEnabled ?? participant.micEnabled,
-        cameraEnabled: cameraEnabled ?? participant.cameraEnabled,
-        screenShareEnabled: screenShareEnabled ?? participant.screenShareEnabled,
+      member.copyWith(
+        micEnabled: micEnabled ?? member.micEnabled,
+        cameraEnabled: cameraEnabled ?? member.cameraEnabled,
+        screenShareEnabled: screenShareEnabled ?? member.screenShareEnabled,
       ),
     );
   }
 
-  CallBlocState copySelf(Participant participant) {
-    var participants = List<Participant>.from(callInfo.participants);
-    participants.removeWhere((p) => p.userId == participant.userId);
-    participants.add(participant);
-    return copyWithCallInfo(callInfo.copyWith(participants: participants));
+  CallBlocState copySelf(Member member) {
+    var members = List<Member>.from(callInfo.members);
+    members.removeWhere((p) => p.userId == member.userId);
+    members.add(member);
+    return copyWithCallInfo(callInfo.copyWith(members: members));
   }
 
   CallBlocState copyWithCallInfo(CallInfo callInfo) {

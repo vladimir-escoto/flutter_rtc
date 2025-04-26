@@ -6,7 +6,7 @@ import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 
 part 'call_state.dart';
 
@@ -90,13 +90,13 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     final enabled = event.value;
     switch (event.control) {
       case RemoteControlType.mic:
-        emit(state.setRemoteControl(event.participantId, micEnabled: enabled));
+        emit(state.setRemoteControl(event.memberId, micEnabled: enabled));
         break;
       case RemoteControlType.camera:
-        emit(state.setRemoteControl(event.participantId, cameraEnabled: enabled));
+        emit(state.setRemoteControl(event.memberId, cameraEnabled: enabled));
         break;
       case RemoteControlType.screenShare:
-        emit(state.setRemoteControl(event.participantId, screenShareEnabled: enabled));
+        emit(state.setRemoteControl(event.memberId, screenShareEnabled: enabled));
         break;
     }
   }
@@ -147,7 +147,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     StartOutgoingCallEvent event,
     Emitter<CallBlocState> emit,
   ) async => await rtcManager.startOutgoingCall(
-    state.callInfo.participants,
+    state.callInfo.members,
     state.callInfo.callMode,
   );
 

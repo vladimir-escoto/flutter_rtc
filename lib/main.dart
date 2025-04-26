@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextField(
               controller: _callIdController,
               decoration: const InputDecoration(
-                labelText: 'Call ID (target)',
+                labelText: 'Call ID (target) or Group call user1:user2',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -122,6 +122,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     CallCoordinator.instance.clearAllSessions();
                   },
                   child: const Text('Clear All Sessions'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    if (targetId.isNotEmpty) {
+                      CallCoordinator.instance.startCall(
+                        userId: clientId,
+                        members: [
+                          Member(userId: targetId.first),
+                          Member(userId: targetId.last),
+                        ],
+                      );
+                    }
+                  },
+                  child: const Text('Group Call'),
                 ),
               ],
             ),

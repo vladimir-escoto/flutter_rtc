@@ -3,7 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../bloc/call_bloc.dart';
@@ -94,11 +94,11 @@ class PeerConnectionWrapper {
     dataChannel?.onMessage = (message) {};
   }
 
-  Future<void> createOffer(CallMode mode, List<Participant> participants) async {
+  Future<void> createOffer(CallMode mode, List<Member> members) async {
     final offer = await _pc.createOffer();
     await _pc.setLocalDescription(offer);
 
-    final callOffer = CallOffer.fromSessionDescription(offer, mode, participants);
+    final callOffer = CallOffer.fromRTCSession(offer, mode: mode, members: members);
     final data = CallEventData.fromOffer(callOffer, callId, localUserId, remoteUserId);
     debugPrint("[CallManager] Sent offer");
 
@@ -217,5 +217,51 @@ class PeerConnectionWrapper {
     signaling.sendEvent(
       CallEventData.fromCandidate(candidate, callId, localUserId, remoteUserId),
     );
+  }
+
+  Future<void> remoteHold() async {
+    remoteMediaStream.value.getTracks().forEach((track) {
+      track.enabled = false;
+    });
+  }
+
+  Future<void> remoteResume() async {
+    remoteMediaStream.value.getTracks().forEach((track) {
+      track.enabled = true;
+    });
+  }
+
+  Future<void> holdCall() async {
+
+// _pc.getTransceivers()
+//     for (var trans in _pc.getTransceivers()) {
+//       if (trans.sender.track != null) {
+//         trans.direction = TransceiverDirection.RecvOnly;
+//       }
+//     }
+
+
+    localStream.getTracks().forEach((track) {
+      track.enabled = false;
+    });
+
+    RTCSessionDescription offer = await _pc.createOffer({
+      'offerToReceiveAudio': true,
+      'offerToReceiveVideo': true,
+    });
+
+    final sdpHold = offer.sdp!.replaceAll(RegExp(r'a=sendrecv'), 'a=recvonly');
+    final holdDesc = RTCSessionDescription(sdpHold, offer.type);
+
+    await _pc.setLocalDescription(holdDesc);
+    final callOffer = CallOffer.fromRTCSession(offer);
+    final data = CallEventData.fromHold(callOffer, callId, localUserId, remoteUserId);
+    debugPrint("[CallManager] Sent hold offer");
+
+    signaling.sendEvent(data);
+  }
+
+  void resumeCall() {
+    //TODO:Implement this method
   }
 }

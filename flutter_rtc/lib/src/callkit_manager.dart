@@ -8,7 +8,7 @@ import 'package:flutter_callkit_incoming/entities/call_kit_params.dart';
 import 'package:flutter_callkit_incoming/entities/ios_params.dart';
 import 'package:flutter_callkit_incoming/entities/notification_params.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 
 typedef GlobalEventCallback = void Function(CallKitEventData event);
 
@@ -158,6 +158,13 @@ class CallKitManager {
     _controllers.remove(callId)?.close();
   }
 
+  Future<void> holdCall(String callId, {bool isOnHold = true}) async {
+    //TODO: validate Callkit active calls
+    if (!isCallShowing(callId)) return;
+    debugPrint("[CallKit] hold call $callId");
+    await FlutterCallkitIncoming.holdCall(callId, isOnHold: isOnHold);
+  }
+
   Future<void> endAllCalls() async {
     await FlutterCallkitIncoming.endAllCalls();
     for (final ctrl in _controllers.values) {
@@ -166,7 +173,7 @@ class CallKitManager {
     _controllers.clear();
   }
 
-  Future<void> muteCall(String callId, Participant self) async {
+  Future<void> muteCall(String callId, Member self) async {
     if (!isCallShowing(callId)) return;
     var isMute = await FlutterCallkitIncoming.isMuted(callId);
     if (isMute != self.micEnabled) {

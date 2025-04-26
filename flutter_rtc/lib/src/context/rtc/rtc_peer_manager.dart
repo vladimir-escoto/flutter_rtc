@@ -14,13 +14,13 @@ class _RTCPeerManager {
   _RTCPeerManager(this._localUserId, this._callId, this._signaling, this._eventHandler);
 
   Future<void> createOffersFor(
-    List<Participant> participants,
+    List<Member> members,
     MediaStream localStream,
     CallMode mode,
   ) async {
-    for (final participant in participants.where((p)=>p.userId != _localUserId)) {
-      final peer = await getOrCreatePeer(participant.userId, localStream);
-      await peer.createOffer(mode, participants);
+    for (final member in members.where((p) => p.userId != _localUserId)) {
+      final peer = await getOrCreatePeer(member.userId, localStream);
+      await peer.createOffer(mode, members);
     }
   }
 
@@ -60,6 +60,18 @@ class _RTCPeerManager {
     }
   }
 
+  Future<void> handleIncomingHold(CallEventData data) async {
+    final peer = _peers[data.from];
+    if (peer == null) return;
+    await peer.remoteHold();
+  }
+
+  Future<void> handleIncomingResume(CallEventData data) async {
+    final peer = _peers[data.from];
+    if (peer == null) return;
+    await peer.remoteResume();
+  }
+
   Future<PeerConnectionWrapper> getOrCreatePeer(
     String remoteId,
     MediaStream localStream,
@@ -88,12 +100,16 @@ class _RTCPeerManager {
     }
   }
 
-  void pause() {
-    //TODO: Implement this method
+  void holdCall() {
+    for (final peer in _peers.values) {
+      peer.holdCall();
+    }
   }
 
-  void resume() {
-    //TODO: Implement this method
+  void resumeCall() {
+    for (final peer in _peers.values) {
+      peer.resumeCall();
+    }
   }
 
   void removePeer(String remoteId) {

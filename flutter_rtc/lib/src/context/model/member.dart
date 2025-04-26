@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-final class Participant extends Equatable {
+final class Member extends Equatable {
   final String userId;
   final String displayName;
   final bool isLocal;
@@ -15,7 +15,7 @@ final class Participant extends Equatable {
 
   final MediaStream? mediaStream;
 
-  const Participant({
+  const Member({
     required this.userId,
     this.displayName = 'unknown',
     this.isLocal = false,
@@ -26,7 +26,7 @@ final class Participant extends Equatable {
     this.mediaStream,
   });
 
-  Participant copyWith({
+  Member copyWith({
     String? displayName,
     bool? micEnabled,
     bool? speakerEnable,
@@ -34,7 +34,7 @@ final class Participant extends Equatable {
     bool? screenShareEnabled,
     MediaStream? mediaStream,
   }) {
-    return Participant(
+    return Member(
       userId: userId,
       displayName: displayName ?? this.displayName,
       isLocal: isLocal,
@@ -58,8 +58,8 @@ final class Participant extends Equatable {
     };
   }
 
-  factory Participant.fromJson(Map<String, dynamic> json) {
-    return Participant(
+  factory Member.fromJson(Map<String, dynamic> json) {
+    return Member(
       userId: json['userId'],
       displayName: json['displayName'],
       isLocal: json['isLocal'],
@@ -84,14 +84,14 @@ final class Participant extends Equatable {
 
 }
 
-extension ParticipantListExtension on List<Participant> {
+extension MembersListExtension on List<Member> {
   List<Map<String, dynamic>> toJsonList() => map((e) => e.toJson()).toList();
 
-  static List<Participant> fromJsonList(List<dynamic> jsonList) =>
-      jsonList.map((json) => Participant.fromJson(json as Map<String, dynamic>)).toList();
+  static List<Member> fromJsonList(List<dynamic> jsonList) =>
+      jsonList.map((json) => Member.fromJson(json as Map<String, dynamic>)).toList();
 
   String toJsonString() => jsonEncode(toJsonList());
 
-  static List<Participant> fromJsonString(String jsonString) =>
+  static List<Member> fromJsonString(String jsonString) =>
       fromJsonList(jsonDecode(jsonString) as List<dynamic>);
 }

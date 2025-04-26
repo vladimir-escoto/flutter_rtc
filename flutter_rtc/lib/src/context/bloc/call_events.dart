@@ -25,14 +25,14 @@ class ToggleLocalControlEvent extends CallBlocEvent {
   ToggleLocalControlEvent({required this.control, this.callMode, this.value});
 }
 
-/// Event for remote control updates (from other participants).
+/// Event for remote control updates (from other members).
 class RemoteControlEvent extends CallBlocEvent {
-  final String participantId;
+  final String memberId;
   final RemoteControlType control;
   final bool value;
 
   RemoteControlEvent({
-    required this.participantId,
+    required this.memberId,
     required this.control,
     required this.value,
   });

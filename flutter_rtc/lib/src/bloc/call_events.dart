@@ -24,7 +24,7 @@
 //   ToggleLocalControlEvent({required this.control, this.callMode});
 // }
 //
-// /// Event for remote control updates (from other participants).
+// /// Event for remote control updates (from other members).
 // class RemoteControlEvent extends CallBlocEvent {
 //   final RemoteControlType control;
 //   final bool value;

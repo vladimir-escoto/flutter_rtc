@@ -5,7 +5,7 @@ import 'package:flutter_rtc/src/callkit_manager.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
-import 'package:flutter_rtc/src/context/model/participant.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 
 class CallContext {
@@ -20,6 +20,7 @@ class CallContext {
 
   bool _disposed = false;
   bool _connected = false;
+  bool _active = false;
 
   StreamSubscription? _callSub;
   StreamSubscription? _callBlocSub;
@@ -30,18 +31,18 @@ class CallContext {
     required this.signaling,
     required this.isCaller,
     required CallMode mode,
-    required List<Participant> participants,
+    required List<Member> members,
     Map<String, dynamic> params = const {},
   }) {
-    if (!participants.any((p) => p.userId == userId)) {
-      participants.add(Participant(userId: userId));
+    if (!members.any((p) => p.userId == userId)) {
+      members.add(Member(userId: userId));
     }
 
     final callInfo = CallInfo(
       params: params,
       callId: callId,
       userId: userId,
-      participants: participants,
+      members: members,
       callMode: mode,
       isCaller: isCaller,
       createdAt: DateTime.now(),
@@ -75,6 +76,12 @@ class CallContext {
   Future<void> handleSignalingEvent(CallEventData data) async {
     debugPrint('[CallContext] handleSignalingEvent: $data');
     switch (data.type) {
+      case CallDataEventType.hold:
+        _rtcManager.handleIncomingHold(data);
+        break;
+      case CallDataEventType.resume:
+        _rtcManager.handleIncomingResume(data);
+        break;
       case CallDataEventType.offer:
         await handleIncomingOffer(data);
         break;
@@ -87,30 +94,30 @@ class CallContext {
       case CallDataEventType.callDeclined:
       case CallDataEventType.callEnded:
         end();
-        // _rtcManager.removeParticipant(data.from);
+        // _rtcManager.removeMember(data.from);
         break;
       default:
         debugPrint('[CallContext] Unhandled event type: ${data.type}');
     }
   }
 
-  /// Ends the call and notifies all participants
+  /// Ends the call and notifies all members
   void end() {
     debugPrint('[CallContext] end');
     _rtcManager.close();
     callKitManager.endCall(callId);
   }
 
-  void pause() {
+  void holdCall() {
     debugPrint('[CallContext] pause');
-    _rtcManager.pause();
-    _bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.paused)));
+    _rtcManager.hold();
+    callKitManager.holdCall(callId, isOnHold: true);
   }
 
-  void resume() {
+  void resumeCall() {
     debugPrint('[CallContext] resume');
-    _rtcManager.resume();
-    _bloc.add(CallLifecycleEvent(status: CallEvent(type: CallLifecycleStatus.resumed)));
+    _rtcManager.resumeCall();
+    callKitManager.holdCall(callId, isOnHold: false);
   }
 
   Future<void> setConnectionStatus(bool connected, dynamic error) async {
@@ -163,7 +170,12 @@ class CallContext {
             break;
           case CallKitEvent.toggleMute:
             debugPrint('[CallContext] toggleMute ${data.body}');
-            _bloc.add(ToggleLocalControlEvent(control: LocalControlType.mic, value: data.body["isMuted"]));
+            _bloc.add(
+              ToggleLocalControlEvent(
+                control: LocalControlType.mic,
+                value: data.body["isMuted"],
+              ),
+            );
             break;
           case CallKitEvent.toggleDmtf:
             break;

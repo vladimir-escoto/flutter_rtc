@@ -14,6 +14,8 @@ class SignalingEvent {
 enum CallDataEventType {
   offer,
   answer,
+  hold,
+  resume,
   iceCandidate,
   callDeclined,
   callEnded,
@@ -82,6 +84,19 @@ class CallEventData {
     data: offer.toMap(),
   );
 
+  factory CallEventData.fromHold(
+    CallOffer offer,
+    String callId,
+    String from,
+    String to,
+  ) => CallEventData(
+    type: CallDataEventType.hold,
+    callId: callId,
+    from: from,
+    to: to,
+    data: offer.toMap(),
+  );
+
   factory CallEventData.fromCandidate(
     RTCIceCandidate candidate,
     String callId,
@@ -105,25 +120,25 @@ class CallEventData {
 
 class CallOffer extends RTCSessionDescription {
   final CallMode mode;
-  final List<Participant> participants;
+  final List<Member> members;
 
   CallOffer({
     required String sdp,
     required String type,
     required this.mode,
-    required this.participants,
+    required this.members,
   }) : super(sdp, type);
 
-  factory CallOffer.fromSessionDescription(
-    RTCSessionDescription offer,
-    CallMode mode,
-    List<Participant> participants,
-  ) {
+  factory CallOffer.fromRTCSession(
+    RTCSessionDescription offer, {
+    CallMode mode = CallMode.audio,
+    List<Member> members = const <Member>[],
+  }) {
     return CallOffer(
       sdp: offer.sdp ?? "",
       type: offer.type ?? "",
       mode: mode,
-      participants: participants,
+      members: members,
     );
   }
 
@@ -132,7 +147,7 @@ class CallOffer extends RTCSessionDescription {
     'sdp': sdp,
     'type': type,
     'mode': mode.toString(),
-    'participants': participants.toJsonList(),
+    'members': members.toJsonList(),
   };
 
   /// Creates a [CallOffer] instance from a JSON map.
@@ -140,8 +155,8 @@ class CallOffer extends RTCSessionDescription {
     sdp: json['sdp'],
     type: json['type'],
     mode: CallMode.values.firstWhere((e) => e.toString() == json['mode']),
-    participants: ParticipantListExtension.fromJsonList(
-      json['participants'] as List<Map<String, dynamic>>,
+    members: MembersListExtension.fromJsonList(
+      json['members'] as List<Map<String, dynamic>>,
     ),
   );
 }
