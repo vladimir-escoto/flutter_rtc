@@ -12,7 +12,17 @@ abstract class CallBlocEvent {}
 class CallLifecycleEvent extends CallBlocEvent {
   final CallEvent status;
 
-  CallLifecycleEvent({required this.status});
+  CallLifecycleEvent(this.status);
+
+  factory CallLifecycleEvent.fromStatus(CallLifeCycleStatus event,
+      {dynamic value})
+  => CallLifecycleEvent(CallEvent(event, value: value));
+}
+
+class PeerConnectionEvent extends CallBlocEvent {
+  final PeerCallEvent status;
+
+  PeerConnectionEvent(this.status);
 }
 
 /// **New Event:** Event for toggling a local control.
@@ -74,6 +84,14 @@ class AcceptIncomingCallEvent extends CallBlocEvent {
 
   AcceptIncomingCallEvent({required this.data});
 }
+
+class HoldCallEvent extends CallBlocEvent {
+  final bool isOnHold;
+
+  HoldCallEvent({required this.isOnHold});
+}
+
+class ResumeCallEvent extends CallBlocEvent {}
 
 class StartOutgoingCallEvent extends CallBlocEvent {}
 

@@ -1,61 +1,80 @@
 import 'dart:async';
 import 'dart:ui';
+
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
+import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_rtc/src/context/model/member.dart';
-
-part 'call_state.dart';
-
-part 'call_events.dart';
 
 part 'call_enums.dart';
 
+part 'call_events.dart';
+part 'call_state.dart';
+
+typedef CallEmitter = Emitter<CallBlocState>;
+
 class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
+
   final RTCManager rtcManager;
 
   CallBloc({required CallInfo callInfo, required this.rtcManager})
     : super(CallBlocState.fromCallInfo(callInfo)) {
-    on<CallLifecycleEvent>(_handleLifecycleEvent);
-    on<ToggleLocalControlEvent>(_handleToggleLocalControlEvent);
-    on<RemoteControlEvent>(_handleRemoteControlEvent);
-    on<UIEvent>(_handleUIEvent);
-    on<CallErrorEvent>(_handleErrorEvent);
-    on<AcceptIncomingCallEvent>(_handleAcceptIncomingCallEvent);
-    on<DeclineIncomingCallEvent>(_handleDeclineIncomingCallEvent);
-    on<StartOutgoingCallEvent>(_handleOutgoingCallEvent);
-    on<HangUpCallEvent>(_handleHangUpCallEvent);
-    on<RedialCallEvent>(_handleRedialCallEvent);
-    on<SwitchCameraEvent>(_handleSwitchCameraEvent);
-    on<AppLifecycleStateEvent>(_handleAppLifecycleStateEvent);
+    on<CallLifecycleEvent>(_onLifecycleEvent);
+    on<PeerConnectionEvent>(_onPeerConnectionEvent);
+    on<ToggleLocalControlEvent>(_onToggleControlEvent);
+    on<RemoteControlEvent>(_onRemoteControlEvent);
+    on<UIEvent>(_onUIEvent);
+    on<CallErrorEvent>(_onErrorEvent);
+    on<AcceptIncomingCallEvent>(_onAcceptIncomingCallEvent);
+    on<DeclineIncomingCallEvent>(_onDeclineIncomingCallEvent);
+    on<StartOutgoingCallEvent>(_onOutgoingCallEvent);
+    on<HangUpCallEvent>(_onHangUpCallEvent);
+    on<RedialCallEvent>(_onRedialCallEvent);
+    on<SwitchCameraEvent>(_onSwitchCameraEvent);
+    on<HoldCallEvent>(_onHoldCallEvent);
+    on<AppLifecycleStateEvent>(_onAppLifecycleStateEvent);
 
     /// **🔹 Listens to events from CallManager**
-    rtcManager.callEvents.listen((event) => add(CallLifecycleEvent(status: event)));
+    rtcManager.callEvents.listen((event) => add(CallLifecycleEvent(event)));
+    rtcManager.peerEvents.listen((event) => add(PeerConnectionEvent(event)));
+  }
+
+  Future<void> _onPeerConnectionEvent(PeerConnectionEvent event,
+      CallEmitter emit) async {
+    final type = event.status.type;
+    final member = state.getMembersById(event.status.memberId);
+    final cpMember = member.copyWith(status: type);
+
+    emit(state.copyMember(cpMember));
+
+    if (type == ConnectionStatus.connected && !state.isConnected) {
+      add(CallLifecycleEvent.fromStatus(CallLifeCycleStatus.active));
+    }
   }
 
   /// **🔹 Handling of call lifecycle events**
-  void _handleLifecycleEvent(CallLifecycleEvent event, Emitter<CallBlocState> emit) {
+  void _onLifecycleEvent(CallLifecycleEvent event, CallEmitter emit) {
     final type = event.status.type;
 
     switch (type) {
-      case CallLifecycleStatus.initial:
+      case CallLifeCycleStatus.initial:
         emit(CallBlocState.fromCallInfo(state.callInfo));
         break;
       default:
-        emit(
-          state.copyWith(lifecycleStatus: type).copyWithStream(rtcManager.mediaStreams),
-        );
+        final newState = state.copyWithStream(rtcManager.mediaStreams)
+            .copyWithCallInfo(state.callInfo.copyWith(callStatus: type));
+        emit(newState);
         break;
     }
   }
 
   /// **🔹 Handles the change of states of local controls**
-  void _handleToggleLocalControlEvent(
+  void _onToggleControlEvent(
     ToggleLocalControlEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) {
     switch (event.control) {
       case LocalControlType.mic:
@@ -86,7 +105,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   }
 
   /// Handles remote control events received via the data channel.
-  void _handleRemoteControlEvent(RemoteControlEvent event, Emitter<CallBlocState> emit) {
+  void _onRemoteControlEvent(RemoteControlEvent event, CallEmitter emit) {
     final enabled = event.value;
     switch (event.control) {
       case RemoteControlType.mic:
@@ -102,13 +121,12 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   }
 
   /// Handles UI events such as minimizing, maximizing, dragging, and timer updates.
-  void _handleUIEvent(UIEvent event, Emitter<CallBlocState> emit) {
+  void _onUIEvent(UIEvent event, CallEmitter emit) {
     switch (event.event) {
-      case UIEventType.minimized:
-        emit(state.copyWith(uiMinimized: true));
-        break;
-      case UIEventType.maximized:
-        emit(state.copyWith(uiMinimized: false));
+      case UIEventType.changeOverlay:
+        if (event.value is OverlayStatus) {
+          emit(state.copyWith(overlayStatus: event.value));
+        }
         break;
       case UIEventType.dragged:
         if (event.value is Offset) {
@@ -124,53 +142,62 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   }
 
   /// Handles error events by updating the error message.
-  void _handleErrorEvent(CallErrorEvent event, Emitter<CallBlocState> emit) {
+  void _onErrorEvent(CallErrorEvent event, CallEmitter emit) {
     emit(state.copyWith(errorMessage: event.errorMessage));
   }
 
   /// New handler: Accept an incoming call.
-  void _handleAcceptIncomingCallEvent(
+  void _onAcceptIncomingCallEvent(
     AcceptIncomingCallEvent event,
-    Emitter<CallBlocState> emit,
-  ) {
-    rtcManager.answerIncomingCall(event.data);
-  }
+      CallEmitter emit,) async =>
+      await rtcManager.answerIncomingCall(event.data);
 
   /// New handler: Decline an incoming call.
-  Future<void> _handleDeclineIncomingCallEvent(
+  Future<void> _onDeclineIncomingCallEvent(
     DeclineIncomingCallEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async => await rtcManager.handleDeclineIncomingCall(event.reason);
 
   /// **🔹 Handles the start of an outgoing call**
-  Future<void> _handleOutgoingCallEvent(
+  Future<void> _onOutgoingCallEvent(
     StartOutgoingCallEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async => await rtcManager.startOutgoingCall(
     state.callInfo.members,
     state.callInfo.callMode,
   );
 
   /// **🔹 Handles the end of a call**
-  Future<void> _handleHangUpCallEvent(
+  Future<void> _onHangUpCallEvent(
     HangUpCallEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async => await rtcManager.handleEndCall();
 
+  Future<void> _onHoldCallEvent(HoldCallEvent event,
+      CallEmitter emit,) async {
+    if (event.isOnHold && !state.isOnHold) {
+      await rtcManager.holdCall();
+    } else if (!event.isOnHold && state.isOnHold) {
+      await rtcManager.resumeCall();
+    }
+  }
+
   /// **🔹 Handles the retry of a call**
-  Future<void> _handleRedialCallEvent(
+  Future<void> _onRedialCallEvent(
     RedialCallEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async {}
 
   /// **🔹 Handles the camera switch**
-  Future<void> _handleSwitchCameraEvent(
+  Future<void> _onSwitchCameraEvent(
     SwitchCameraEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async => await rtcManager.switchCamera();
 
-  FutureOr<void> _handleAppLifecycleStateEvent(
+  FutureOr<void> _onAppLifecycleStateEvent(
     AppLifecycleStateEvent event,
-    Emitter<CallBlocState> emit,
+      CallEmitter emit,
   ) async {}
+
 }
+

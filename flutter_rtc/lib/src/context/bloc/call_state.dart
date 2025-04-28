@@ -10,8 +10,28 @@ part of 'call_bloc.dart';
 class CallBlocState extends Equatable {
   final CallInfo callInfo;
 
+  // UI state.
+  final OverlayStatus overlayStatus;
+  final Offset uiPosition;
+
+  // Call duration.
+  final Duration callDuration;
+
+  // Optional error message.
+  final String? errorMessage;
+
+  bool get isUiMinimized => overlayStatus == OverlayStatus.minimized;
+
+  bool get isUiIntermediate => overlayStatus == OverlayStatus.intermediate;
+
+  bool get isUiCollapsed => overlayStatus == OverlayStatus.collapsed;
+
+  bool get isUiExpanded => overlayStatus == OverlayStatus.expanded;
+
+  MediaStream? get localStream => self.mediaStream;
+
   // Call lifecycle status.
-  final CallLifecycleStatus lifecycleStatus;
+  CallLifeCycleStatus get lifecycleStatus => callInfo.callStatus;
 
   // Local control states.
   bool get localMicOn => callInfo.self.micEnabled;
@@ -24,31 +44,14 @@ class CallBlocState extends Equatable {
 
   Member get self => callInfo.self;
 
+  bool get isOnHold => lifecycleStatus == CallLifeCycleStatus.hold;
+
+  bool get isConnected =>
+      members.any((m) => m.status == ConnectionStatus.connected);
+
   CallMode get callMode => callInfo.callMode;
 
-  // UI state.
-  final bool uiMinimized;
-  final Offset uiPosition;
-
-  // Call duration.
-  final Duration callDuration;
-
-  // Optional error message.
-  final String? errorMessage;
-
-  final MediaStream? localStream;
-
-  //TODO: Remove this
-  MediaStream? get remoteStream =>
-      callInfo.members.where((p) => p.userId != callInfo.userId).firstOrNull?.mediaStream;
-
-  //TODO: Remove this
-  bool get remoteCameraOn =>
-      callInfo.members
-          .where((p) => p.userId != callInfo.userId)
-          .firstOrNull
-          ?.cameraEnabled ??
-      false;
+  List<Member> get members => callInfo.members;
 
   bool get isVideoCall => callMode == CallMode.video;
 
@@ -60,20 +63,21 @@ class CallBlocState extends Equatable {
 
   const CallBlocState({
     required this.callInfo,
-    required this.localStream,
-    required this.lifecycleStatus,
-    required this.uiMinimized,
+    required this.overlayStatus,
     required this.uiPosition,
     required this.callDuration,
     this.errorMessage,
   });
 
+  Member getMembersById(String id) {
+    return members.firstWhere((m) => m.id == id,
+        orElse: () => throw Exception("Member not found: memberId: $id"));
+  }
+
   factory CallBlocState.fromCallInfo(CallInfo callInfo) {
     return CallBlocState(
       callInfo: callInfo,
-      localStream: null,
-      lifecycleStatus: CallLifecycleStatus.initial,
-      uiMinimized: false,
+      overlayStatus: OverlayStatus.expanded,
       uiPosition: const Offset(20, 80),
       callDuration: Duration(),
     );
@@ -89,7 +93,7 @@ class CallBlocState extends Equatable {
     bool? cameraEnabled,
     bool? screenShareEnabled,
   }) {
-    return copySelf(
+    return copyMember(
       self.copyWith(
         speakerEnable: speakerEnable ?? self.speakerEnable,
         micEnabled: micEnabled ?? self.micEnabled,
@@ -105,10 +109,12 @@ class CallBlocState extends Equatable {
     bool? cameraEnabled,
     bool? screenShareEnabled,
   }) {
-    var member = callInfo.members.where((p) => p.userId == remoteId).firstOrNull;
+    var member = callInfo.members
+        .where((p) => p.id == remoteId)
+        .firstOrNull;
     if (member == null) return this;
 
-    return copySelf(
+    return copyMember(
       member.copyWith(
         micEnabled: micEnabled ?? member.micEnabled,
         cameraEnabled: cameraEnabled ?? member.cameraEnabled,
@@ -117,9 +123,9 @@ class CallBlocState extends Equatable {
     );
   }
 
-  CallBlocState copySelf(Member member) {
+  CallBlocState copyMember(Member member) {
     var members = List<Member>.from(callInfo.members);
-    members.removeWhere((p) => p.userId == member.userId);
+    members.removeWhere((p) => p.id == member.id);
     members.add(member);
     return copyWithCallInfo(callInfo.copyWith(members: members));
   }
@@ -131,35 +137,30 @@ class CallBlocState extends Equatable {
   /// Returns a copy of the current state with updated values.
   CallBlocState copyWith({
     CallInfo? callInfo,
-    localStream,
-    CallLifecycleStatus? lifecycleStatus,
-    bool? uiMinimized,
+    OverlayStatus? overlayStatus,
     Offset? uiPosition,
     Duration? callDuration,
     String? errorMessage,
   }) {
     return CallBlocState(
-      lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
-      uiMinimized: uiMinimized ?? this.uiMinimized,
+      overlayStatus: overlayStatus ?? this.overlayStatus,
       uiPosition: uiPosition ?? this.uiPosition,
       callDuration: callDuration ?? this.callDuration,
       errorMessage: errorMessage ?? this.errorMessage,
-      localStream: localStream ?? this.localStream,
       callInfo: callInfo ?? this.callInfo,
     );
   }
 
   @override
   String toString() {
-    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  uiMinimized: $uiMinimized, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
+    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  overlayStatus: $overlayStatus, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
   }
 
   @override
   List<Object?> get props => [
     callInfo,
-    localStream,
     lifecycleStatus,
-    uiMinimized,
+    overlayStatus,
     uiPosition,
     callDuration,
     errorMessage,

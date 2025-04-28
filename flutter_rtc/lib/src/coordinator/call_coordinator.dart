@@ -14,27 +14,41 @@ import 'package:uuid/uuid.dart';
 
 typedef GlobalEventCallback = void Function(dynamic event);
 typedef UserData = Map<String, dynamic>;
+typedef CallList = List<CallContext>;
 
 class CallCoordinator {
   static final CallCoordinator instance = CallCoordinator._internal();
 
   CallCoordinator._internal();
 
-  final StreamController<dynamic> _onGlobalEvent = StreamController.broadcast();
-
-  Stream<dynamic> get onGlobalEvent => _onGlobalEvent.stream;
-
-  final Map<String, CallContext> _activeCalls = {};
-  final Map<String, UserData> _users = {};
-
+  late final ISignaling _signaling;
   final _callKitManager = CallKitManager();
 
-  late final ISignaling _signaling;
+  final Map<String, CallContext> _activeCalls = {};
+  final Map<String, StreamSubscription> _callSubs = {};
+  final Map<String, UserData> _users = {};
+
+  final _onGlobalEvent = StreamController<dynamic>.broadcast();
+  final _callStreamController = StreamController<CallList>.broadcast();
 
   StreamSubscription? _signalingSubscription;
   StreamSubscription? _callEventsSubscription;
 
   bool _initialized = false;
+
+  get onGlobalEvent => _onGlobalEvent.stream;
+
+  Stream<CallList> get callStateStream => _callStreamController.stream;
+
+  CallList get activeCalls => List.unmodifiable(_activeCalls.values);
+
+  int get onHoldCount =>
+      activeCalls
+          .where((c) => c.isOnHold)
+          .length;
+
+  void _updateState() =>
+      _callStreamController.add(List.from(_activeCalls.values));
 
   /// Initializes the coordinator with a shared signaling interface.
   void initialize({ISignaling? signaling}) {
@@ -56,8 +70,8 @@ class CallCoordinator {
     _callKitManager.setGlobalEventCallback(_handCallKitGlobalEvent);
     _signaling.callEvents.listen(_handleCallEvent);
     _signaling.signalingEvents.listen(_handleSignalingEvent);
-    _initialized = true;
     _signaling.connect();
+    _initialized = true;
   }
 
   void registerUser(String userId, {Map<String, dynamic> params = const {}}) {
@@ -77,7 +91,7 @@ class CallCoordinator {
     CallMode mode = CallMode.audio,
   }) async => await startCall(
     userId: userId,
-    members: [Member(userId: targetUserId)],
+    members: [Member(id: targetUserId)],
     mode: CallMode.video,
   );
 
@@ -93,7 +107,7 @@ class CallCoordinator {
 
   CallContext _makeCall(String userId, List<Member> members, CallMode mode) {
     final callId = _generateCallId();
-    debugPrint('[CallUserSession] makeCall, callId: $callId');
+    debugPrint('[CallCoordinator] makeCall, callId: $callId');
 
     final context = CallContext(
       params: _users[userId] ?? const {},
@@ -102,11 +116,27 @@ class CallCoordinator {
       members: members,
       signaling: _signaling,
       isCaller: true,
-      mode: mode,
+      mode: mode
     );
 
+    for (var c in _activeCalls.values) {
+      c.holdCall();
+    }
+
+    _callSubs[callId] = context.callStatus.listen((event) =>
+        _handleCallStatusEvent(event, callId));
+
     _activeCalls[callId] = context;
+    _updateState();
+
     return context;
+  }
+
+  void _handleCallStatusEvent(CallLifeCycleStatus event, String callId) {
+    debugPrint('[CallCoordinator] Call status event: $event');
+    if (event == CallLifeCycleStatus.ended) {
+      endCall(callId);
+    }
   }
 
   /// Dispatches signaling events to the correct session and logs globally if needed.
@@ -150,7 +180,7 @@ class CallCoordinator {
 
   void receiveIncomingCall(CallEventData data) {
     if (!_activeCalls.containsKey(data.callId)) {
-      debugPrint('[CallUserSession] receiveIncomingCall ${data.callId}');
+      debugPrint('[CallCoordinator] receiveIncomingCall ${data.callId}');
       var offer = data.toOffer();
       var context = _makeCall(data.to, offer.members, offer.mode);
       context.handleIncomingOffer(data);
@@ -159,33 +189,40 @@ class CallCoordinator {
 
   /// Clears all active sessions (used for logout or reset).
   void clearAllSessions() {
-    _callKitManager.endAllCalls();
-    debugPrint('[CallUserSession] dispose');
-    for (final context in _activeCalls.values) {
-      context.dispose();
+    debugPrint('[CallCoordinator] dispose');
+    for (final entry in _activeCalls.entries) {
+      entry.value.dispose();
+      _callSubs.remove(entry.key)?.cancel();
     }
     _activeCalls.clear();
     _users.clear();
   }
 
   void endCall(String callId) {
-    debugPrint('[CallUserSession] endCall $callId');
-    final context = _activeCalls.remove(callId);
-    context?.end();
+    debugPrint('[CallCoordinator] endCall $callId');
+    _activeCalls.remove(callId)?.endCall();
+    _callSubs.remove(callId)?.cancel();
+    _callKitManager.endCall(callId);
+    _updateState();
   }
 
   void holdCall(String callId) {
-    debugPrint('[CallUserSession] holdCall $callId');
+    debugPrint('[CallCoordinator] holdCall $callId');
     _activeCalls[callId]?.holdCall();
   }
 
   void resumeCall(String callId) {
-    debugPrint('[CallUserSession] holdCall $callId');
+    debugPrint('[CallCoordinator] holdCall $callId');
     _activeCalls[callId]?.resumeCall();
   }
 
+  void closeAllOnHold() {
+    _activeCalls.removeWhere((key, value) => value.isOnHold);
+    _updateState();
+  }
+
   void setAppLifecycleState(AppLifecycleState status) {
-    debugPrint('[CallUserSession] setAppLifecycleState $status');
+    debugPrint('[CallCoordinator] setAppLifecycleState $status');
     for (final context in _activeCalls.values) {
       context.setAppLifecycleState(status);
     }
@@ -201,5 +238,15 @@ class CallCoordinator {
     _signalingSubscription?.cancel();
     _callEventsSubscription?.cancel();
     _signaling.dispose();
+  }
+
+  Future<String> simulateCall({
+    String userId = "John",
+    List<Member> members = const [Member(id: "Patricia")],
+    CallMode mode = CallMode.audio,
+  }) async {
+    final context = _makeCall(userId, members, mode);
+    context.simulateCall();
+    return context.callId;
   }
 }

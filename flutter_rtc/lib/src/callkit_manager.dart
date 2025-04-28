@@ -173,11 +173,11 @@ class CallKitManager {
     _controllers.clear();
   }
 
-  Future<void> muteCall(String callId, Member self) async {
+  Future<void> muteCall(String callId, bool micEnabled) async {
     if (!isCallShowing(callId)) return;
     var isMute = await FlutterCallkitIncoming.isMuted(callId);
-    if (isMute != self.micEnabled) {
-      await FlutterCallkitIncoming.muteCall(callId, isMuted: self.micEnabled);
+    if (isMute != micEnabled) {
+      await FlutterCallkitIncoming.muteCall(callId, isMuted: micEnabled);
     }
   }
 

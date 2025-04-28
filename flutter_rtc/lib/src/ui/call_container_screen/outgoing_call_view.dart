@@ -70,42 +70,9 @@ class OutgoingCallView extends StatelessWidget {
               isSpeakerEnabled: state.localSpeakerOn,
               onCancelCallTap: () =>callBloc.add(HangUpCallEvent()),
               onMicrophoneTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic)),
-              onCameraTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera)),
+              // onCameraTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera)),
               onSpeakerTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker)),
             ),
-            // child: Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            //   children: [
-            //     IconButton(
-            //       iconSize: 30,
-            //       icon: Icon(
-            //         state.localMicOn ? Icons.mic : Icons.mic_off,
-            //         color: Colors.white,
-            //       ),
-            //       onPressed:
-            //           () => callBloc.add(
-            //         ToggleLocalControlEvent(control: LocalControlType.mic),
-            //       ),
-            //     ),
-            //     IconButton(
-            //       iconSize: 30,
-            //       icon: Icon(
-            //         state.localSpeakerOn ? Icons.volume_up : Icons.volume_off,
-            //         color: Colors.white,
-            //       ),
-            //       onPressed:
-            //           () => callBloc.add(
-            //         ToggleLocalControlEvent(control: LocalControlType.speaker),
-            //       ),
-            //     ),
-            //     FloatingActionButton(
-            //       heroTag: "endCall",
-            //       backgroundColor: Colors.red,
-            //       onPressed: () => callBloc.add(HangUpCallEvent()),
-            //       child: const Icon(Icons.call_end),
-            //     ),
-            //   ],
-            // ),
           ),
         ],
       ),

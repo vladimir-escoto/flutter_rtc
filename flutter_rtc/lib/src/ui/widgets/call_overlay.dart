@@ -3,87 +3,48 @@
 part of "../call_container_screen.dart";
 
 class CallOverlay extends StatelessWidget {
-  final bool isVideoCall;
-  final MediaStream? remoteStream;
-  final VoidCallback onTap;
-  final Duration? callDuration;
+  final Widget child;
 
-  const CallOverlay({
-    required this.isVideoCall,
-    required this.remoteStream,
-    required this.onTap,
-    this.callDuration,
+  final CallViewBuilder? outgoingView;
+  final CallViewBuilder? incomingView;
+  final CallViewBuilder? activeCallView;
+  final CallViewBuilder? endedView;
+  final CallViewBuilder? declineView;
+  final CallViewBuilder? errorView;
+
+  CallOverlay({
     super.key,
-  });
+    required this.child,
+    this.outgoingView,
+    this.incomingView,
+    this.activeCallView,
+    this.endedView,
+    this.declineView,
+    this.errorView,
+  }) {
+    _setCustomBuilders();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      bottom: 40,
-      right: 16,
-      width: 120,
-      height: 160,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Material(
-          elevation: 6,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              _buildContent(),
-              _buildOverlayInfo(),
-            ],
-          ),
-        ),
-      ),
+    debugPrint('[CallOverlay] build');
+    return Overlay(
+      initialEntries: [OverlayEntry(builder: (context) {
+        debugPrint('[CallOverlay] Overlay.of(context)');
+        CallOverlayManager.instance.initialize(Overlay.of(context));
+        return child;
+      })
+      ],
     );
   }
 
-  Widget _buildContent() {
-    if (isVideoCall && remoteStream != null) {
-      final renderer = RTCVideoRenderer()..initialize();
-      renderer.srcObject = remoteStream;
-
-      return RTCVideoView(
-        renderer,
-        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-      );
-    }
-
-    return Container(
-      color: Colors.black87,
-      child: const Center(
-        child: Icon(Icons.call, color: Colors.white, size: 32),
-      ),
-    );
-  }
-
-  Widget _buildOverlayInfo() {
-    final durationText = callDuration != null
-        ? _formatDuration(callDuration!)
-        : 'On Call';
-
-    return Positioned(
-      bottom: 4,
-      right: 4,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.black45,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          durationText,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
-      ),
-    );
-  }
-
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+  void _setCustomBuilders() {
+    debugPrint('[CallOverlay] set CustomBuilders');
+    CallOverlayManager.instance.setCustomBuilders(outgoingView: outgoingView,
+        incomingView: incomingView,
+        activeCallView: activeCallView,
+        endedView: endedView,
+        declineView: declineView,
+        errorView: errorView);
   }
 }

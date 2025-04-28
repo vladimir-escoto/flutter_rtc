@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../bloc/call_bloc.dart';
+
 final class Member extends Equatable {
-  final String userId;
+  final String id;
   final String displayName;
   final bool isLocal;
 
@@ -15,8 +17,10 @@ final class Member extends Equatable {
 
   final MediaStream? mediaStream;
 
+  final ConnectionStatus status;
+
   const Member({
-    required this.userId,
+    required this.id,
     this.displayName = 'unknown',
     this.isLocal = false,
     this.micEnabled = true,
@@ -24,6 +28,7 @@ final class Member extends Equatable {
     this.cameraEnabled = false,
     this.screenShareEnabled = false,
     this.mediaStream,
+    this.status = ConnectionStatus.disconnected,
   });
 
   Member copyWith({
@@ -33,9 +38,10 @@ final class Member extends Equatable {
     bool? cameraEnabled,
     bool? screenShareEnabled,
     MediaStream? mediaStream,
+    ConnectionStatus? status,
   }) {
     return Member(
-      userId: userId,
+      id: id,
       displayName: displayName ?? this.displayName,
       isLocal: isLocal,
       micEnabled: micEnabled ?? this.micEnabled,
@@ -43,36 +49,40 @@ final class Member extends Equatable {
       cameraEnabled: cameraEnabled ?? this.cameraEnabled,
       screenShareEnabled: screenShareEnabled ?? this.screenShareEnabled,
       mediaStream: mediaStream ?? this.mediaStream,
+      status: status ?? this.status,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'userId': userId,
+      'id': id,
       'displayName': displayName,
       'isLocal': isLocal,
       'micEnabled': micEnabled,
       'speakerEnable': speakerEnable,
       'cameraEnabled': cameraEnabled,
       'screenShareEnabled': screenShareEnabled,
+      'status': status.name,
     };
   }
 
   factory Member.fromJson(Map<String, dynamic> json) {
     return Member(
-      userId: json['userId'],
+      id: json['id'],
       displayName: json['displayName'],
       isLocal: json['isLocal'],
       micEnabled: json['micEnabled'],
       speakerEnable: json['speakerEnable'],
       cameraEnabled: json['cameraEnabled'],
       screenShareEnabled: json['screenShareEnabled'],
+      status: ConnectionStatus.values.firstWhere((e) =>
+      e.name == json['status']),
     );
   }
 
   @override
   List<Object?> get props => [
-    userId,
+    id,
     displayName,
     isLocal,
     micEnabled,

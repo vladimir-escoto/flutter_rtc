@@ -5,24 +5,42 @@
 part of 'call_bloc.dart';
 
 class CallEvent {
-  final CallLifecycleStatus type;
+  final CallLifeCycleStatus type;
   final dynamic value;
 
-  CallEvent({required this.type, this.value});
+  CallEvent(this.type, {this.value});
 }
 
+class PeerCallEvent {
+  final String memberId;
+  final ConnectionStatus type;
+  final dynamic value;
+
+  PeerCallEvent(this.memberId, this.type, {this.value});
+}
+
+enum OverlayStatus { minimized, intermediate, collapsed, expanded }
+
 /// Enum representing the different lifecycle statuses of a call.
-enum CallLifecycleStatus {
+enum CallLifeCycleStatus {
   initial, // No call has been initiated.
   calling, // Outgoing call is in progress.
   incoming, // Incoming call received.
   ringing, // Outgoing call is ringing.
-  connecting, // Negotiation (offer/answer/ICE) is in progress.
-  connected, // Call has been successfully connected.
-  ended, // Call has ended normally.
+  active, // Call is active.
+  hold, // Call has been paused.
   declined, // Outgoing call was cancelled before answer.
   failed, // Call failed due to an error.
-  hold, // Call has been paused.
+  ended, // Call has ended normally.
+}
+
+/// Enum representing the different lifecycle statuses of a Member Connection.
+enum ConnectionStatus {
+  connecting, // Negotiation (offer/answer/ICE) is in progress.
+  connected, // Call has been successfully connected.
+  disconnected, // Call has been disconnected.
+  ended, // Call has ended normally.
+  failed, // Call failed due to an error.
 }
 
 /// Enum for local control types.
@@ -38,7 +56,7 @@ enum LocalControlType {
 enum RemoteControlType { mic, camera, screenShare }
 
 /// Enum for UI event types.
-enum UIEventType { minimized, maximized, dragged, callTimerUpdated }
+enum UIEventType { changeOverlay, dragged, callTimerUpdated }
 
 /// Enum for call mode.
 enum CallMode { audio, video }

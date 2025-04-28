@@ -7,19 +7,21 @@ class _RTCPeerManager {
   final ISignaling _signaling;
   final Map<String, PeerConnectionWrapper> _peers = {};
   final _RTCEventHandler _eventHandler;
+  final ConnectionStateCallback? onConnectionState;
 
   Map<String, MediaStream?> get remoteMediaStream =>
       Map.fromEntries(_peers.values.map((p) => p.remoteMediaStream).toList());
 
-  _RTCPeerManager(this._localUserId, this._callId, this._signaling, this._eventHandler);
+  _RTCPeerManager(this._localUserId, this._callId, this._signaling,
+      this._eventHandler, this.onConnectionState);
 
   Future<void> createOffersFor(
     List<Member> members,
     MediaStream localStream,
     CallMode mode,
   ) async {
-    for (final member in members.where((p) => p.userId != _localUserId)) {
-      final peer = await getOrCreatePeer(member.userId, localStream);
+    for (final member in members.where((p) => p.id != _localUserId)) {
+      final peer = await getOrCreatePeer(member.id, localStream);
       await peer.createOffer(mode, members);
     }
   }
@@ -38,7 +40,7 @@ class _RTCPeerManager {
     final answer = data.toAnswer();
 
     debugPrint("[CallManager] Received answer: $answer");
-    _eventHandler._sendCallEvent(CallLifecycleStatus.ringing);
+    _eventHandler.sendCallEvent(CallLifeCycleStatus.ringing);
     await peer.handleIncomingAnswer(data.toAnswer());
   }
 
@@ -58,6 +60,7 @@ class _RTCPeerManager {
     for (final peer in _peers.values) {
       await peer.endCall();
     }
+    disposeAll();
   }
 
   Future<void> handleIncomingHold(CallEventData data) async {
@@ -89,6 +92,7 @@ class _RTCPeerManager {
       callId: _callId,
       signaling: _signaling,
       localStream: localStream,
+      onConnectionState: onConnectionState,
     );
     await wrapper.initialize();
     return wrapper;
@@ -116,7 +120,7 @@ class _RTCPeerManager {
     _peers[remoteId]?.dispose();
     _peers.remove(remoteId);
     if (_peers.isEmpty) {
-      _eventHandler._sendCallEvent(CallLifecycleStatus.ended);
+      _eventHandler.sendCallEvent(CallLifeCycleStatus.ended);
     }
   }
 

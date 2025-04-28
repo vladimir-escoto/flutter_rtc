@@ -1,18 +1,26 @@
 part of 'rtc_manager.dart';
 
+typedef RemoteEvent = Map<String, dynamic>;
+
 class _RTCEventHandler {
-  final StreamController<CallEvent> _callEventController =
-      StreamController<CallEvent>.broadcast();
+  final _peerEventController = StreamController<PeerCallEvent>.broadcast();
+  final _callEventController = StreamController<CallEvent>.broadcast();
+  final _remoteEventController = StreamController<RemoteEvent>.broadcast();
+
+  RTCDataChannel? dataChannel;
+
+  Stream<PeerCallEvent> get peerEvents => _peerEventController.stream;
 
   Stream<CallEvent> get callEvents => _callEventController.stream;
 
-  RTCDataChannel? dataChannel;
-  final StreamController<Map<String, dynamic>> _remoteControlController =
-      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<RemoteEvent> get remoteEventEvents => _remoteEventController.stream;
 
-  Stream<Map<String, dynamic>> get remoteControlEvents => _remoteControlController.stream;
-
-  void _sendCallEvent(CallLifecycleStatus status, {dynamic value}) {
-    _callEventController.add(CallEvent(type: status, value: value));
+  void sendCallEvent(CallLifeCycleStatus status, {dynamic value}) {
+    _callEventController.add(CallEvent(status, value: value));
   }
+
+  void sendPeerEvent(String memberId, ConnectionStatus status,
+      {dynamic value}) =>
+      _peerEventController.add(PeerCallEvent(memberId, status, value: value));
+
 }

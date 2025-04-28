@@ -1,31 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_rtc/src/call_overlay_Manager.dart';
+import 'package:flutter_rtc/src/common.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-part 'call_container_screen/call_screen_view.dart';
+import '../context/model/member.dart';
 
+part 'call_container_screen/full_screen_call_view.dart';
 part 'call_container_screen/decline_call_view.dart';
-
 part 'call_container_screen/minimized_call_view.dart';
-
+part 'call_container_screen/incoming_call_view.dart';
+part 'call_container_screen/outgoing_call_view.dart';
 part 'widgets/call_control_option.dart';
-
 part 'widgets/call_overlay.dart';
-
 part 'widgets/call_status_widget.dart';
-
 part 'widgets/incoming_call_controls.dart';
-
 part 'widgets/outgoing_call_controls.dart';
-
-part 'widgets/incoming_call_view.dart';
-
-part 'widgets/outgoing_call_view.dart';
+part 'widgets/full_screen_call_controls.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
-typedef CallViewBuilder = Widget Function(BuildContext, CallBloc, CallBlocState);
+typedef CallViewBuilder = Widget Function(BuildContext context, CallBloc bloc, CallBlocState state);
 
 /// CallContainerScreen displays the call UI using a BLoC for state management.
 /// All call-related information (streams, controls, lifecycle, minimization, etc.)
@@ -59,61 +57,70 @@ class CallContainerScreen extends StatefulWidget {
 
 class _CallContainerScreenState extends State<CallContainerScreen> {
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  Timer? revertTimer;
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
     _initializeRenderer();
+    _timer = Timer.periodic(Duration(seconds: 1), (_) => _updateDuration());
   }
 
   @override
   void dispose() {
     _localRenderer.dispose();
-    _remoteRenderer.dispose();
+    _timer.cancel();
+    revertTimer?.cancel();
     super.dispose();
+  }
+
+  void _updateDuration() {
+    final createdAt = widget.callBloc.state.callInfo.createdAt;
+    Duration duration = DateTime.now().difference(createdAt);
+    final event = UIEvent(event: UIEventType.callTimerUpdated, value: duration);
+    widget.callBloc.add(event);
   }
 
   Future<void> _initializeRenderer() async {
     await _localRenderer.initialize();
-    await _remoteRenderer.initialize();
   }
 
   void _updateRenderers(CallBlocState state) {
     if (state.isVideoCall && state.localCameraOn && _localRenderer.textureId != null) {
       _localRenderer.srcObject = state.localStream;
     }
-
-    if (state.isVideoCall && state.remoteCameraOn && _remoteRenderer.textureId != null) {
-      _remoteRenderer.srcObject = state.remoteStream;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<CallBloc, CallBlocState>(
+    return BlocBuilder<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
-      listener: (context, state) {
-        if (state.lifecycleStatus == CallLifecycleStatus.ended) {
-          Navigator.of(context).pop();
-        }
-      },
       builder: (context, state) {
         _updateRenderers(state);
         switch (state.lifecycleStatus) {
-          case CallLifecycleStatus.incoming:
+          case CallLifeCycleStatus.incoming:
             return _buildIncoming(context, widget.callBloc, state);
-          case CallLifecycleStatus.calling:
-          case CallLifecycleStatus.ringing:
+          case CallLifeCycleStatus.calling:
+          case CallLifeCycleStatus.ringing:
             return _buildOutgoing(context, widget.callBloc, state);
-          case CallLifecycleStatus.connected:
+          case CallLifeCycleStatus.active:
             return _buildActive(context, widget.callBloc, state);
-          case CallLifecycleStatus.failed:
+          case CallLifeCycleStatus.failed:
             return _buildError(context, widget.callBloc, state);
-          case CallLifecycleStatus.declined:
+          case CallLifeCycleStatus.declined:
             return _buildDecline(context, widget.callBloc, state);
           default:
-            return const SizedBox.shrink();
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.black,
+              child: Center(
+                  child: Text("UnkHandle state: ${state.lifecycleStatus}",
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 20.0),)
+              ),
+            );
         }
       },
     );
@@ -131,20 +138,22 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
   }
 
   Widget _buildActive(BuildContext context, CallBloc bloc, CallBlocState state) {
-    var view =
-        state.uiMinimized
-            ? MinimizedCallView(
-              callBloc: bloc,
-              state: state,
-              remoteRenderer: _remoteRenderer,
-            )
-            : CallScreenView(
-              callBloc: bloc,
-              state: state,
-              localRenderer: _localRenderer,
-              remoteRenderer: _remoteRenderer,
-            );
-    return widget.activeCallView?.call(context, bloc, state) ?? view;
+    if (widget.activeCallView == null) {
+      if (state.isUiMinimized) {
+        return MinimizedCallView(
+            callBloc: bloc,
+            state: state
+        );
+      } else {
+        return FullScreenCallView(
+            callBloc: bloc,
+            state: state,
+            localRenderer: _localRenderer
+        );
+      }
+    } else {
+      return widget.activeCallView!.call(context, bloc, state);
+    }
   }
 
   Widget _buildDecline(BuildContext context, CallBloc bloc, CallBlocState state) {

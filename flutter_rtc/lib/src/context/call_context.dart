@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rtc/src/callkit_manager.dart';
-import 'package:flutter_rtc/src/context/model/call_info.dart';
-import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
+import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_rtc/src/context/model/member.dart';
+import 'package:flutter_rtc/src/context/rtc/rtc_manager.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 
 class CallContext {
@@ -14,16 +14,26 @@ class CallContext {
   final String callId;
   final String userId;
   final bool isCaller;
+  late CallInfo _callInfo;
+
+  final _callStatusController = StreamController<
+      CallLifeCycleStatus>.broadcast();
 
   late final RTCManager _rtcManager;
   late final CallBloc _bloc;
 
-  bool _disposed = false;
-  bool _connected = false;
-  bool _active = false;
-
   StreamSubscription? _callSub;
   StreamSubscription? _callBlocSub;
+
+  bool _disposed = false;
+
+  bool get isOnHold => _callInfo.callStatus == CallLifeCycleStatus.hold;
+
+  bool get isActive => !isOnHold;
+
+  CallBloc get callBloc => _bloc;
+
+  Stream<CallLifeCycleStatus> get callStatus => _callStatusController.stream;
 
   CallContext({
     required this.callId,
@@ -34,23 +44,29 @@ class CallContext {
     required List<Member> members,
     Map<String, dynamic> params = const {},
   }) {
-    if (!members.any((p) => p.userId == userId)) {
-      members.add(Member(userId: userId));
+    var copyMembers = List<Member>.from(members);
+
+    if (!copyMembers.any((p) => p.id == userId)) {
+      copyMembers.add(Member(id: userId));
     }
 
-    final callInfo = CallInfo(
+    _callInfo = CallInfo(
       params: params,
       callId: callId,
       userId: userId,
-      members: members,
+      members: copyMembers,
       callMode: mode,
       isCaller: isCaller,
       createdAt: DateTime.now(),
+      callStatus: CallLifeCycleStatus.initial,
     );
 
-    _rtcManager = RTCManager(callId: callId, userId: userId, signaling: signaling);
+    _rtcManager = RTCManager(
+        callId: callId,
+        userId: userId,
+        signaling: signaling);
 
-    _bloc = CallBloc(callInfo: callInfo, rtcManager: _rtcManager);
+    _bloc = CallBloc(callInfo: _callInfo, rtcManager: _rtcManager);
 
     _callSub = _handleCallKitEvents();
     _callBlocSub = _handleBlocState();
@@ -60,6 +76,11 @@ class CallContext {
   void startOutgoingCall() {
     debugPrint('[CallContext] startOutgoingCall');
     _bloc.add(StartOutgoingCallEvent());
+    callKitManager.showOutgoingCall(
+      callId: callId,
+      callerName: _callInfo.self.displayName,
+      body: _callInfo.toJson(),
+    );
   }
 
   Future<void> handleIncomingOffer(CallEventData data) async {
@@ -93,8 +114,7 @@ class CallContext {
         break;
       case CallDataEventType.callDeclined:
       case CallDataEventType.callEnded:
-        end();
-        // _rtcManager.removeMember(data.from);
+      endCall();
         break;
       default:
         debugPrint('[CallContext] Unhandled event type: ${data.type}');
@@ -102,22 +122,31 @@ class CallContext {
   }
 
   /// Ends the call and notifies all members
-  void end() {
+  Future<void> endCall() async {
     debugPrint('[CallContext] end');
-    _rtcManager.close();
-    callKitManager.endCall(callId);
+    if (_callInfo.callStatus != CallLifeCycleStatus.ended) {
+      _bloc.add(HangUpCallEvent());
+    }
   }
 
-  void holdCall() {
+  Future<void> holdCall() async {
+    if (isOnHold) return;
     debugPrint('[CallContext] pause');
-    _rtcManager.hold();
+    _bloc.add(HoldCallEvent(isOnHold: true));
     callKitManager.holdCall(callId, isOnHold: true);
   }
 
-  void resumeCall() {
+  Future<void> resumeCall() async {
     debugPrint('[CallContext] resume');
-    _rtcManager.resumeCall();
+    _bloc.add(HoldCallEvent(isOnHold: false));
     callKitManager.holdCall(callId, isOnHold: false);
+  }
+
+  Future<void> declineCall() async {
+    debugPrint('[CallContext] decline');
+    if (_callInfo.callStatus != CallLifeCycleStatus.declined) {
+      _bloc.add(DeclineIncomingCallEvent());
+    }
   }
 
   Future<void> setConnectionStatus(bool connected, dynamic error) async {
@@ -131,21 +160,19 @@ class CallContext {
   }
 
   StreamSubscription _handleBlocState() => _bloc.stream.listen((state) {
-    if (state.lifecycleStatus == CallLifecycleStatus.calling) {
-      callKitManager.showOutgoingCall(
-        callId: callId,
-        callerName: state.self.displayName,
-        body: state.callInfo.toJson(),
-      );
-    } else if (state.lifecycleStatus == CallLifecycleStatus.ended) {
-      callKitManager.endCall(callId);
-    } else if (state.lifecycleStatus == CallLifecycleStatus.connected && !_connected) {
-      callKitManager.setCallConnected(callId);
-      _connected = true;
+    debugPrint('[CallContext] _handleBlocState: $state');
+
+    if (_callInfo.self.micEnabled != state.self.micEnabled) {
+      callKitManager.muteCall(callId, state.self.micEnabled);
     }
 
-    callKitManager.muteCall(callId, state.self);
-    debugPrint('[CallContext] _handleBlocState: $state');
+    if (_callInfo.callStatus != state.callInfo.callStatus) {
+      _callStatusController.add(state.lifecycleStatus);
+
+      if (state.isConnected) {
+        callKitManager.setCallConnected(callId);
+      }
+    }
   });
 
   StreamSubscription _handleCallKitEvents() =>
@@ -157,33 +184,22 @@ class CallContext {
             _bloc.add(AcceptIncomingCallEvent(data: callData));
             break;
           case CallKitEvent.decline:
-            _bloc.add(DeclineIncomingCallEvent());
+            declineCall();
             break;
           case CallKitEvent.ended:
-            _bloc.add(DeclineIncomingCallEvent());
-            break;
           case CallKitEvent.timeout:
-            break;
-          case CallKitEvent.actionCallback:
-            break;
+          endCall();
           case CallKitEvent.toggleHold:
+            debugPrint('[CallContext] toggleHold ${data.body}');
+            _bloc.add(HoldCallEvent(isOnHold: data.body["isHold"]));
             break;
           case CallKitEvent.toggleMute:
             debugPrint('[CallContext] toggleMute ${data.body}');
-            _bloc.add(
-              ToggleLocalControlEvent(
-                control: LocalControlType.mic,
+            _bloc.add(ToggleLocalControlEvent(
+              control: LocalControlType.mic,
                 value: data.body["isMuted"],
               ),
             );
-            break;
-          case CallKitEvent.toggleDmtf:
-            break;
-          case CallKitEvent.toggleGroup:
-            break;
-          case CallKitEvent.toggleAudioSession:
-            break;
-          case CallKitEvent.actionCustom:
             break;
           default:
             debugPrint('[CallContext] Unhandled event type: ${data.event}');
@@ -191,9 +207,15 @@ class CallContext {
         }
       });
 
+  void simulateCall() {
+    debugPrint('[CallContext] startOutgoingCall');
+    _bloc.add(CallLifecycleEvent(CallEvent(CallLifeCycleStatus.active)));
+  }
+
   /// Frees all resources
   void dispose() {
     if (_disposed) return;
+    endCall();
     _disposed = true;
     _callBlocSub?.cancel();
     _callSub?.cancel();
@@ -201,4 +223,5 @@ class CallContext {
     _rtcManager.dispose();
     debugPrint('[CallContext] dispose');
   }
+
 }

@@ -5,6 +5,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 
 final class CallInfo extends Equatable {
+  final CallLifeCycleStatus callStatus;
   final Map<String, dynamic> params;
   final String callId;
   final String userId;
@@ -21,6 +22,7 @@ final class CallInfo extends Equatable {
     required this.callMode,
     required this.isCaller,
     required this.createdAt,
+    required this.callStatus,
   });
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +33,7 @@ final class CallInfo extends Equatable {
     'callMode': callMode.name,
     'isCaller': isCaller,
     'createdAt': createdAt.toIso8601String(),
+    'callStatus': callStatus.name,
   };
 
   factory CallInfo.fromJson(Map<String, dynamic> json) => CallInfo(
@@ -40,17 +43,18 @@ final class CallInfo extends Equatable {
     members:
         (json['members'] as List).map((p) => Member.fromJson(p)).toList(),
     callMode: CallMode.values.byName(json['callMode']),
+    callStatus: CallLifeCycleStatus.values.byName(json['callStatus']),
     isCaller: json['isCaller'],
     createdAt: DateTime.parse(json['createdAt']),
   );
 
   Member get self => members.firstWhere(
-    (p) => p.userId == userId,
+    (p) => p.id == userId,
     orElse: () => throw Exception('Local member not found'),
   );
 
   set self(Member member) {
-    members.removeWhere((p) => p.userId == userId);
+    members.removeWhere((p) => p.id == userId);
     members.add(member);
   }
 
@@ -59,7 +63,7 @@ final class CallInfo extends Equatable {
 
   CallInfo copyAndUpdateStream(Map<String, MediaStream?> remoteStream) {
     var newMembers = List<Member>.from(members);
-    newMembers.map((p) => p.copyWith(mediaStream: remoteStream[p.userId])).toList();
+    newMembers.map((p) => p.copyWith(mediaStream: remoteStream[p.id])).toList();
 
     return copyWith(members: newMembers);
   }
@@ -72,6 +76,7 @@ final class CallInfo extends Equatable {
     CallMode? callMode,
     bool? isCaller,
     DateTime? createdAt,
+    CallLifeCycleStatus? callStatus,
   }) {
     return CallInfo(
       params: params ?? this.params,
@@ -81,6 +86,7 @@ final class CallInfo extends Equatable {
       callMode: callMode ?? this.callMode,
       isCaller: isCaller ?? this.isCaller,
       createdAt: createdAt ?? this.createdAt,
+      callStatus: callStatus ?? this.callStatus,
     );
   }
 
@@ -92,5 +98,6 @@ final class CallInfo extends Equatable {
     callMode,
     isCaller,
     createdAt,
+    callStatus,
   ];
 }
