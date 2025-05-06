@@ -1,4 +1,3 @@
-
 part of "../call_container_screen.dart";
 
 class FullScreenCallView extends StatefulWidget {
@@ -30,7 +29,7 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
   @override
   void initState() {
     super.initState();
-    position = const Offset(20, 80);
+    position = const Offset(0, 0);
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     _initializeRenderer();
   }
@@ -93,152 +92,158 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
 
   @override
   Widget build(BuildContext context) {
-    screenSize = MediaQuery.of(context).size;
-    final member = widget.state.callInfo.remoteMembers.first;
+    final localMember = widget.state.self;
+    final remoteMember = widget.state.callInfo.remoteMembers.first;
 
-    final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer;
-    final secondaryRenderer = isLocalMain ? activeRenderer : widget
-        .localRenderer;
-    final mainStreamAvailable = isLocalMain
-        ? widget.state.localStream != null && widget.state.localCameraOn
-        : member.mediaStream != null && member.cameraEnabled;
-    final secondaryStreamAvailable = !isLocalMain
-        ? widget.state.localStream != null && widget.state.localCameraOn
-        : member.mediaStream != null && member.cameraEnabled;
+    screenSize = MediaQuery.of(context).size;
+
+    final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer!;
+    final secondaryRenderer = isLocalMain ? activeRenderer! : widget.localRenderer;
+
+    final mainStreamAvailable =
+        isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
+    final secondaryStreamAvailable =
+        !isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Column(
-              children: [
-                _buildRenderer(mainStreamAvailable, mainRenderer),
-                Text(widget.state.callDuration.toCallFormat(),
-                    style: TextStyle(color: Colors.white, fontSize: 24)),
-              ],
-            ),
-          ), // Main Renderer
-          Positioned(
-            top: 60,
-            right: 20,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.red,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          iconSize: 30,
-                          icon: Icon(Icons.minimize,
-                            color: Colors.white,
-                          ),
-                          onPressed: () =>
-                              widget.callBloc.add(UIEvent(
-                                  event: UIEventType.changeOverlay,
-                                  value: OverlayStatus.minimized)),
-                        ),
-                      ]),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: const NetworkImage(
-                            "https://i.pravatar.cc/48"),
-                        backgroundColor: Colors.grey[800],
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.state.isConnected ? "Connected" : "Calling",
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const Text(
-                            "Contact Name",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ), // Avatar
-          Positioned(
-            left: position.dx,
-            top: position.dy,
-            child: GestureDetector(
-              onPanUpdate: (details) => setState(() => position += details.delta),
-              onPanEnd: (details) => _animateToClosestCorner(position),
-              onTap: _switchRenderers,
-              child: Container(
-                width: 100,
-                height: 140,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey,
-                ),
-                child: secondaryStreamAvailable
-                    ? RTCVideoView(secondaryRenderer!, mirror: !isLocalMain)
-                    : const Icon(Icons.person, color: Colors.white, size: 60),
-              ),
-            ),
-          ), //Secondary Renderer
-// Call Controllers
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: FullScreenCallControls(
-              isScreenShareEnabled: widget.state.localScreenShareOn,
-              isMicrophoneEnabled: widget.state.localMicOn,
-              isCameraEnabled: widget.state.localCameraOn,
-              isSpeakerEnabled: widget.state.localSpeakerOn,
-              onScreenShareTap: () =>
-                  widget.callBloc.add(
-                      ToggleLocalControlEvent(
-                          control: LocalControlType.screenShare)),
-              onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
-              onMicrophoneTap: () =>
-                  widget.callBloc.add(
-                      ToggleLocalControlEvent(control: LocalControlType.mic)),
-              onCameraTap: () =>
-                  widget.callBloc.add(ToggleLocalControlEvent(
-                      control: LocalControlType.camera)),
-              onSpeakerTap: () =>
-                  widget.callBloc.add(ToggleLocalControlEvent(
-                      control: LocalControlType.speaker)),
-            ),
-          ),
+          _buildMainRenderer(mainStreamAvailable, mainRenderer),
+          _buildCallBar(),
+          _buildControls(),
+          // if (secondaryStreamAvailable || widget.state.isVideoCall)
+          _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
         ],
       ),
     );
   }
 
-  Widget _buildRenderer(bool available,
-      RTCVideoRenderer? renderer) {
-    return available
-        ? RTCVideoView(renderer!, mirror: isLocalMain)
-        : const Center(child: CircleAvatar(radius: 70,
-        backgroundImage: NetworkImage("https://i.pravatar.cc/140")
-    ));
+  Positioned _buildSecondaryRenderer(
+    bool secondaryStreamAvailable,
+    RTCVideoRenderer? secondaryRenderer,
+  ) {
+    return Positioned(
+      left: position.dx == 0 ? null : position.dx,
+      top: position.dy == 0 ? null : position.dy,
+      right: position.dx == 0 ? 0 : null,
+      bottom: position.dy == 0 ? 0 : null,
+      child: GestureDetector(
+        onPanUpdate: (details) => setState(() => position += details.delta),
+        onPanEnd: (details) => _animateToClosestCorner(position),
+        onTap: _switchRenderers,
+        child: Container(
+          width: 100,
+          height: 140,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey,
+          ),
+          child:
+              secondaryStreamAvailable
+                  ? RTCVideoView(secondaryRenderer!, mirror: !isLocalMain)
+                  : const Icon(Icons.person, color: Colors.white, size: 60),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCircleIcon(IconData icon, VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 24),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Positioned _buildCallBar() {
+    final remoteMembers = widget.state.remoteMembers;
+
+    final titleText =
+        remoteMembers.length == 1
+            ? remoteMembers.first.displayName
+            : '${remoteMembers.length} participants';
+
+    return Positioned(
+      top: 60,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildCircleIcon(Icons.close_fullscreen, () {
+              widget.callBloc.add(
+                UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.minimized),
+              );
+            }),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
+                SizedBox(height: 4),
+                Text(
+                  widget.state.callDuration.toCallFormat(),
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+            _buildCircleIcon(Icons.person_add, () {
+              // widget.callBloc.add(
+              //   UIEvent(
+              //     event: UIEventType.addParticipant,
+              //   ),
+              // );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Positioned _buildControls() {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: FullScreenCallControls(
+        isScreenShareEnabled: widget.state.localScreenShareOn,
+        isMicrophoneEnabled: widget.state.localMicOn,
+        isCameraEnabled: widget.state.localCameraOn,
+        isSpeakerEnabled: widget.state.localSpeakerOn,
+        onScreenShareTap: () {
+          widget.callBloc.add(
+            ToggleLocalControlEvent(control: LocalControlType.screenShare),
+          );
+        },
+        onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
+        onMicrophoneTap: () {
+          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
+        },
+        onCameraTap: () {
+          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
+        },
+        onSpeakerTap: () {
+          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
+        },
+      ),
+    );
+  }
+
+  Positioned _buildMainRenderer(bool available, RTCVideoRenderer? renderer) {
+    return Positioned.fill(
+      child:
+          available
+              ? RTCVideoView(renderer!, mirror: isLocalMain)
+              : const Center(
+                child: CircleAvatar(
+                  radius: 70,
+                  backgroundImage: NetworkImage("https://i.pravatar.cc/140"),
+                ),
+              ),
+    );
   }
 }

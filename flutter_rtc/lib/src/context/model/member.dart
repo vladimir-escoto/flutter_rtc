@@ -19,9 +19,11 @@ final class Member extends Equatable {
 
   final ConnectionStatus status;
 
+  bool get isStreamAvailable => mediaStream != null && cameraEnabled;
+
   const Member({
     required this.id,
-    this.displayName = 'unknown',
+    this.displayName = 'Unknown Name',
     this.isLocal = false,
     this.micEnabled = true,
     this.speakerEnable = false,
@@ -75,8 +77,7 @@ final class Member extends Equatable {
       speakerEnable: json['speakerEnable'],
       cameraEnabled: json['cameraEnabled'],
       screenShareEnabled: json['screenShareEnabled'],
-      status: ConnectionStatus.values.firstWhere((e) =>
-      e.name == json['status']),
+      status: ConnectionStatus.values.firstWhere((e) => e.name == json['status']),
     );
   }
 
@@ -91,7 +92,6 @@ final class Member extends Equatable {
     screenShareEnabled,
     mediaStream,
   ];
-
 }
 
 extension MembersListExtension on List<Member> {

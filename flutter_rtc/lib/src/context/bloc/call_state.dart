@@ -52,6 +52,7 @@ class CallBlocState extends Equatable {
   CallMode get callMode => callInfo.callMode;
 
   List<Member> get members => callInfo.members;
+  List<Member> get remoteMembers => callInfo.remoteMembers;
 
   bool get isVideoCall => callMode == CallMode.video;
 

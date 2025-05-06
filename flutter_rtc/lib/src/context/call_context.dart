@@ -191,13 +191,13 @@ class CallContext {
           endCall();
           case CallKitEvent.toggleHold:
             debugPrint('[CallContext] toggleHold ${data.body}');
-            _bloc.add(HoldCallEvent(isOnHold: data.body["isHold"]));
+            _bloc.add(HoldCallEvent(isOnHold: data.body["isOnHold"] as bool));
             break;
           case CallKitEvent.toggleMute:
             debugPrint('[CallContext] toggleMute ${data.body}');
             _bloc.add(ToggleLocalControlEvent(
               control: LocalControlType.mic,
-                value: data.body["isMuted"],
+                value: data.body["isMuted"] as bool,
               ),
             );
             break;

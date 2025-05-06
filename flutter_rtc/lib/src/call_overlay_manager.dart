@@ -61,7 +61,10 @@ class CallOverlayManager {
   }
 
   void _addOverlay(CallContext call) {
-    if (_overlayState == null || _entries.containsKey(call.callId)) return;
+    if (_overlayState == null || _entries.containsKey(call.callId)) {
+      debugPrint('[CallOverlayManager] Add Overlay Call Exist, CallId:${call.callId} ');
+      return;
+    }
 
     final entry = OverlayEntry(
       builder: (_) => _callContainerScreenBuilder(call.callBloc),

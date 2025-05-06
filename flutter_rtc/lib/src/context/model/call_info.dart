@@ -59,7 +59,7 @@ final class CallInfo extends Equatable {
   }
 
   List<Member> get remoteMembers =>
-      members.where((p) => !p.isLocal).toList();
+      members.where((m) => m.id != userId ).toList();
 
   CallInfo copyAndUpdateStream(Map<String, MediaStream?> remoteStream) {
     var newMembers = List<Member>.from(members);
