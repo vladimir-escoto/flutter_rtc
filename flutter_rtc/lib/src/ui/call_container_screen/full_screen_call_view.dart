@@ -30,7 +30,10 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
   void initState() {
     super.initState();
     position = const Offset(0, 0);
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _initializeRenderer();
   }
 
@@ -113,7 +116,17 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
           _buildCallBar(),
           _buildControls(),
           // if (secondaryStreamAvailable || widget.state.isVideoCall)
-          _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
+          // _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
+          SecondaryRendererWidget(
+            secondaryStreamAvailable: secondaryStreamAvailable,
+            secondaryRenderer: secondaryRenderer,
+            isLocalMain: isLocalMain,
+            onSwitchRenderers: () {
+              setState(() {
+                isLocalMain = !isLocalMain;
+              });
+            },
+          ),
         ],
       ),
     );
