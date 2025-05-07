@@ -6,18 +6,56 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 enum RenderStatus { idle, expanded, collapsed }
 
 enum HorizontalPosition { left, right }
-
 enum VerticalPosition { top, middle, bottom }
 
+/// A floating, draggable WebRTC video renderer widget that snaps to
+/// corners or collapses to a side tab. Fully configurable.
 class SecondaryRendererWidget extends StatefulWidget {
+  /// Whether the secondary stream is available.
   final bool secondaryStreamAvailable;
+  /// The video renderer for secondary stream.
   final RTCVideoRenderer? secondaryRenderer;
+  /// If true, local video is shown as main; determines mirroring logic.
   final bool isLocalMain;
+  /// Callback when tapping in expanded state.
   final VoidCallback onSwitchRenderers;
+
+  /// Vertical clamp margins when idle/expanded.
   final double topMargin;
   final double bottomMargin;
 
-  /// [topMargin]/[bottomMargin] configure vertical clamp for idle/expanded.
+  /// Base dimensions in idle state.
+  final double baseWidth;
+  final double baseHeight;
+
+  /// Horizontal clamp margin.
+  final double horizontalMargin;
+
+  /// Fraction of width to trigger collapse when dragging.
+  final double collapseFactor;
+  /// Scale factor for expanded state.
+  final double expandFactor;
+  /// Width of the collapsed tab.
+  final double collapsedWidth;
+  /// Height of the collapsed tab.
+  final double collapsedHeight;
+  /// Velocity threshold for fling detection (px/s).
+  final double flingThreshold;
+
+  /// Duration to remain expanded before returning to idle.
+  final Duration idleDuration;
+  /// Animation duration for position/size transitions.
+  final Duration animationDuration;
+  /// Curve for animations.
+  final Curve animationCurve;
+
+  /// Background color for renderer container.
+  final Color backgroundColor;
+  /// Border radius when not collapsed.
+  final BorderRadius borderRadius;
+  /// Border radius when collapsed.
+  final Radius collapsedBorderRadius;
+
   const SecondaryRendererWidget({
     super.key,
     required this.secondaryStreamAvailable,
@@ -26,6 +64,20 @@ class SecondaryRendererWidget extends StatefulWidget {
     required this.onSwitchRenderers,
     this.topMargin = 125,
     this.bottomMargin = 150,
+    this.baseWidth = 120,
+    this.baseHeight = 160,
+    this.horizontalMargin = 16,
+    this.collapseFactor = 0.5,
+    this.expandFactor = 1.4,
+    this.collapsedWidth = 30,
+    this.collapsedHeight = 100,
+    this.flingThreshold = 800,
+    this.idleDuration = const Duration(seconds: 2),
+    this.animationDuration = const Duration(milliseconds: 200),
+    this.animationCurve = Curves.easeOut,
+    this.backgroundColor = Colors.grey,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.collapsedBorderRadius = const Radius.circular(25),
   });
 
   @override
@@ -33,25 +85,6 @@ class SecondaryRendererWidget extends StatefulWidget {
 }
 
 class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
-  // Base dimensions
-  static const double _baseWidth = 120;
-  static const double _baseHeight = 160;
-
-  // Horizontal clamp margin
-  static const double _horizontalMargin = 16;
-
-  // Fling threshold
-  static const double _velocityThreshold = 800;
-
-  // Fraction of current width to trigger collapse
-  static const double _collapseFactor = 0.5;
-
-  // Fraction of current width to trigger collapse
-  static const double _expandFactor = 1.4;
-
-  // Width when collapsed as a vertical tab
-  static const double _collapsedWidth = 40;
-
   RenderStatus _status = RenderStatus.idle;
   HorizontalPosition _hPos = HorizontalPosition.right;
   VerticalPosition _vPos = VerticalPosition.bottom;
@@ -78,7 +111,7 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
       _status = RenderStatus.expanded;
       _dragOffset = Offset.zero;
     });
-    _idleTimer = Timer(const Duration(seconds: 2), _enterIdle);
+    _idleTimer = Timer(widget.idleDuration, _enterIdle);
   }
 
   void _enterCollapsed(HorizontalPosition h, VerticalPosition v) {
@@ -109,27 +142,23 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
   Widget build(BuildContext context) {
     final Size screen = MediaQuery.of(context).size;
 
-    // Dimensions by state
-    final double width =
-        _status == RenderStatus.expanded
-            ? _baseWidth * _expandFactor
-            : _status == RenderStatus.collapsed
-            ? _collapsedWidth
-            : _baseWidth;
-    final double height =
-        _status == RenderStatus.expanded
-            ? _baseHeight * _expandFactor
-            : _status == RenderStatus.collapsed
-            ? _baseHeight
-            : _baseHeight;
+    // Compute dimensions
+    final double width = _status == RenderStatus.expanded
+        ? widget.baseWidth * widget.expandFactor
+        : (_status == RenderStatus.collapsed
+        ? widget.collapsedWidth
+        : widget.baseWidth);
 
-    // Base x by horizontal position
-    final double leftX =
-        _hPos == HorizontalPosition.left
-            ? _horizontalMargin
-            : screen.width - width - _horizontalMargin;
+    final double height = _status == RenderStatus.expanded
+        ? widget.baseHeight * widget.expandFactor
+        : (_status == RenderStatus.collapsed
+        ? widget.collapsedHeight
+        : widget.baseHeight);
 
-    // Base y by vertical position
+    // Base X and Y positions
+    final double leftX = _hPos == HorizontalPosition.left
+        ? widget.horizontalMargin
+        : screen.width - width - widget.horizontalMargin;
     double topY;
     switch (_vPos) {
       case VerticalPosition.top:
@@ -143,25 +172,21 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
         break;
     }
 
-    // Raw position from drag
+    // Raw drag-adjusted
     final double rawLeft = leftX + _dragOffset.dx;
     final double rawTop = topY + _dragOffset.dy;
 
     // Collapse threshold
-    final double collapseThreshold = width * _collapseFactor;
+    final double threshold = width * widget.collapseFactor;
 
-    double finalLeft;
-    double finalTop;
-
+    double finalLeft, finalTop;
     if (_status == RenderStatus.collapsed) {
-      // Collapsed: flush to chosen side
       finalLeft = _hPos == HorizontalPosition.left ? 0 : screen.width - width;
       finalTop = topY;
     } else {
-      // Idle/expanded: clamp inside
       finalLeft = rawLeft.clamp(
-        _horizontalMargin,
-        screen.width - width - _horizontalMargin,
+        widget.horizontalMargin,
+        screen.width - width - widget.horizontalMargin,
       );
       finalTop = rawTop.clamp(
         widget.topMargin,
@@ -169,75 +194,70 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
       );
     }
 
-    final radius = Radius.circular(_status == RenderStatus.collapsed ? 30 : 8);
-
-    var borderRadius =
-        _status == RenderStatus.collapsed
-            ? (_hPos == HorizontalPosition.left
-                ? BorderRadius.only(topRight: radius, bottomRight: radius)
-                : BorderRadius.only(topLeft: radius, bottomLeft: radius))
-            : BorderRadius.all(radius);
+    // Border radius adapts for collapsed
+    final BorderRadius br = _status == RenderStatus.collapsed
+        ? (_hPos == HorizontalPosition.left
+        ? BorderRadius.only(
+        topRight: widget.collapsedBorderRadius,
+        bottomRight: widget.collapsedBorderRadius)
+        : BorderRadius.only(
+        topLeft: widget.collapsedBorderRadius,
+        bottomLeft: widget.collapsedBorderRadius))
+        : widget.borderRadius;
 
     return AnimatedPositioned(
       left: finalLeft,
       top: finalTop,
       width: width,
       height: height,
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeOut,
+      duration: widget.animationDuration,
+      curve: widget.animationCurve,
       child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            _dragOffset += details.delta;
-          });
-        },
+        onPanUpdate: (details) => setState(() {
+          _dragOffset += details.delta;
+        }),
         onPanEnd: (details) {
           if (_status == RenderStatus.collapsed) return;
-
-          // Collapse if dragged beyond side
-          if (rawLeft < -collapseThreshold) {
+          // Collapse sides
+          if (rawLeft < -threshold) {
             _enterCollapsed(HorizontalPosition.left, _vPos);
             return;
           }
-
-          if (rawLeft + width > screen.width + collapseThreshold) {
+          if (rawLeft + width > screen.width + threshold) {
             _enterCollapsed(HorizontalPosition.right, _vPos);
             return;
           }
-
-          // Determine horizontal position by fling or center
-          final Offset velocity = details.velocity.pixelsPerSecond;
-          final bool flingH = velocity.dx.abs() > _velocityThreshold;
-          final HorizontalPosition h =
-              flingH
-                  ? (velocity.dx < 0 ? HorizontalPosition.left : HorizontalPosition.right)
-                  : ((rawLeft + width / 2) < screen.width / 2
-                      ? HorizontalPosition.left
-                      : HorizontalPosition.right);
-
-          // Determine vertical by nearest band: top/middle/bottom
+          // Snap to corner or side band
+          final Offset vel = details.velocity.pixelsPerSecond;
+          final bool flingH = vel.dx.abs() > widget.flingThreshold;
+          final HorizontalPosition newH = flingH
+              ? (vel.dx < 0
+              ? HorizontalPosition.left
+              : HorizontalPosition.right)
+              : ((rawLeft + width / 2) < screen.width / 2
+              ? HorizontalPosition.left
+              : HorizontalPosition.right);
           final double centerY = rawTop + height / 2;
           final double band = screen.height / 3;
-          VerticalPosition v;
-          if (centerY < band) {
-            v = VerticalPosition.top;
-          } else if (centerY > 2 * band) {
-            v = VerticalPosition.bottom;
-          } else {
-            v = VerticalPosition.middle;
-          }
-
+          final VerticalPosition newV = centerY < band
+              ? VerticalPosition.top
+              : (centerY > 2 * band
+              ? VerticalPosition.bottom
+              : VerticalPosition.middle);
           setState(() {
-            _hPos = h;
-            _vPos = v;
+            _hPos = newH;
+            _vPos = newV;
             _dragOffset = Offset.zero;
           });
         },
         onTap: _handleTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(color: Colors.grey, borderRadius: borderRadius),
+          duration: widget.animationDuration,
+          curve: widget.animationCurve,
+          decoration: BoxDecoration(
+            color: widget.backgroundColor,
+            borderRadius: br,
+          ),
           child: _buildContent(),
         ),
       ),
@@ -256,8 +276,13 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
       );
     }
     if (widget.secondaryStreamAvailable) {
-      return RTCVideoView(widget.secondaryRenderer!, mirror: !widget.isLocalMain);
+      return RTCVideoView(
+        widget.secondaryRenderer!,
+        mirror: !widget.isLocalMain,
+      );
     }
-    return const Center(child: Icon(Icons.person, color: Colors.white, size: 60));
+    return const Center(
+      child: Icon(Icons.person, color: Colors.white, size: 60),
+    );
   }
 }
