@@ -9,20 +9,18 @@ enum HorizontalPosition { left, right }
 
 enum VerticalPosition { top, middle, bottom }
 
-typedef TabCallback = bool Function(RenderStatus, HorizontalPosition, VerticalPosition);
+typedef TabCallback =
+    bool Function(RenderStatus status, HorizontalPosition hPos, VerticalPosition vPos);
+
+typedef FloatingBuilder =
+    Widget Function(BuildContext, RenderStatus, HorizontalPosition, VerticalPosition);
 
 /// A generic, floating, draggable widget that snaps to corners or
 /// collapses to a side tab. It supports idle, expanded, and collapsed states,
 /// and delegates content rendering via a builder.
 class FloatingDraggableWidget extends StatefulWidget {
   /// Builds the child when not collapsed. Receives the current state and position.
-  final Widget Function(
-    BuildContext context,
-    RenderStatus status,
-    HorizontalPosition hPos,
-    VerticalPosition vPos,
-  )
-  builder;
+  final FloatingBuilder builder;
 
   /// Called when tapping in expanded state.
   final TabCallback? onTap;
@@ -84,7 +82,7 @@ class FloatingDraggableWidget extends StatefulWidget {
 class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   RenderStatus _status = RenderStatus.idle;
   HorizontalPosition _hPos = HorizontalPosition.right;
-  VerticalPosition _vPos = VerticalPosition.bottom;
+  VerticalPosition _vPos = VerticalPosition.top;
   Offset _dragOffset = Offset.zero;
   Timer? _idleTimer;
 
@@ -133,10 +131,8 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
 
     if (_status == RenderStatus.idle) {
       _enterExpanded();
-      return;
     } else if (_status == RenderStatus.expanded) {
       _enterIdle();
-      return;
     }
   }
 
@@ -227,7 +223,17 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
               _dragOffset += details.delta;
             }),
         onPanEnd: (details) {
-          if (_status == RenderStatus.collapsed) return;
+          // Handle dragging out of collapsed to idle
+          if (_status == RenderStatus.collapsed) {
+            final double releaseThreshold = widget.collapsedWidth / 2;
+            if ((_hPos == HorizontalPosition.left && _dragOffset.dx > releaseThreshold) ||
+                (_hPos == HorizontalPosition.right &&
+                    _dragOffset.dx < -releaseThreshold)) {
+              _enterIdle();
+            }
+            _dragOffset = Offset.zero;
+            return;
+          }
           // Collapse sides
           if (rawLeft < -threshold) {
             _enterCollapsed(HorizontalPosition.left, _vPos);
@@ -264,57 +270,19 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
         child: AnimatedContainer(
           duration: widget.animationDuration,
           curve: widget.animationCurve,
+          alignment: Alignment.center,
           decoration: BoxDecoration(color: widget.backgroundColor, borderRadius: br),
           child:
               _status == RenderStatus.collapsed
-                  ? Center(
-                    child: Icon(
-                      _hPos == HorizontalPosition.left
-                          ? Icons.arrow_forward_ios
-                          : Icons.arrow_back_ios,
-                      color: Colors.white,
-                    ),
+                  ? Icon(
+                    _hPos == HorizontalPosition.left
+                        ? Icons.arrow_forward_ios
+                        : Icons.arrow_back_ios_new,
+                    color: Colors.white,
                   )
                   : widget.builder(context, _status, _hPos, _vPos),
         ),
       ),
-    );
-  }
-}
-
-/// A specialized widget for rendering a secondary video feed
-/// using [FloatingDraggableWidget].
-class FloatingDraggableRendererWidget extends StatelessWidget {
-  final bool secondaryStreamAvailable;
-  final RTCVideoRenderer? secondaryRenderer;
-  final bool isLocalMain;
-  final TabCallback onTap;
-
-  final double topMargin;
-  final double bottomMargin;
-
-  const FloatingDraggableRendererWidget({
-    super.key,
-    required this.secondaryStreamAvailable,
-    required this.secondaryRenderer,
-    required this.isLocalMain,
-    required this.onTap,
-    required this.topMargin,
-    required this.bottomMargin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingDraggableWidget(
-      topMargin: topMargin,
-      bottomMargin: bottomMargin,
-      onTap: onTap,
-      builder: (ctx, status, hPos, vPos) {
-        if (!secondaryStreamAvailable) {
-          return const Center(child: Icon(Icons.person, color: Colors.white, size: 60));
-        }
-        return RTCVideoView(secondaryRenderer!, mirror: !isLocalMain);
-      },
     );
   }
 }
