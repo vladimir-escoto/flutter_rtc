@@ -21,19 +21,10 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
   final Map<String, RTCVideoRenderer> _remoteRenderer = {};
 
   bool isLocalMain = false;
-  late Offset position;
-  late Size screenSize;
-  late AnimationController _controller;
-  late Animation<Offset> _animation;
 
   @override
   void initState() {
     super.initState();
-    position = const Offset(0, 0);
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     _initializeRenderer();
   }
 
@@ -43,7 +34,6 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
       renderer.dispose();
     }
     _remoteRenderer.clear();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -66,39 +56,15 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     setState(() => isLocalMain = !isLocalMain);
   }
 
-  Offset _closestCorner(Offset offset) {
-    final corners = [
-      const Offset(20, 80),
-      Offset(screenSize.width - 120, 80),
-      Offset(20, screenSize.height - 220),
-      Offset(screenSize.width - 120, screenSize.height - 220),
-    ];
-
-    corners.sort((a, b) => (a - offset).distance.compareTo((b - offset).distance));
-    return corners.first;
-  }
-
-  void _animateToClosestCorner(Offset offset) {
-    final closest = _closestCorner(offset);
-    _animation = Tween<Offset>(begin: position, end: closest).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    )..addListener(() {
-      setState(() => position = _animation.value);
-    });
-    _controller.forward(from: 0);
-  }
-
   RTCVideoRenderer? get activeRenderer {
     //TODO: Replace with Active remote renderer, only one render in minimized view
-    return _remoteRenderer[widget.state.callInfo.remoteMembers[0].id]!;
+    return _remoteRenderer[widget.state.callInfo.remoteMembers[0].id];
   }
 
   @override
   Widget build(BuildContext context) {
     final localMember = widget.state.self;
     final remoteMember = widget.state.callInfo.remoteMembers.first;
-
-    screenSize = MediaQuery.of(context).size;
 
     final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer!;
     final secondaryRenderer = isLocalMain ? activeRenderer! : widget.localRenderer;
@@ -108,36 +74,46 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     final secondaryStreamAvailable =
         !isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
 
+    final mainPhotoUrl =
+        isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
+    final secondaryPhotoUrl =
+        !isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          _buildMainRenderer(mainStreamAvailable, mainRenderer),
+          VideoBox(
+            renderer: mainRenderer,
+            photoUrl: mainPhotoUrl,
+            available: mainStreamAvailable,
+            mirror: !isLocalMain,
+          ),
+          // if (secondaryStreamAvailable || widget.state.isVideoCall)
+          FloatingDraggableRendererWidget(
+            topMargin: 125,
+            bottomMargin: 150,
+            secondaryStreamAvailable: secondaryStreamAvailable,
+            secondaryRenderer: secondaryRenderer,
+            isLocalMain: isLocalMain,
+            photoUrl: secondaryPhotoUrl,
+            onTap: (status, hp, vp) {
+              if (status == RenderStatus.expanded) {
+                _switchRenderers();
+                return true;
+              }
+              return false;
+            },
+            onSwitchCamera: () {
+              widget.callBloc.add(
+                ToggleLocalControlEvent(control: LocalControlType.camera),
+              );
+            },
+          ),
           _buildCallBar(),
           _buildControls(),
-          // if (secondaryStreamAvailable || widget.state.isVideoCall)
-          _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
         ],
       ),
-    );
-  }
-
-  FloatingDraggableRendererWidget _buildSecondaryRenderer(
-    bool secondaryStreamAvailable,
-    RTCVideoRenderer? secondaryRenderer,
-  ) {
-    return FloatingDraggableRendererWidget(
-      topMargin: 125,
-      bottomMargin: 150,
-      secondaryStreamAvailable: secondaryStreamAvailable,
-      secondaryRenderer: secondaryRenderer,
-      isLocalMain: isLocalMain,
-      onTap: (status, hp, vp) {
-        setState(() {
-          isLocalMain = !isLocalMain;
-        });
-        return false;
-      },
     );
   }
 
@@ -156,7 +132,7 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
 
     final titleText =
         remoteMembers.length == 1
-            ? remoteMembers.first.displayName
+            ? remoteMembers.first.displayNameOrId
             : '${remoteMembers.length} participants';
 
     return Positioned(
@@ -223,20 +199,6 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
           widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
         },
       ),
-    );
-  }
-
-  Positioned _buildMainRenderer(bool available, RTCVideoRenderer? renderer) {
-    return Positioned.fill(
-      child:
-          available
-              ? RTCVideoView(renderer!, mirror: isLocalMain)
-              : const Center(
-                child: CircleAvatar(
-                  radius: 70,
-                  backgroundImage: NetworkImage("https://i.pravatar.cc/140"),
-                ),
-              ),
     );
   }
 }

@@ -16,8 +16,7 @@ class CallContext {
   final bool isCaller;
   late CallInfo _callInfo;
 
-  final _callStatusController = StreamController<
-      CallLifeCycleStatus>.broadcast();
+  final _callStatusController = StreamController<CallLifeCycleStatus>.broadcast();
 
   late final RTCManager _rtcManager;
   late final CallBloc _bloc;
@@ -61,10 +60,7 @@ class CallContext {
       callStatus: CallLifeCycleStatus.initial,
     );
 
-    _rtcManager = RTCManager(
-        callId: callId,
-        userId: userId,
-        signaling: signaling);
+    _rtcManager = RTCManager(callId: callId, userId: userId, signaling: signaling);
 
     _bloc = CallBloc(callInfo: _callInfo, rtcManager: _rtcManager);
 
@@ -78,7 +74,7 @@ class CallContext {
     _bloc.add(StartOutgoingCallEvent());
     callKitManager.showOutgoingCall(
       callId: callId,
-      callerName: _callInfo.self.displayName,
+      callerName: _callInfo.self.displayNameOrId,
       body: _callInfo.toJson(),
     );
   }
@@ -114,7 +110,7 @@ class CallContext {
         break;
       case CallDataEventType.callDeclined:
       case CallDataEventType.callEnded:
-      endCall();
+        endCall();
         break;
       default:
         debugPrint('[CallContext] Unhandled event type: ${data.type}');
@@ -188,15 +184,16 @@ class CallContext {
             break;
           case CallKitEvent.ended:
           case CallKitEvent.timeout:
-          endCall();
+            endCall();
           case CallKitEvent.toggleHold:
             debugPrint('[CallContext] toggleHold ${data.body}');
             _bloc.add(HoldCallEvent(isOnHold: data.body["isOnHold"] as bool));
             break;
           case CallKitEvent.toggleMute:
             debugPrint('[CallContext] toggleMute ${data.body}');
-            _bloc.add(ToggleLocalControlEvent(
-              control: LocalControlType.mic,
+            _bloc.add(
+              ToggleLocalControlEvent(
+                control: LocalControlType.mic,
                 value: data.body["isMuted"] as bool,
               ),
             );
@@ -223,5 +220,4 @@ class CallContext {
     _rtcManager.dispose();
     debugPrint('[CallContext] dispose');
   }
-
 }

@@ -76,19 +76,28 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        FloatingDraggableRendererWidget(
+        FloatingDraggableWidget(
           topMargin: 100,
           bottomMargin: 16,
-          secondaryStreamAvailable: false,
-          secondaryRenderer: activeRenderer,
           initialHPos: HorizontalPosition.right,
           initialVPos: VerticalPosition.top,
-          isLocalMain: false,
+          backgroundColor: Colors.grey.shade800,
           onTap: (status, hp, vp) {
             widget.callBloc.add(
               UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.expanded),
             );
             return true;
+          },
+          builder: (ctx, status, hPos, vPos) {
+            if (!(activeRenderer?.renderVideo ?? false)) {
+              return const Center(
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundImage: NetworkImage("https://i.pravatar.cc/141"),
+                ),
+              );
+            }
+            return RTCVideoView(activeRenderer!, mirror: false);
           },
         ),
       ],

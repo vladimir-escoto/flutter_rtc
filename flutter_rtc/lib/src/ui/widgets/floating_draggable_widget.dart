@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 /// States for the floating widget.
 enum RenderStatus { idle, expanded, collapsed }
@@ -286,15 +285,18 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
           curve: widget.animationCurve,
           alignment: Alignment.center,
           decoration: BoxDecoration(color: widget.backgroundColor, borderRadius: br),
-          child:
-              _status == RenderStatus.collapsed
-                  ? Icon(
-                    _hPos == HorizontalPosition.left
-                        ? Icons.arrow_forward_ios
-                        : Icons.arrow_back_ios_new,
-                    color: Colors.white,
-                  )
-                  : widget.builder(context, _status, _hPos, _vPos),
+          child: Builder(
+            builder: (context) {
+              if (_status == RenderStatus.collapsed) {
+                return Transform.rotate(
+                  angle: _hPos == HorizontalPosition.left ? 3.14159265359 : 0,
+                  // Rotate 180 degrees (pi radians) for right
+                  child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 32),
+                );
+              }
+              return widget.builder(context, _status, _hPos, _vPos);
+            },
+          ),
         ),
       ),
     );

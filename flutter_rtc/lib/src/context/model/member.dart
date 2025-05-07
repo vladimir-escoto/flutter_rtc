@@ -7,7 +7,7 @@ import '../bloc/call_bloc.dart';
 
 final class Member extends Equatable {
   final String id;
-  final String displayName;
+  final String? displayName;
   final bool isLocal;
 
   final bool speakerEnable;
@@ -21,9 +21,13 @@ final class Member extends Equatable {
 
   bool get isStreamAvailable => mediaStream != null && cameraEnabled;
 
+  String get displayNameOrId => displayName ?? "User $id";
+
+  String get photoUrlOrId => "https://i.pravatar.cc/14$id";
+
   const Member({
     required this.id,
-    this.displayName = 'Unknown Name',
+    this.displayName,
     this.isLocal = false,
     this.micEnabled = true,
     this.speakerEnable = false,
@@ -41,6 +45,7 @@ final class Member extends Equatable {
     bool? screenShareEnabled,
     MediaStream? mediaStream,
     ConnectionStatus? status,
+    String? photoUrl,
   }) {
     return Member(
       id: id,
@@ -91,6 +96,7 @@ final class Member extends Equatable {
     cameraEnabled,
     screenShareEnabled,
     mediaStream,
+    status,
   ];
 }
 

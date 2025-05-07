@@ -7,6 +7,7 @@ import 'package:flutter_rtc/src/common.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_renderer_widget.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_widget.dart';
+import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../context/model/member.dart';

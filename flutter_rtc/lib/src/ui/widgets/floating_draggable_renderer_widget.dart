@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_widget.dart';
+import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 /// A specialized widget for rendering a secondary video feed
@@ -11,8 +12,10 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
   final TabCallback onTap;
   final double topMargin;
   final double bottomMargin;
+  final VoidCallback? onSwitchCamera;
   final HorizontalPosition initialHPos;
   final VerticalPosition initialVPos;
+  final String? photoUrl;
 
   const FloatingDraggableRendererWidget({
     super.key,
@@ -20,8 +23,10 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
     required this.secondaryRenderer,
     required this.isLocalMain,
     required this.onTap,
+    required this.onSwitchCamera,
     required this.topMargin,
     required this.bottomMargin,
+    required this.photoUrl,
     this.initialHPos = HorizontalPosition.right,
     this.initialVPos = VerticalPosition.bottom,
   });
@@ -33,12 +38,36 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
       bottomMargin: bottomMargin,
       initialHPos: initialHPos,
       initialVPos: initialVPos,
+      backgroundColor: Colors.grey.shade800,
       onTap: onTap,
       builder: (ctx, status, hPos, vPos) {
-        if (!secondaryStreamAvailable) {
-          return const Center(child: Icon(Icons.person, color: Colors.white, size: 60));
+        Widget content = VideoBox(
+          renderer: secondaryRenderer!,
+          photoUrl: photoUrl,
+          available: secondaryStreamAvailable,
+          mirror: !isLocalMain,
+        );
+
+        if (isLocalMain) {
+          return Stack(
+            children: [
+              Positioned.fill(child: content),
+              if (isLocalMain) ...[
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: FloatingActionButton(
+                    mini: true,
+                    backgroundColor: Colors.white54,
+                    onPressed: onSwitchCamera,
+                    child: const Icon(Icons.switch_camera, color: Colors.white),
+                  ),
+                ),
+              ],
+            ],
+          );
         }
-        return RTCVideoView(secondaryRenderer!, mirror: !isLocalMain);
+        return content;
       },
     );
   }
