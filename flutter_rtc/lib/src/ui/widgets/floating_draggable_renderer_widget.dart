@@ -11,6 +11,8 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
   final TabCallback onTap;
   final double topMargin;
   final double bottomMargin;
+  final HorizontalPosition initialHPos;
+  final VerticalPosition initialVPos;
 
   const FloatingDraggableRendererWidget({
     super.key,
@@ -20,6 +22,8 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
     required this.onTap,
     required this.topMargin,
     required this.bottomMargin,
+    this.initialHPos = HorizontalPosition.right,
+    this.initialVPos = VerticalPosition.bottom,
   });
 
   @override
@@ -27,6 +31,8 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
     return FloatingDraggableWidget(
       topMargin: topMargin,
       bottomMargin: bottomMargin,
+      initialHPos: initialHPos,
+      initialVPos: initialVPos,
       onTap: onTap,
       builder: (ctx, status, hPos, vPos) {
         if (!secondaryStreamAvailable) {

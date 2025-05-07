@@ -25,6 +25,10 @@ class FloatingDraggableWidget extends StatefulWidget {
   /// Called when tapping in expanded state.
   final TabCallback? onTap;
 
+  /// Initial horizontal and vertical positions when created.
+  final HorizontalPosition initialHPos;
+  final VerticalPosition initialVPos;
+
   /// Margins to clamp vertical movement in idle/expanded.
   final double topMargin;
   final double bottomMargin;
@@ -57,6 +61,8 @@ class FloatingDraggableWidget extends StatefulWidget {
     super.key,
     required this.builder,
     this.onTap,
+    this.initialHPos = HorizontalPosition.right,
+    this.initialVPos = VerticalPosition.bottom,
     this.topMargin = 16,
     this.bottomMargin = 16,
     this.baseWidth = 120,
@@ -81,10 +87,18 @@ class FloatingDraggableWidget extends StatefulWidget {
 
 class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   RenderStatus _status = RenderStatus.idle;
-  HorizontalPosition _hPos = HorizontalPosition.right;
-  VerticalPosition _vPos = VerticalPosition.top;
+  late HorizontalPosition _hPos;
+  late VerticalPosition _vPos;
   Offset _dragOffset = Offset.zero;
   Timer? _idleTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // set initial positions
+    _hPos = widget.initialHPos;
+    _vPos = widget.initialVPos;
+  }
 
   @override
   void dispose() {

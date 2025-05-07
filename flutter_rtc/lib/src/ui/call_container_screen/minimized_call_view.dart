@@ -81,6 +81,8 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
           bottomMargin: 16,
           secondaryStreamAvailable: false,
           secondaryRenderer: activeRenderer,
+          initialHPos: HorizontalPosition.right,
+          initialVPos: VerticalPosition.top,
           isLocalMain: false,
           onTap: (status, hp, vp) {
             widget.callBloc.add(
