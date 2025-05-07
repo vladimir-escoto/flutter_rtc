@@ -4,18 +4,13 @@ class MinimizedCallView extends StatefulWidget {
   final CallBloc callBloc;
   final CallBlocState state;
 
-  const MinimizedCallView({
-    required this.callBloc,
-    required this.state,
-    super.key,
-  });
+  const MinimizedCallView({required this.callBloc, required this.state, super.key});
 
   @override
   State<MinimizedCallView> createState() => _MinimizedCallViewState();
 }
 
 class _MinimizedCallViewState extends State<MinimizedCallView> {
-
   final Map<String, RTCVideoRenderer> _remoteRenderer = {};
 
   @override
@@ -35,7 +30,6 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
 
   Future<void> _initializeRenderer() async {
     for (var member in widget.state.callInfo.remoteMembers) {
-
       final renderer = _remoteRenderer.putIfAbsent(member.id, () {
         return RTCVideoRenderer();
       });
@@ -46,7 +40,11 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
     }
   }
 
-  Future<void> _updateRenderers(Member member, RTCVideoRenderer render, bool isVideo) async {
+  Future<void> _updateRenderers(
+    Member member,
+    RTCVideoRenderer render,
+    bool isVideo,
+  ) async {
     // // 1. Ensure renderer is initialized
     // if (render.textureId == null) {
     //   await render.initialize();
@@ -78,56 +76,18 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned(
-          left: widget.state.uiPosition.dx,
-          top: widget.state.uiPosition.dy,
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              final newOffset = widget.state.uiPosition + details.delta;
-              widget.callBloc.add(
-                  UIEvent(event: UIEventType.dragged, value: newOffset));
-            },
-            onTap: () {
-              widget.callBloc.add(UIEvent(event: UIEventType.changeOverlay,
-                  value: OverlayStatus.expanded));
-            },
-            child: Container(
-              width: 150,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  //TODO: Replace with Active remote renderer, only one render in minimized view
-                  activeRenderer != null ? RTCVideoView(activeRenderer!)
-                      : Container(color: Colors.black),
-                  Positioned(
-                    top: 5,
-                    left: 5,
-                    child: Column(
-                      children: [
-                        Text(
-                          "Connected",
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
-                        ),
-                        Text(widget.state.callDuration.toCallFormat(),
-                            style: TextStyle(
-                                color: Colors.white, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  const Positioned(
-                    bottom: 5,
-                    right: 5,
-                    child: Icon(Icons.call, color: Colors.white, size: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        FloatingDraggableRendererWidget(
+          topMargin: 100,
+          bottomMargin: 16,
+          secondaryStreamAvailable: false,
+          secondaryRenderer: activeRenderer,
+          isLocalMain: false,
+          onTap: (status, hp, vp) {
+            widget.callBloc.add(
+              UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.expanded),
+            );
+            return true;
+          },
         ),
       ],
     );
@@ -138,5 +98,3 @@ class _MinimizedCallViewState extends State<MinimizedCallView> {
     return _remoteRenderer[widget.state.callInfo.remoteMembers[0].id]!;
   }
 }
-
-

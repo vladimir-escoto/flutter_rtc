@@ -2,71 +2,68 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-/// Display states for the floating renderer.
+/// States for the floating widget.
 enum RenderStatus { idle, expanded, collapsed }
 
 enum HorizontalPosition { left, right }
+
 enum VerticalPosition { top, middle, bottom }
 
-/// A floating, draggable WebRTC video renderer widget that snaps to
-/// corners or collapses to a side tab. Fully configurable.
-class SecondaryRendererWidget extends StatefulWidget {
-  /// Whether the secondary stream is available.
-  final bool secondaryStreamAvailable;
-  /// The video renderer for secondary stream.
-  final RTCVideoRenderer? secondaryRenderer;
-  /// If true, local video is shown as main; determines mirroring logic.
-  final bool isLocalMain;
-  /// Callback when tapping in expanded state.
-  final VoidCallback onSwitchRenderers;
+typedef TabCallback = bool Function(RenderStatus, HorizontalPosition, VerticalPosition);
 
-  /// Vertical clamp margins when idle/expanded.
+/// A generic, floating, draggable widget that snaps to corners or
+/// collapses to a side tab. It supports idle, expanded, and collapsed states,
+/// and delegates content rendering via a builder.
+class FloatingDraggableWidget extends StatefulWidget {
+  /// Builds the child when not collapsed. Receives the current state and position.
+  final Widget Function(
+    BuildContext context,
+    RenderStatus status,
+    HorizontalPosition hPos,
+    VerticalPosition vPos,
+  )
+  builder;
+
+  /// Called when tapping in expanded state.
+  final TabCallback? onTap;
+
+  /// Margins to clamp vertical movement in idle/expanded.
   final double topMargin;
   final double bottomMargin;
 
-  /// Base dimensions in idle state.
+  /// Base size and margins.
   final double baseWidth;
   final double baseHeight;
-
-  /// Horizontal clamp margin.
   final double horizontalMargin;
 
-  /// Fraction of width to trigger collapse when dragging.
+  /// Collapse and expand configuration.
   final double collapseFactor;
-  /// Scale factor for expanded state.
   final double expandFactor;
-  /// Width of the collapsed tab.
   final double collapsedWidth;
-  /// Height of the collapsed tab.
   final double collapsedHeight;
-  /// Velocity threshold for fling detection (px/s).
+
+  /// Fling detection threshold.
   final double flingThreshold;
 
-  /// Duration to remain expanded before returning to idle.
+  /// Durations and curves for animations.
   final Duration idleDuration;
-  /// Animation duration for position/size transitions.
   final Duration animationDuration;
-  /// Curve for animations.
   final Curve animationCurve;
 
-  /// Background color for renderer container.
+  /// Styling.
   final Color backgroundColor;
-  /// Border radius when not collapsed.
   final BorderRadius borderRadius;
-  /// Border radius when collapsed.
   final Radius collapsedBorderRadius;
 
-  const SecondaryRendererWidget({
+  const FloatingDraggableWidget({
     super.key,
-    required this.secondaryStreamAvailable,
-    required this.secondaryRenderer,
-    required this.isLocalMain,
-    required this.onSwitchRenderers,
-    this.topMargin = 125,
-    this.bottomMargin = 150,
+    required this.builder,
+    this.onTap,
+    this.topMargin = 16,
+    this.bottomMargin = 16,
     this.baseWidth = 120,
     this.baseHeight = 160,
-    this.horizontalMargin = 16,
+    this.horizontalMargin = 8,
     this.collapseFactor = 0.5,
     this.expandFactor = 1.4,
     this.collapsedWidth = 30,
@@ -81,10 +78,10 @@ class SecondaryRendererWidget extends StatefulWidget {
   });
 
   @override
-  State<SecondaryRendererWidget> createState() => _SecondaryRendererWidgetState();
+  State<FloatingDraggableWidget> createState() => _FloatingDraggableWidgetState();
 }
 
-class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
+class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   RenderStatus _status = RenderStatus.idle;
   HorizontalPosition _hPos = HorizontalPosition.right;
   VerticalPosition _vPos = VerticalPosition.bottom;
@@ -125,16 +122,21 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
   }
 
   void _handleTap() {
-    switch (_status) {
-      case RenderStatus.idle:
-        _enterExpanded();
-        break;
-      case RenderStatus.expanded:
-        widget.onSwitchRenderers();
-        break;
-      case RenderStatus.collapsed:
-        _enterIdle();
-        break;
+    if (_status == RenderStatus.collapsed) {
+      _enterIdle();
+      return;
+    }
+
+    if (widget.onTap?.call(_status, _hPos, _vPos) ?? false) {
+      return;
+    }
+
+    if (_status == RenderStatus.idle) {
+      _enterExpanded();
+      return;
+    } else if (_status == RenderStatus.expanded) {
+      _enterIdle();
+      return;
     }
   }
 
@@ -142,23 +144,26 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
   Widget build(BuildContext context) {
     final Size screen = MediaQuery.of(context).size;
 
-    // Compute dimensions
-    final double width = _status == RenderStatus.expanded
-        ? widget.baseWidth * widget.expandFactor
-        : (_status == RenderStatus.collapsed
-        ? widget.collapsedWidth
-        : widget.baseWidth);
+    // Compute dynamic width & height
+    final double width =
+        _status == RenderStatus.expanded
+            ? widget.baseWidth * widget.expandFactor
+            : (_status == RenderStatus.collapsed
+                ? widget.collapsedWidth
+                : widget.baseWidth);
 
-    final double height = _status == RenderStatus.expanded
-        ? widget.baseHeight * widget.expandFactor
-        : (_status == RenderStatus.collapsed
-        ? widget.collapsedHeight
-        : widget.baseHeight);
+    final double height =
+        _status == RenderStatus.expanded
+            ? widget.baseHeight * widget.expandFactor
+            : (_status == RenderStatus.collapsed
+                ? widget.collapsedHeight
+                : widget.baseHeight);
 
     // Base X and Y positions
-    final double leftX = _hPos == HorizontalPosition.left
-        ? widget.horizontalMargin
-        : screen.width - width - widget.horizontalMargin;
+    final double leftX =
+        _hPos == HorizontalPosition.left
+            ? widget.horizontalMargin
+            : screen.width - width - widget.horizontalMargin;
     double topY;
     switch (_vPos) {
       case VerticalPosition.top:
@@ -179,6 +184,7 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
     // Collapse threshold
     final double threshold = width * widget.collapseFactor;
 
+    // Final position
     double finalLeft, finalTop;
     if (_status == RenderStatus.collapsed) {
       finalLeft = _hPos == HorizontalPosition.left ? 0 : screen.width - width;
@@ -194,16 +200,19 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
       );
     }
 
-    // Border radius adapts for collapsed
-    final BorderRadius br = _status == RenderStatus.collapsed
-        ? (_hPos == HorizontalPosition.left
-        ? BorderRadius.only(
-        topRight: widget.collapsedBorderRadius,
-        bottomRight: widget.collapsedBorderRadius)
-        : BorderRadius.only(
-        topLeft: widget.collapsedBorderRadius,
-        bottomLeft: widget.collapsedBorderRadius))
-        : widget.borderRadius;
+    // Adaptive border radius
+    final BorderRadius br =
+        _status == RenderStatus.collapsed
+            ? (_hPos == HorizontalPosition.left
+                ? BorderRadius.only(
+                  topRight: widget.collapsedBorderRadius,
+                  bottomRight: widget.collapsedBorderRadius,
+                )
+                : BorderRadius.only(
+                  topLeft: widget.collapsedBorderRadius,
+                  bottomLeft: widget.collapsedBorderRadius,
+                ))
+            : widget.borderRadius;
 
     return AnimatedPositioned(
       left: finalLeft,
@@ -213,9 +222,10 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
       duration: widget.animationDuration,
       curve: widget.animationCurve,
       child: GestureDetector(
-        onPanUpdate: (details) => setState(() {
-          _dragOffset += details.delta;
-        }),
+        onPanUpdate:
+            (details) => setState(() {
+              _dragOffset += details.delta;
+            }),
         onPanEnd: (details) {
           if (_status == RenderStatus.collapsed) return;
           // Collapse sides
@@ -230,20 +240,20 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
           // Snap to corner or side band
           final Offset vel = details.velocity.pixelsPerSecond;
           final bool flingH = vel.dx.abs() > widget.flingThreshold;
-          final HorizontalPosition newH = flingH
-              ? (vel.dx < 0
-              ? HorizontalPosition.left
-              : HorizontalPosition.right)
-              : ((rawLeft + width / 2) < screen.width / 2
-              ? HorizontalPosition.left
-              : HorizontalPosition.right);
+          final HorizontalPosition newH =
+              flingH
+                  ? (vel.dx < 0 ? HorizontalPosition.left : HorizontalPosition.right)
+                  : ((rawLeft + width / 2) < screen.width / 2
+                      ? HorizontalPosition.left
+                      : HorizontalPosition.right);
           final double centerY = rawTop + height / 2;
           final double band = screen.height / 3;
-          final VerticalPosition newV = centerY < band
-              ? VerticalPosition.top
-              : (centerY > 2 * band
-              ? VerticalPosition.bottom
-              : VerticalPosition.middle);
+          final VerticalPosition newV =
+              centerY < band
+                  ? VerticalPosition.top
+                  : (centerY > 2 * band
+                      ? VerticalPosition.bottom
+                      : VerticalPosition.middle);
           setState(() {
             _hPos = newH;
             _vPos = newV;
@@ -254,35 +264,57 @@ class _SecondaryRendererWidgetState extends State<SecondaryRendererWidget> {
         child: AnimatedContainer(
           duration: widget.animationDuration,
           curve: widget.animationCurve,
-          decoration: BoxDecoration(
-            color: widget.backgroundColor,
-            borderRadius: br,
-          ),
-          child: _buildContent(),
+          decoration: BoxDecoration(color: widget.backgroundColor, borderRadius: br),
+          child:
+              _status == RenderStatus.collapsed
+                  ? Center(
+                    child: Icon(
+                      _hPos == HorizontalPosition.left
+                          ? Icons.arrow_forward_ios
+                          : Icons.arrow_back_ios,
+                      color: Colors.white,
+                    ),
+                  )
+                  : widget.builder(context, _status, _hPos, _vPos),
         ),
       ),
     );
   }
+}
 
-  Widget _buildContent() {
-    if (_status == RenderStatus.collapsed) {
-      return Center(
-        child: Icon(
-          _hPos == HorizontalPosition.left
-              ? Icons.arrow_forward_ios
-              : Icons.arrow_back_ios,
-          color: Colors.white,
-        ),
-      );
-    }
-    if (widget.secondaryStreamAvailable) {
-      return RTCVideoView(
-        widget.secondaryRenderer!,
-        mirror: !widget.isLocalMain,
-      );
-    }
-    return const Center(
-      child: Icon(Icons.person, color: Colors.white, size: 60),
+/// A specialized widget for rendering a secondary video feed
+/// using [FloatingDraggableWidget].
+class FloatingDraggableRendererWidget extends StatelessWidget {
+  final bool secondaryStreamAvailable;
+  final RTCVideoRenderer? secondaryRenderer;
+  final bool isLocalMain;
+  final TabCallback onTap;
+
+  final double topMargin;
+  final double bottomMargin;
+
+  const FloatingDraggableRendererWidget({
+    super.key,
+    required this.secondaryStreamAvailable,
+    required this.secondaryRenderer,
+    required this.isLocalMain,
+    required this.onTap,
+    required this.topMargin,
+    required this.bottomMargin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingDraggableWidget(
+      topMargin: topMargin,
+      bottomMargin: bottomMargin,
+      onTap: onTap,
+      builder: (ctx, status, hPos, vPos) {
+        if (!secondaryStreamAvailable) {
+          return const Center(child: Icon(Icons.person, color: Colors.white, size: 60));
+        }
+        return RTCVideoView(secondaryRenderer!, mirror: !isLocalMain);
+      },
     );
   }
 }

@@ -116,48 +116,28 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
           _buildCallBar(),
           _buildControls(),
           // if (secondaryStreamAvailable || widget.state.isVideoCall)
-          // _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
-          SecondaryRendererWidget(
-            secondaryStreamAvailable: secondaryStreamAvailable,
-            secondaryRenderer: secondaryRenderer,
-            isLocalMain: isLocalMain,
-            onSwitchRenderers: () {
-              setState(() {
-                isLocalMain = !isLocalMain;
-              });
-            },
-          ),
+          _buildSecondaryRenderer(secondaryStreamAvailable, secondaryRenderer),
         ],
       ),
     );
   }
 
-  Positioned _buildSecondaryRenderer(
+  FloatingDraggableRendererWidget _buildSecondaryRenderer(
     bool secondaryStreamAvailable,
     RTCVideoRenderer? secondaryRenderer,
   ) {
-    return Positioned(
-      left: position.dx == 0 ? null : position.dx,
-      top: position.dy == 0 ? null : position.dy,
-      right: position.dx == 0 ? 0 : null,
-      bottom: position.dy == 0 ? 0 : null,
-      child: GestureDetector(
-        onPanUpdate: (details) => setState(() => position += details.delta),
-        onPanEnd: (details) => _animateToClosestCorner(position),
-        onTap: _switchRenderers,
-        child: Container(
-          width: 100,
-          height: 140,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey,
-          ),
-          child:
-              secondaryStreamAvailable
-                  ? RTCVideoView(secondaryRenderer!, mirror: !isLocalMain)
-                  : const Icon(Icons.person, color: Colors.white, size: 60),
-        ),
-      ),
+    return FloatingDraggableRendererWidget(
+      topMargin: 125,
+      bottomMargin: 150,
+      secondaryStreamAvailable: secondaryStreamAvailable,
+      secondaryRenderer: secondaryRenderer,
+      isLocalMain: isLocalMain,
+      onTap: (status, hp, vp) {
+        setState(() {
+          isLocalMain = !isLocalMain;
+        });
+        return false;
+      },
     );
   }
 
