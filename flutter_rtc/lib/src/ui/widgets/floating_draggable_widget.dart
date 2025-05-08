@@ -283,6 +283,7 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
           decoration: FloatingCollapsedShapeDecoration(
             color: widget.backgroundColor,
             radius: widget.collapsedBorderRadius,
+            isCollapsed: isCollapsed,
             flipHorizontally: _hPos == HorizontalPosition.left,
           ),
           child:

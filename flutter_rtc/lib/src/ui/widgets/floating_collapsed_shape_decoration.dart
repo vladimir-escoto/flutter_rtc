@@ -38,13 +38,28 @@ class _FloatingCollapsedShapePainter extends BoxPainter {
     // translate to the container's origin
     canvas.translate(offset.dx, offset.dy);
 
+    final paint = Paint()..color = decoration.color;
+
+    if (!decoration.isCollapsed) {
+      // ────────────────
+      // Normal (idle/expanded) background:
+      // ────────────────
+      final rRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        decoration.radius,
+      );
+      canvas.drawRRect(rRect, paint);
+      canvas.restore();
+      return;
+    }
+
     // Flip horizontally if needed
     if (decoration.flipHorizontally) {
       canvas.translate(size.width, 0);
       canvas.scale(-1, 1);
     }
 
-    Paint paint = Paint();
+    // Paint paint = Paint();
     Path path = Path();
 
     // Path number 1
