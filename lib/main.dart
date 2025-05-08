@@ -91,6 +91,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _callIdController = TextEditingController();
+  bool isConnected = false;
 
   final clientId = generate6DigitClientId();
 
@@ -111,13 +112,32 @@ class _HomeScreenState extends State<HomeScreen> {
     // final flutterRTC = FlutterRTCWidget.of(context);
 
     CallCoordinator.instance.onGlobalEvent.listen((event) {
+      setState(() {
+        isConnected = event.type == SignalingEventType.connected;
+      });
+
       if (event is SignalingEvent && event.type == SignalingEventType.connected) {
         CallCoordinator.instance.registerUser(clientId);
       }
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('RTC Demo')),
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            const Text('RTC Demo'),
+            Text(
+              isConnected ? 'Connected' : 'Disconnected',
+              style: TextStyle(
+                decoration: TextDecoration.none,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -141,29 +161,74 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              spacing: 10,
               children: <Widget>[
-                ElevatedButton(
-                  onPressed: () {
-                    final targetId = _callIdController.text.trim();
-                    if (targetId.isNotEmpty) {
-                      CallCoordinator.instance.startSingleCall(
-                        clientId,
-                        targetId,
-                        mode: CallMode.video,
-                      );
-                    }
-                  },
-                  child: const Text('Make Video Call'),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final targetId = _callIdController.text.trim();
+                      if (targetId.isNotEmpty) {
+                        CallCoordinator.instance.startSingleCall(
+                          clientId,
+                          targetId,
+                          mode: CallMode.video,
+                        );
+                      }
+                    },
+                    child: const Text('Make Video Call'),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    final targetId = _callIdController.text.trim();
-                    if (targetId.isNotEmpty) {
-                      CallCoordinator.instance.startSingleCall(clientId, targetId);
-                    }
-                  },
-                  child: const Text('Make Audio Call'),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final targetId = _callIdController.text.trim();
+                      if (targetId.isNotEmpty) {
+                        CallCoordinator.instance.startSingleCall(clientId, targetId);
+                      }
+                    },
+                    child: const Text('Make Audio Call'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              spacing: 10,
+              children: <Widget>[
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final targetId = _callIdController.text.trim().split(":");
+                      if (targetId.isNotEmpty) {
+                        CallCoordinator.instance.startCall(
+                          userId: clientId,
+                          members: [
+                            Member(id: targetId.first),
+                            Member(id: targetId.last),
+                          ],
+                        );
+                      }
+                    },
+                    child: const Text('Group Call'),
+                  ),
+                ),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final targetId = _callIdController.text.trim().split(":");
+                      if (targetId.isNotEmpty) {
+                        CallCoordinator.instance.simulateCall(
+                          userId: clientId,
+                          members: [
+                            Member(id: targetId.first),
+                            Member(id: targetId.last),
+                          ],
+                        );
+                      }
+                    },
+                    child: const Text('Simulate Call'),
+                  ),
                 ),
               ],
             ),
@@ -175,18 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     CallCoordinator.instance.clearAllSessions();
                   },
                   child: const Text('Clear All Sessions'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final targetId = _callIdController.text.trim().split(":");
-                    if (targetId.isNotEmpty) {
-                      CallCoordinator.instance.simulateCall(
-                        userId: clientId,
-                        members: [Member(id: targetId.first), Member(id: targetId.last)],
-                      );
-                    }
-                  },
-                  child: const Text('Group Call'),
                 ),
               ],
             ),

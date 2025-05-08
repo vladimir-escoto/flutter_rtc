@@ -52,7 +52,7 @@ class FloatingDraggableRendererWidget extends StatelessWidget {
           return Stack(
             children: [
               Positioned.fill(child: content),
-              if (isLocalMain) ...[
+              if (isLocalMain && status == RenderStatus.expanded) ...[
                 Positioned(
                   top: 8,
                   right: 8,

@@ -46,64 +46,52 @@ class FullScreenCallControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+    return SafeArea(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: CallControlOption(
-                  icon: isSpeakerEnabled
-                      ? const Icon(Icons.volume_up)
-                      : const Icon(Icons.volume_off),
-                  padding: const EdgeInsets.all(16),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            margin: const EdgeInsets.symmetric(vertical: 16,horizontal: 24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade800,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                CallControlOption(
+                  icon: const Icon(Icons.volume_up),
+                  isEnable: isSpeakerEnabled,
+                  disableIcon: const Icon(Icons.volume_off),
                   onPressed: onSpeakerTap,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: CallControlOption(
-                  icon: isMicrophoneEnabled
-                      ? const Icon(Icons.mic_rounded)
-                      : const Icon(Icons.mic_off_rounded),
-                  padding: const EdgeInsets.all(16),
+                CallControlOption(
+                  icon: const Icon(Icons.mic_rounded),
+                  isEnable: isMicrophoneEnabled,
+                  disableIcon: const Icon(Icons.mic_off_rounded),
                   onPressed: onMicrophoneTap,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: CallControlOption(
-                  icon: isCameraEnabled
-                      ? const Icon(Icons.videocam_rounded)
-                      : const Icon(Icons.videocam_off_rounded),
-                  padding: const EdgeInsets.all(16),
+                CallControlOption(
+                  icon: const Icon(Icons.videocam_rounded),
+                  isEnable: isCameraEnabled,
+                  disableIcon: const Icon(Icons.videocam_off_rounded),
                   onPressed: onCameraTap,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: CallControlOption(
-                  icon: isScreenShareEnabled
-                      ? const Icon(Icons.screen_share_rounded)
-                      : const Icon(Icons.stop_screen_share),
-                  padding: const EdgeInsets.all(16),
+                CallControlOption(
+                  isEnable: isScreenShareEnabled,
+                  icon: const Icon(Icons.screen_share_rounded),
+                  disableIcon: const Icon(Icons.stop_screen_share),
                   onPressed: onScreenShareTap,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          //hang up button
-          CallControlOption(
-            icon: const Icon(Icons.call_end_rounded),
-            iconColor: Colors.white,
-            backgroundColor: Colors.red,
-            onPressed: onCancelCallTap,
-            padding: const EdgeInsets.all(24),
+                CallControlOption(
+                  icon: const Icon(Icons.call_end_rounded),
+                  iconColor: Colors.white,
+                  backgroundColor: Colors.red,
+                  onPressed: onCancelCallTap,
+                ),
+              ],
+            ),
           ),
         ],
       ),

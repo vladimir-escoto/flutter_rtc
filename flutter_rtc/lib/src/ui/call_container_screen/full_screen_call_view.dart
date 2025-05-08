@@ -59,8 +59,8 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
           ),
           // if (secondaryStreamAvailable || widget.state.isVideoCall)
           FloatingDraggableRendererWidget(
-            topMargin: 125,
-            bottomMargin: 150,
+            topMargin: 100,
+            bottomMargin: 125,
             secondaryStreamAvailable: secondaryStreamAvailable,
             secondaryRenderer: secondaryRenderer,
             isLocalMain: isLocalMain,
@@ -101,20 +101,21 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     final titleText =
         remoteMembers.length == 1
             ? remoteMembers.first.displayNameOrId
-            : '${remoteMembers.length} participants';
+            : '${remoteMembers.length} Participants';
 
     return Positioned(
-      top: 60,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      left: 16,
+      right: 16,
+      child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildCircleIcon(Icons.close_fullscreen, () {
               widget.callBloc.add(
-                UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.minimized),
+                UIEvent(
+                  event: UIEventType.changeOverlay,
+                  value: OverlayStatus.minimized,
+                ),
               );
             }),
             Column(
@@ -138,32 +139,27 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     );
   }
 
-  Positioned _buildControls() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: FullScreenCallControls(
-        isScreenShareEnabled: widget.state.localScreenShareOn,
-        isMicrophoneEnabled: widget.state.localMicOn,
-        isCameraEnabled: widget.state.localCameraOn,
-        isSpeakerEnabled: widget.state.localSpeakerOn,
-        onScreenShareTap: () {
-          widget.callBloc.add(
-            ToggleLocalControlEvent(control: LocalControlType.screenShare),
-          );
-        },
-        onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
-        onMicrophoneTap: () {
-          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
-        },
-        onCameraTap: () {
-          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
-        },
-        onSpeakerTap: () {
-          widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
-        },
-      ),
-    );
-  }
+  Positioned _buildControls() => Positioned.fill(
+    child: FullScreenCallControls(
+      isScreenShareEnabled: widget.state.localScreenShareOn,
+      isMicrophoneEnabled: widget.state.localMicOn,
+      isCameraEnabled: widget.state.localCameraOn,
+      isSpeakerEnabled: widget.state.localSpeakerOn,
+      onScreenShareTap: () {
+        widget.callBloc.add(
+          ToggleLocalControlEvent(control: LocalControlType.screenShare),
+        );
+      },
+      onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
+      onMicrophoneTap: () {
+        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
+      },
+      onCameraTap: () {
+        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
+      },
+      onSpeakerTap: () {
+        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
+      },
+    ),
+  );
 }

@@ -6,18 +6,25 @@ class CallControlOption extends StatelessWidget {
   const CallControlOption({
     super.key,
     required this.icon,
-    this.iconColor,
-    this.disabledIconColor,
+    this.isEnable = true,
+    this.disableIcon,
+    this.iconColor = Colors.black,
+    this.disabledIconColor = Colors.grey,
     this.elevation,
     this.backgroundColor,
-    this.disabledBackgroundColor,
-    this.shape,
-    this.padding,
+    this.disabledBackgroundColor = Colors.white,
+    this.shape = const CircleBorder(),
+    this.padding = const EdgeInsets.all(22),
     this.onPressed,
   });
 
+  final bool isEnable;
+
   /// The icon of the call control option.
   final Widget icon;
+
+  /// The icon of the call control option.
+  final Widget? disableIcon;
 
   /// The color of the icon of the call control option.
   final Color? iconColor;
@@ -32,7 +39,7 @@ class CallControlOption extends StatelessWidget {
   final Color? backgroundColor;
 
   /// The background color of the call control option when it is disabled.
-  final Color? disabledBackgroundColor;
+  final Color disabledBackgroundColor;
 
   /// The shape of the call control option.
   final OutlinedBorder? shape;
@@ -45,8 +52,6 @@ class CallControlOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-
     Color? iconColor;
     if (onPressed != null) {
       iconColor = this.iconColor;
@@ -58,18 +63,15 @@ class CallControlOption extends StatelessWidget {
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         elevation: elevation,
-        backgroundColor: backgroundColor,
+        backgroundColor: isEnable ? backgroundColor : disabledBackgroundColor,
         shape: shape,
         padding: padding,
         visualDensity: VisualDensity.comfortable,
-        disabledBackgroundColor:
-            disabledBackgroundColor,
+        disabledBackgroundColor: disabledBackgroundColor,
       ),
       child: IconTheme.merge(
-        data: IconThemeData(
-          color: iconColor,
-        ),
-        child: icon,
+        data: IconThemeData(color: iconColor),
+        child: !isEnable && disableIcon != null ? disableIcon! : icon,
       ),
     );
   }

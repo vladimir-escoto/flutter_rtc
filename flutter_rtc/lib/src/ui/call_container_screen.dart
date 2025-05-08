@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/call_overlay_Manager.dart';
 import 'package:flutter_rtc/src/context/bloc/call_bloc.dart';
+import 'package:flutter_rtc/src/ui/call_renderer_mixin.dart';
 import 'package:flutter_rtc/src/ui/call_timer_mixin.dart';
 import 'package:flutter_rtc/src/ui/widgets/call_duration_text.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_renderer_widget.dart';
@@ -11,7 +12,6 @@ import 'package:flutter_rtc/src/ui/widgets/floating_draggable_widget.dart';
 import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-import '../context/model/member.dart';
 
 part 'call_container_screen/full_screen_call_view.dart';
 
@@ -70,82 +70,15 @@ class CallContainerScreen extends StatefulWidget {
   State<CallContainerScreen> createState() => _CallContainerScreenState();
 }
 
-class _CallContainerScreenState extends State<CallContainerScreen> {
-  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final Map<String, RTCVideoRenderer> _remoteRenderer = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeRenderer(widget.callBloc.state);
-  }
-
-  @override
-  void dispose() {
-    _localRenderer.dispose();
-    for (var renderer in _remoteRenderer.values) {
-      renderer.dispose();
-    }
-    _remoteRenderer.clear();
-    super.dispose();
-  }
-
-  RTCVideoRenderer get activeRenderer {
-    //TODO: Replace with Active remote renderer, only one render in minimized view
-    var state = widget.callBloc.state;
-    var firstId = state.callInfo.remoteMembers.first.id;
-    final renderer = _remoteRenderer.putIfAbsent(firstId, () {
-      return RTCVideoRenderer();
-    });
-    return renderer;
-  }
-
-  Future<void> _initializeRenderer(CallBlocState state) async {
-    await _localRenderer.initialize();
-
-    for (var member in state.callInfo.remoteMembers) {
-      final renderer = _remoteRenderer.putIfAbsent(member.id, () {
-        return RTCVideoRenderer();
-      });
-
-      await renderer.initialize();
-      _updateRenderer(member, renderer, state.isVideoCall);
-    }
-  }
-
-  Future<void> _updateRenderer(
-    Member member,
-    RTCVideoRenderer render,
-    bool isVideo,
-  ) async {
-    if (!isVideo) {
-      // If it's not a video track, clear any video src
-      if (render.srcObject != null) {
-        render.srcObject = null;
-      }
-      return;
-    }
-
-    // 2. Video case
-    if (member.cameraEnabled) {
-      // Assign only if it's different
-      if (render.srcObject != member.mediaStream) {
-        render.srcObject = member.mediaStream;
-      }
-    } else {
-      // Disable video: clear srcObject
-      if (render.srcObject != null) {
-        render.srcObject = null;
-      }
-    }
-  }
+class _CallContainerScreenState extends State<CallContainerScreen>
+    with CallRendererMixin {
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
       builder: (context, state) {
-        _initializeRenderer(state);
+        updateRenderers(state);
         switch (state.lifecycleStatus) {
           case CallLifeCycleStatus.incoming:
             return _buildIncoming(context, widget.callBloc, state);
@@ -168,7 +101,7 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
   // Default fallback UIs
   Widget _buildOutgoing(BuildContext context, CallBloc bloc, CallBlocState state) {
     return widget.outgoingView?.call(context, bloc, state) ??
-        OutgoingCallView(callBloc: bloc, state: state, localRenderer: _localRenderer);
+        OutgoingCallView(callBloc: bloc, state: state, localRenderer: localRenderer);
   }
 
   Widget _buildIncoming(BuildContext context, CallBloc bloc, CallBlocState state) {
@@ -182,14 +115,14 @@ class _CallContainerScreenState extends State<CallContainerScreen> {
         return MinimizedCallView(
           callBloc: bloc,
           state: state,
-          activeRenderer: activeRenderer,
+          activeRenderer: activeRenderer(state),
         );
       } else {
         return FullScreenCallView(
           callBloc: bloc,
           state: state,
-          localRenderer: _localRenderer,
-          activeRenderer: activeRenderer,
+          localRenderer: localRenderer,
+          activeRenderer: activeRenderer(state),
         );
       }
     } else {
