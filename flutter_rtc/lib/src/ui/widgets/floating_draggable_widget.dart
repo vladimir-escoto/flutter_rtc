@@ -70,7 +70,7 @@ class FloatingDraggableWidget extends StatefulWidget {
     this.collapseFactor = 0.5,
     this.expandFactor = 1.4,
     this.collapsedWidth = 30,
-    this.collapsedHeight = 100,
+    this.collapsedHeight = 140,
     this.flingThreshold = 800,
     this.idleDuration = const Duration(seconds: 2),
     this.animationDuration = const Duration(milliseconds: 200),
@@ -94,7 +94,6 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   @override
   void initState() {
     super.initState();
-    // set initial positions
     _hPos = widget.initialHPos;
     _vPos = widget.initialVPos;
   }
@@ -280,25 +279,189 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
           });
         },
         onTap: _handleTap,
-        child: AnimatedContainer(
-          duration: widget.animationDuration,
-          curve: widget.animationCurve,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: widget.backgroundColor, borderRadius: br),
-          child: Builder(
-            builder: (context) {
-              if (_status == RenderStatus.collapsed) {
-                return Transform.rotate(
-                  angle: _hPos == HorizontalPosition.left ? 3.14159265359 : 0,
-                  // Rotate 180 degrees (pi radians) for right
-                  child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 32),
-                );
-              }
-              return widget.builder(context, _status, _hPos, _vPos);
-            },
-          ),
+        child: Builder(
+          builder: (context) {
+            if (_status == RenderStatus.collapsed) {
+              return Transform.rotate(
+                angle: _hPos == HorizontalPosition.left ? 3.14159265359 : 0,
+                child: CustomPaint(
+                  size: Size(widget.collapsedWidth, widget.collapsedHeight),
+                  painter: MyPainter(widget.backgroundColor),
+                ),
+              );
+            }
+            return widget.builder(context, _status, _hPos, _vPos);
+          },
         ),
       ),
     );
+  }
+}
+
+class MyPainter extends CustomPainter {
+  final Color backgroundColor;
+
+  MyPainter(this.backgroundColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint();
+    Path path = Path();
+
+    // Path number 1
+    paint.color = backgroundColor;
+    path = Path();
+    path.lineTo(size.width, 0);
+    path.cubicTo(
+      size.width,
+      size.height * 0.06,
+      size.width * 0.78,
+      size.height * 0.11,
+      size.width / 2,
+      size.height * 0.11,
+    );
+    path.cubicTo(
+      size.width / 2,
+      size.height * 0.11,
+      size.width / 2,
+      size.height * 0.11,
+      size.width / 2,
+      size.height * 0.11,
+    );
+    path.cubicTo(
+      size.width * 0.22,
+      size.height * 0.11,
+      0,
+      size.height * 0.16,
+      0,
+      size.height * 0.22,
+    );
+    path.cubicTo(0, size.height * 0.22, 0, size.height * 0.78, 0, size.height * 0.78);
+    path.cubicTo(
+      0,
+      size.height * 0.84,
+      size.width * 0.22,
+      size.height * 0.89,
+      size.width / 2,
+      size.height * 0.89,
+    );
+    path.cubicTo(
+      size.width / 2,
+      size.height * 0.89,
+      size.width / 2,
+      size.height * 0.89,
+      size.width / 2,
+      size.height * 0.89,
+    );
+    path.cubicTo(
+      size.width * 0.78,
+      size.height * 0.89,
+      size.width,
+      size.height * 0.94,
+      size.width,
+      size.height,
+    );
+    path.cubicTo(size.width, size.height, size.width, 0, size.width, 0);
+    path.cubicTo(size.width, 0, size.width, 0, size.width, 0);
+    canvas.drawPath(path, paint);
+
+    // Path number 2
+    paint.color = Colors.white;
+    path = Path();
+    path.lineTo(size.width * 0.58, size.height * 0.62);
+    path.cubicTo(
+      size.width * 0.56,
+      size.height * 0.62,
+      size.width * 0.53,
+      size.height * 0.61,
+      size.width * 0.52,
+      size.height * 0.61,
+    );
+    path.cubicTo(
+      size.width * 0.52,
+      size.height * 0.61,
+      size.width * 0.3,
+      size.height * 0.51,
+      size.width * 0.3,
+      size.height * 0.51,
+    );
+    path.cubicTo(
+      size.width * 0.28,
+      size.height / 2,
+      size.width * 0.28,
+      size.height / 2,
+      size.width * 0.3,
+      size.height * 0.49,
+    );
+    path.cubicTo(
+      size.width * 0.3,
+      size.height * 0.49,
+      size.width * 0.52,
+      size.height * 0.39,
+      size.width * 0.52,
+      size.height * 0.39,
+    );
+    path.cubicTo(
+      size.width * 0.54,
+      size.height * 0.38,
+      size.width * 0.58,
+      size.height * 0.38,
+      size.width * 0.62,
+      size.height * 0.39,
+    );
+    path.cubicTo(
+      size.width * 0.65,
+      size.height * 0.39,
+      size.width * 0.67,
+      size.height * 0.4,
+      size.width * 0.65,
+      size.height * 0.41,
+    );
+    path.cubicTo(
+      size.width * 0.65,
+      size.height * 0.41,
+      size.width * 0.44,
+      size.height / 2,
+      size.width * 0.44,
+      size.height / 2,
+    );
+    path.cubicTo(
+      size.width * 0.44,
+      size.height / 2,
+      size.width * 0.65,
+      size.height * 0.59,
+      size.width * 0.65,
+      size.height * 0.59,
+    );
+    path.cubicTo(
+      size.width * 0.67,
+      size.height * 0.6,
+      size.width * 0.65,
+      size.height * 0.61,
+      size.width * 0.62,
+      size.height * 0.61,
+    );
+    path.cubicTo(
+      size.width * 0.61,
+      size.height * 0.62,
+      size.width * 0.59,
+      size.height * 0.62,
+      size.width * 0.58,
+      size.height * 0.62,
+    );
+    path.cubicTo(
+      size.width * 0.58,
+      size.height * 0.62,
+      size.width * 0.58,
+      size.height * 0.62,
+      size.width * 0.58,
+      size.height * 0.62,
+    );
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
   }
 }
