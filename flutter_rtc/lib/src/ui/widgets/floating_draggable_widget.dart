@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import 'floating_collapsed_shape_decoration.dart';
+
 /// States for the floating widget.
 enum RenderStatus { idle, expanded, collapsed }
 
@@ -28,6 +30,9 @@ class FloatingDraggableWidget extends StatefulWidget {
   final HorizontalPosition initialHPos;
   final VerticalPosition initialVPos;
 
+  /// Which vertical positions are allowed (e.g. corners only).
+  final List<VerticalPosition> allowedVerticalPositions;
+
   /// Margins to clamp vertical movement in idle/expanded.
   final double topMargin;
   final double bottomMargin;
@@ -35,6 +40,8 @@ class FloatingDraggableWidget extends StatefulWidget {
   /// Base size and margins.
   final double baseWidth;
   final double baseHeight;
+
+  /// Horizontal clamp margin.
   final double horizontalMargin;
 
   /// Collapse and expand configuration.
@@ -62,6 +69,7 @@ class FloatingDraggableWidget extends StatefulWidget {
     this.onTap,
     this.initialHPos = HorizontalPosition.right,
     this.initialVPos = VerticalPosition.bottom,
+    this.allowedVerticalPositions = const [VerticalPosition.top, VerticalPosition.bottom],
     this.topMargin = 16,
     this.bottomMargin = 16,
     this.baseWidth = 120,
@@ -71,7 +79,7 @@ class FloatingDraggableWidget extends StatefulWidget {
     this.expandFactor = 1.4,
     this.collapsedWidth = 30,
     this.collapsedHeight = 140,
-    this.flingThreshold = 800,
+    this.flingThreshold = 50,
     this.idleDuration = const Duration(seconds: 2),
     this.animationDuration = const Duration(milliseconds: 200),
     this.animationCurve = Curves.easeOut,
@@ -95,7 +103,11 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   void initState() {
     super.initState();
     _hPos = widget.initialHPos;
-    _vPos = widget.initialVPos;
+    // ensure initial V pos is allowed, else default to first allowed
+    _vPos =
+        widget.allowedVerticalPositions.contains(widget.initialVPos)
+            ? widget.initialVPos
+            : widget.allowedVerticalPositions.first;
   }
 
   @override
@@ -132,7 +144,7 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
   }
 
   void _handleTap() {
-    if (_status == RenderStatus.collapsed) {
+    if (isCollapsed) {
       _enterIdle();
       return;
     }
@@ -148,55 +160,44 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
     }
   }
 
+  bool get isCollapsed => _status == RenderStatus.collapsed;
+
   @override
   Widget build(BuildContext context) {
     final Size screen = MediaQuery.of(context).size;
-
-    // Compute dynamic width & height
     final double width =
-        _status == RenderStatus.expanded
+        (_status == RenderStatus.expanded)
             ? widget.baseWidth * widget.expandFactor
-            : (_status == RenderStatus.collapsed
-                ? widget.collapsedWidth
-                : widget.baseWidth);
-
+            : (isCollapsed ? widget.collapsedWidth : widget.baseWidth);
     final double height =
-        _status == RenderStatus.expanded
+        (_status == RenderStatus.expanded)
             ? widget.baseHeight * widget.expandFactor
-            : (_status == RenderStatus.collapsed
-                ? widget.collapsedHeight
-                : widget.baseHeight);
+            : (isCollapsed ? widget.collapsedHeight : widget.baseHeight);
 
-    // Base X and Y positions
     final double leftX =
-        _hPos == HorizontalPosition.left
+        (_hPos == HorizontalPosition.left)
             ? widget.horizontalMargin
             : screen.width - width - widget.horizontalMargin;
-    double topY;
-    switch (_vPos) {
-      case VerticalPosition.top:
-        topY = widget.topMargin;
-        break;
-      case VerticalPosition.middle:
-        topY = (screen.height - height) / 2;
-        break;
-      case VerticalPosition.bottom:
-        topY = screen.height - height - widget.bottomMargin;
-        break;
-    }
 
-    // Raw drag-adjusted
+    // Compute allowed Y centers
+    Map<VerticalPosition, double> yMap = {
+      for (var v in widget.allowedVerticalPositions)
+        v:
+            (v == VerticalPosition.top)
+                ? widget.topMargin
+                : (v == VerticalPosition.middle)
+                ? (screen.height - height) / 2
+                : (screen.height - height - widget.bottomMargin),
+    };
+
     final double rawLeft = leftX + _dragOffset.dx;
-    final double rawTop = topY + _dragOffset.dy;
-
-    // Collapse threshold
+    final double rawTop = (yMap[_vPos] ?? 0) + _dragOffset.dy;
     final double threshold = width * widget.collapseFactor;
-
-    // Final position
     double finalLeft, finalTop;
-    if (_status == RenderStatus.collapsed) {
-      finalLeft = _hPos == HorizontalPosition.left ? 0 : screen.width - width;
-      finalTop = topY;
+
+    if (isCollapsed) {
+      finalLeft = (_hPos == HorizontalPosition.left) ? 0 : screen.width - width;
+      finalTop = yMap[_vPos]!;
     } else {
       finalLeft = rawLeft.clamp(
         widget.horizontalMargin,
@@ -208,9 +209,8 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
       );
     }
 
-    // Adaptive border radius
     final BorderRadius br =
-        _status == RenderStatus.collapsed
+        (isCollapsed)
             ? (_hPos == HorizontalPosition.left
                 ? BorderRadius.only(
                   topRight: widget.collapsedBorderRadius,
@@ -230,23 +230,17 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
       duration: widget.animationDuration,
       curve: widget.animationCurve,
       child: GestureDetector(
-        onPanUpdate:
-            (details) => setState(() {
-              _dragOffset += details.delta;
-            }),
+        onPanUpdate: (d) => setState(() => _dragOffset += d.delta),
         onPanEnd: (details) {
-          // Handle dragging out of collapsed to idle
-          if (_status == RenderStatus.collapsed) {
-            final double releaseThreshold = widget.collapsedWidth / 2;
-            if ((_hPos == HorizontalPosition.left && _dragOffset.dx > releaseThreshold) ||
-                (_hPos == HorizontalPosition.right &&
-                    _dragOffset.dx < -releaseThreshold)) {
+          if (isCollapsed) {
+            final double relThr = widget.collapsedWidth / 2;
+            if ((_hPos == HorizontalPosition.left && _dragOffset.dx > relThr) ||
+                (_hPos == HorizontalPosition.right && _dragOffset.dx < -relThr)) {
               _enterIdle();
             }
             _dragOffset = Offset.zero;
             return;
           }
-          // Collapse sides
           if (rawLeft < -threshold) {
             _enterCollapsed(HorizontalPosition.left, _vPos);
             return;
@@ -255,7 +249,7 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
             _enterCollapsed(HorizontalPosition.right, _vPos);
             return;
           }
-          // Snap to corner or side band
+          // Snap horizontal
           final Offset vel = details.velocity.pixelsPerSecond;
           final bool flingH = vel.dx.abs() > widget.flingThreshold;
           final HorizontalPosition newH =
@@ -264,14 +258,17 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
                   : ((rawLeft + width / 2) < screen.width / 2
                       ? HorizontalPosition.left
                       : HorizontalPosition.right);
+          // Snap vertical to nearest allowed
           final double centerY = rawTop + height / 2;
-          final double band = screen.height / 3;
-          final VerticalPosition newV =
-              centerY < band
-                  ? VerticalPosition.top
-                  : (centerY > 2 * band
-                      ? VerticalPosition.bottom
-                      : VerticalPosition.middle);
+          VerticalPosition newV = widget.allowedVerticalPositions.first;
+          double minDist = double.infinity;
+          yMap.forEach((v, yVal) {
+            final dist = (centerY - (yVal + height / 2)).abs();
+            if (dist < minDist) {
+              minDist = dist;
+              newV = v;
+            }
+          });
           setState(() {
             _hPos = newH;
             _vPos = newV;
@@ -279,189 +276,19 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
           });
         },
         onTap: _handleTap,
-        child: Builder(
-          builder: (context) {
-            if (_status == RenderStatus.collapsed) {
-              return Transform.rotate(
-                angle: _hPos == HorizontalPosition.left ? 3.14159265359 : 0,
-                child: CustomPaint(
-                  size: Size(widget.collapsedWidth, widget.collapsedHeight),
-                  painter: MyPainter(widget.backgroundColor),
-                ),
-              );
-            }
-            return widget.builder(context, _status, _hPos, _vPos);
-          },
+        child: AnimatedContainer(
+          duration: widget.animationDuration,
+          curve: widget.animationCurve,
+          alignment: Alignment.center,
+          decoration: FloatingCollapsedShapeDecoration(
+            color: widget.backgroundColor,
+            radius: widget.collapsedBorderRadius,
+            flipHorizontally: _hPos == HorizontalPosition.left,
+          ),
+          child:
+              (isCollapsed) ? SizedBox() : widget.builder(context, _status, _hPos, _vPos),
         ),
       ),
     );
-  }
-}
-
-class MyPainter extends CustomPainter {
-  final Color backgroundColor;
-
-  MyPainter(this.backgroundColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint = Paint();
-    Path path = Path();
-
-    // Path number 1
-    paint.color = backgroundColor;
-    path = Path();
-    path.lineTo(size.width, 0);
-    path.cubicTo(
-      size.width,
-      size.height * 0.06,
-      size.width * 0.78,
-      size.height * 0.11,
-      size.width / 2,
-      size.height * 0.11,
-    );
-    path.cubicTo(
-      size.width / 2,
-      size.height * 0.11,
-      size.width / 2,
-      size.height * 0.11,
-      size.width / 2,
-      size.height * 0.11,
-    );
-    path.cubicTo(
-      size.width * 0.22,
-      size.height * 0.11,
-      0,
-      size.height * 0.16,
-      0,
-      size.height * 0.22,
-    );
-    path.cubicTo(0, size.height * 0.22, 0, size.height * 0.78, 0, size.height * 0.78);
-    path.cubicTo(
-      0,
-      size.height * 0.84,
-      size.width * 0.22,
-      size.height * 0.89,
-      size.width / 2,
-      size.height * 0.89,
-    );
-    path.cubicTo(
-      size.width / 2,
-      size.height * 0.89,
-      size.width / 2,
-      size.height * 0.89,
-      size.width / 2,
-      size.height * 0.89,
-    );
-    path.cubicTo(
-      size.width * 0.78,
-      size.height * 0.89,
-      size.width,
-      size.height * 0.94,
-      size.width,
-      size.height,
-    );
-    path.cubicTo(size.width, size.height, size.width, 0, size.width, 0);
-    path.cubicTo(size.width, 0, size.width, 0, size.width, 0);
-    canvas.drawPath(path, paint);
-
-    // Path number 2
-    paint.color = Colors.white;
-    path = Path();
-    path.lineTo(size.width * 0.58, size.height * 0.62);
-    path.cubicTo(
-      size.width * 0.56,
-      size.height * 0.62,
-      size.width * 0.53,
-      size.height * 0.61,
-      size.width * 0.52,
-      size.height * 0.61,
-    );
-    path.cubicTo(
-      size.width * 0.52,
-      size.height * 0.61,
-      size.width * 0.3,
-      size.height * 0.51,
-      size.width * 0.3,
-      size.height * 0.51,
-    );
-    path.cubicTo(
-      size.width * 0.28,
-      size.height / 2,
-      size.width * 0.28,
-      size.height / 2,
-      size.width * 0.3,
-      size.height * 0.49,
-    );
-    path.cubicTo(
-      size.width * 0.3,
-      size.height * 0.49,
-      size.width * 0.52,
-      size.height * 0.39,
-      size.width * 0.52,
-      size.height * 0.39,
-    );
-    path.cubicTo(
-      size.width * 0.54,
-      size.height * 0.38,
-      size.width * 0.58,
-      size.height * 0.38,
-      size.width * 0.62,
-      size.height * 0.39,
-    );
-    path.cubicTo(
-      size.width * 0.65,
-      size.height * 0.39,
-      size.width * 0.67,
-      size.height * 0.4,
-      size.width * 0.65,
-      size.height * 0.41,
-    );
-    path.cubicTo(
-      size.width * 0.65,
-      size.height * 0.41,
-      size.width * 0.44,
-      size.height / 2,
-      size.width * 0.44,
-      size.height / 2,
-    );
-    path.cubicTo(
-      size.width * 0.44,
-      size.height / 2,
-      size.width * 0.65,
-      size.height * 0.59,
-      size.width * 0.65,
-      size.height * 0.59,
-    );
-    path.cubicTo(
-      size.width * 0.67,
-      size.height * 0.6,
-      size.width * 0.65,
-      size.height * 0.61,
-      size.width * 0.62,
-      size.height * 0.61,
-    );
-    path.cubicTo(
-      size.width * 0.61,
-      size.height * 0.62,
-      size.width * 0.59,
-      size.height * 0.62,
-      size.width * 0.58,
-      size.height * 0.62,
-    );
-    path.cubicTo(
-      size.width * 0.58,
-      size.height * 0.62,
-      size.width * 0.58,
-      size.height * 0.62,
-      size.width * 0.58,
-      size.height * 0.62,
-    );
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return true;
   }
 }
