@@ -61,7 +61,6 @@ class FloatingDraggableWidget extends StatefulWidget {
   /// Styling.
   final Color backgroundColor;
   final BorderRadius borderRadius;
-  final Radius collapsedBorderRadius;
 
   const FloatingDraggableWidget({
     super.key,
@@ -85,7 +84,6 @@ class FloatingDraggableWidget extends StatefulWidget {
     this.animationCurve = Curves.easeOut,
     this.backgroundColor = Colors.grey,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-    this.collapsedBorderRadius = const Radius.circular(25),
   });
 
   @override
@@ -209,19 +207,6 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
       );
     }
 
-    final BorderRadius br =
-        (isCollapsed)
-            ? (_hPos == HorizontalPosition.left
-                ? BorderRadius.only(
-                  topRight: widget.collapsedBorderRadius,
-                  bottomRight: widget.collapsedBorderRadius,
-                )
-                : BorderRadius.only(
-                  topLeft: widget.collapsedBorderRadius,
-                  bottomLeft: widget.collapsedBorderRadius,
-                ))
-            : widget.borderRadius;
-
     return AnimatedPositioned(
       left: finalLeft,
       top: finalTop,
@@ -282,12 +267,11 @@ class _FloatingDraggableWidgetState extends State<FloatingDraggableWidget> {
           alignment: Alignment.center,
           decoration: FloatingCollapsedShapeDecoration(
             color: widget.backgroundColor,
-            radius: widget.collapsedBorderRadius,
+            borderRadius: widget.borderRadius,
             isCollapsed: isCollapsed,
             flipHorizontally: _hPos == HorizontalPosition.left,
           ),
-          child:
-              (isCollapsed) ? SizedBox() : widget.builder(context, _status, _hPos, _vPos),
+          child: (isCollapsed) ? null : widget.builder(context, _status, _hPos, _vPos),
         ),
       ),
     );

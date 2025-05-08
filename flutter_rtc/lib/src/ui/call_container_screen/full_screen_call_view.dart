@@ -4,11 +4,13 @@ class FullScreenCallView extends StatefulWidget {
   final CallBloc callBloc;
   final CallBlocState state;
   final RTCVideoRenderer localRenderer;
+  final RTCVideoRenderer activeRenderer;
 
   const FullScreenCallView({
     required this.callBloc,
     required this.state,
     required this.localRenderer,
+    required this.activeRenderer,
     super.key,
   });
 
@@ -17,48 +19,14 @@ class FullScreenCallView extends StatefulWidget {
 }
 
 class _FullScreenCallViewState extends State<FullScreenCallView>
-    with SingleTickerProviderStateMixin {
-  final Map<String, RTCVideoRenderer> _remoteRenderer = {};
-
+    with SingleTickerProviderStateMixin, CallTimerMixin {
   bool isLocalMain = false;
 
   @override
-  void initState() {
-    super.initState();
-    _initializeRenderer();
-  }
-
-  @override
-  void dispose() {
-    for (var renderer in _remoteRenderer.values) {
-      renderer.dispose();
-    }
-    _remoteRenderer.clear();
-    super.dispose();
-  }
-
-  Future<void> _initializeRenderer() async {
-    for (var member in widget.state.callInfo.remoteMembers) {
-      final renderer = RTCVideoRenderer();
-      _remoteRenderer[member.id] = renderer;
-      await renderer.initialize();
-      _updateRenderers(member, renderer, widget.state.isVideoCall);
-    }
-  }
-
-  void _updateRenderers(Member member, RTCVideoRenderer render, bool isVideo) {
-    if (isVideo && member.cameraEnabled && render.textureId != null) {
-      render.srcObject = member.mediaStream;
-    }
-  }
+  DateTime get initialCreatedAt => widget.state.createdAt;
 
   void _switchRenderers() {
     setState(() => isLocalMain = !isLocalMain);
-  }
-
-  RTCVideoRenderer? get activeRenderer {
-    //TODO: Replace with Active remote renderer, only one render in minimized view
-    return _remoteRenderer[widget.state.callInfo.remoteMembers[0].id];
   }
 
   @override
@@ -66,8 +34,8 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     final localMember = widget.state.self;
     final remoteMember = widget.state.callInfo.remoteMembers.first;
 
-    final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer!;
-    final secondaryRenderer = isLocalMain ? activeRenderer! : widget.localRenderer;
+    final mainRenderer = isLocalMain ? widget.localRenderer : widget.activeRenderer;
+    final secondaryRenderer = isLocalMain ? widget.activeRenderer : widget.localRenderer;
 
     final mainStreamAvailable =
         isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
@@ -154,10 +122,7 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
               children: [
                 Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
                 SizedBox(height: 4),
-                Text(
-                  widget.state.callDuration.toCallFormat(),
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
+                CallDurationText(notifier: durationNotifier),
               ],
             ),
             _buildCircleIcon(Icons.person_add, () {

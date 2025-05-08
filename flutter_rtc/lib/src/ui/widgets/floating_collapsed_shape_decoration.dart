@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Custom Decoration that can flip its shape horizontally based on [flipHorizontally].
 class FloatingCollapsedShapeDecoration extends Decoration {
   final Color color;
-  final Radius radius;
+  final BorderRadiusGeometry borderRadius;
 
   /// If true, the shape is mirrored horizontally.
   final bool flipHorizontally;
@@ -12,7 +12,7 @@ class FloatingCollapsedShapeDecoration extends Decoration {
 
   const FloatingCollapsedShapeDecoration({
     required this.color,
-    this.radius = const Radius.circular(25),
+    required this.borderRadius,
     this.flipHorizontally = false,
     this.isCollapsed = false,
   });
@@ -44,10 +44,9 @@ class _FloatingCollapsedShapePainter extends BoxPainter {
       // ────────────────
       // Normal (idle/expanded) background:
       // ────────────────
-      final rRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        decoration.radius,
-      );
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+      final resolved = decoration.borderRadius.resolve(TextDirection.ltr);
+      final RRect rRect = resolved.toRRect(rect);
       canvas.drawRRect(rRect, paint);
       canvas.restore();
       return;

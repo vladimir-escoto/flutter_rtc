@@ -12,10 +12,6 @@ class CallBlocState extends Equatable {
 
   // UI state.
   final OverlayStatus overlayStatus;
-  final Offset uiPosition;
-
-  // Call duration.
-  final Duration callDuration;
 
   // Optional error message.
   final String? errorMessage;
@@ -46,12 +42,12 @@ class CallBlocState extends Equatable {
 
   bool get isOnHold => lifecycleStatus == CallLifeCycleStatus.hold;
 
-  bool get isConnected =>
-      members.any((m) => m.status == ConnectionStatus.connected);
+  bool get isConnected => members.any((m) => m.status == ConnectionStatus.connected);
 
   CallMode get callMode => callInfo.callMode;
 
   List<Member> get members => callInfo.members;
+
   List<Member> get remoteMembers => callInfo.remoteMembers;
 
   bool get isVideoCall => callMode == CallMode.video;
@@ -62,26 +58,23 @@ class CallBlocState extends Equatable {
 
   bool get isOutgoingCall => callInfo.isCaller;
 
+  DateTime get createdAt => callInfo.createdAt;
+
   const CallBlocState({
     required this.callInfo,
     required this.overlayStatus,
-    required this.uiPosition,
-    required this.callDuration,
     this.errorMessage,
   });
 
   Member getMembersById(String id) {
-    return members.firstWhere((m) => m.id == id,
-        orElse: () => throw Exception("Member not found: memberId: $id"));
+    return members.firstWhere(
+      (m) => m.id == id,
+      orElse: () => throw Exception("Member not found: memberId: $id"),
+    );
   }
 
   factory CallBlocState.fromCallInfo(CallInfo callInfo) {
-    return CallBlocState(
-      callInfo: callInfo,
-      overlayStatus: OverlayStatus.expanded,
-      uiPosition: const Offset(20, 80),
-      callDuration: Duration(),
-    );
+    return CallBlocState(callInfo: callInfo, overlayStatus: OverlayStatus.expanded);
   }
 
   CallBlocState copyWithStream(Map<String, MediaStream?> remoteStream) {
@@ -110,9 +103,7 @@ class CallBlocState extends Equatable {
     bool? cameraEnabled,
     bool? screenShareEnabled,
   }) {
-    var member = callInfo.members
-        .where((p) => p.id == remoteId)
-        .firstOrNull;
+    var member = callInfo.members.where((p) => p.id == remoteId).firstOrNull;
     if (member == null) return this;
 
     return copyMember(
@@ -145,8 +136,6 @@ class CallBlocState extends Equatable {
   }) {
     return CallBlocState(
       overlayStatus: overlayStatus ?? this.overlayStatus,
-      uiPosition: uiPosition ?? this.uiPosition,
-      callDuration: callDuration ?? this.callDuration,
       errorMessage: errorMessage ?? this.errorMessage,
       callInfo: callInfo ?? this.callInfo,
     );
@@ -154,16 +143,9 @@ class CallBlocState extends Equatable {
 
   @override
   String toString() {
-    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  overlayStatus: $overlayStatus, callDuration: ${callDuration.inSeconds}s, errorMessage: $errorMessage)';
+    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  overlayStatus: $overlayStatus, , errorMessage: $errorMessage)';
   }
 
   @override
-  List<Object?> get props => [
-    callInfo,
-    lifecycleStatus,
-    overlayStatus,
-    uiPosition,
-    callDuration,
-    errorMessage,
-  ];
+  List<Object?> get props => [callInfo, lifecycleStatus, overlayStatus, errorMessage];
 }
