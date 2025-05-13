@@ -52,7 +52,7 @@ class FullScreenCallControls extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            margin: const EdgeInsets.symmetric(vertical: 16,horizontal: 24),
+            margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             decoration: BoxDecoration(
               color: Colors.grey.shade800,
               borderRadius: BorderRadius.circular(16),
