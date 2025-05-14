@@ -15,9 +15,18 @@ class CallControlOption extends StatelessWidget {
     this.disabledBackgroundColor = Colors.white,
     this.shape = const CircleBorder(),
     this.padding = const EdgeInsets.all(22),
+    this.label,
+    this.labelStyle = const TextStyle(color: Colors.white),
+    this.labelSpacing = 16,
     this.iconSize,
     this.onPressed,
   });
+
+  final double? labelSpacing;
+
+  final TextStyle? labelStyle;
+
+  final String? label;
 
   final double? iconSize;
 
@@ -62,20 +71,27 @@ class CallControlOption extends StatelessWidget {
       iconColor = disabledIconColor;
     }
 
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        elevation: elevation,
-        backgroundColor: isEnable ? backgroundColor : disabledBackgroundColor,
-        shape: shape,
-        padding: padding,
-        visualDensity: VisualDensity.comfortable,
-        disabledBackgroundColor: disabledBackgroundColor,
-      ),
-      child: IconTheme.merge(
-        data: IconThemeData(color: iconColor, size: iconSize),
-        child: !isEnable && disableIcon != null ? disableIcon! : icon,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      spacing: labelSpacing ?? 0.0,
+      children: [
+        ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            elevation: elevation,
+            backgroundColor: isEnable ? backgroundColor : disabledBackgroundColor,
+            shape: shape,
+            padding: padding,
+            visualDensity: VisualDensity.comfortable,
+            disabledBackgroundColor: disabledBackgroundColor,
+          ),
+          child: IconTheme.merge(
+            data: IconThemeData(color: iconColor, size: iconSize),
+            child: !isEnable && disableIcon != null ? disableIcon! : icon,
+          ),
+        ),
+        if (label != null) Text(label!, style: labelStyle),
+      ],
     );
   }
 }

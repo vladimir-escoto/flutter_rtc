@@ -43,8 +43,7 @@ class _IncomingCallControlsState extends State<IncomingCallControls> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      //decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.5)),
-      padding: const EdgeInsets.only(bottom: 64, left: 16, right: 16),
+      padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 32),
       child: Column(
         children: [
           CallControlOption(
@@ -58,36 +57,33 @@ class _IncomingCallControlsState extends State<IncomingCallControls> {
           AnimatedSize(
             duration: _animDuration,
             curve: _animCurve,
-            child: isExpanded
-                ? Column(children: [
-              const SizedBox(height: 16),
-              ..._buildAnimatedMessages()
-            ],
-            ) : const SizedBox(width: double.infinity),
+            child:
+                isExpanded
+                    ? Column(
+                      children: [const SizedBox(height: 16), ..._buildAnimatedMessages()],
+                    )
+                    : const SizedBox(width: double.infinity),
           ),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CallControlOption(
-                icon: const Icon(Icons.call_end_rounded),
-                iconColor: Colors.white,
-                backgroundColor: Colors.redAccent,
-                onPressed: () => widget.onDeclineCallTap(""),
-                padding: const EdgeInsets.all(16),
-                iconSize: 48,
-              ),
-
-              CallModeSwitch(isVideo: widget.isVideoCall,
-                  onChanged: widget.onCallSwitch),
-
-              CallControlOption(
                 icon: Icon(widget.isVideoCall ? Icons.videocam : Icons.call),
                 iconColor: Colors.white,
                 backgroundColor: Colors.green,
                 onPressed: widget.onAcceptCallTap,
                 padding: const EdgeInsets.all(16),
-                iconSize: 48,
+                iconSize: 40,
+              ),
+              CallModeSwitch(isVideo: widget.isVideoCall, onChanged: widget.onCallSwitch),
+              CallControlOption(
+                icon: const Icon(Icons.call_end_rounded),
+                iconColor: Colors.white,
+                backgroundColor: Colors.redAccent,
+                onPressed: () => widget.onDeclineCallTap(""),
+                padding: const EdgeInsets.all(16),
+                iconSize: 40,
               ),
             ],
           ),
@@ -102,24 +98,17 @@ class _IncomingCallControlsState extends State<IncomingCallControls> {
         duration: _animDuration,
         curve: _animCurve,
         opacity: isExpanded ? 1.0 : 0.0,
-        child: _MessageBadge(
-          text: msg,
-          onTap: widget.onDeclineCallTap,
-        ),
+        child: _MessageBadge(text: msg, onTap: widget.onDeclineCallTap),
       );
     }).toList();
   }
 }
 
-
 class _MessageBadge extends StatelessWidget {
   final String text;
   final ValueChanged<String> onTap;
 
-  const _MessageBadge({
-    required this.text,
-    required this.onTap,
-  });
+  const _MessageBadge({required this.text, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -149,21 +138,15 @@ class CallModeSwitch extends StatelessWidget {
   final bool isVideo;
   final ValueChanged<bool> onChanged;
 
-  const CallModeSwitch({
-    super.key,
-    required this.isVideo,
-    required this.onChanged,
-  });
+  const CallModeSwitch({super.key, required this.isVideo, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     final pillColor = Colors.white.withValues(alpha: 0.2);
 
-    final activeCircleColor = Theme
-        .of(context)
-        .colorScheme
-        .primary
-        .withValues(alpha: 0.4);
+    final activeCircleColor = Theme.of(
+      context,
+    ).colorScheme.primary.withValues(alpha: 0.4);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -226,7 +209,3 @@ class _OptionButton extends StatelessWidget {
     );
   }
 }
-
-
-
-

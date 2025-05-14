@@ -29,6 +29,10 @@ class BaseCallScreen extends StatelessWidget {
   /// Whether to use a safe area around the child.
   final bool safeArea;
 
+  /// Gradient background for the scaffold.
+  /// Defaults to a smooth blue gradient (from bottom to top).
+  final Gradient backgroundGradient;
+
   const BaseCallScreen({
     super.key,
     required this.children,
@@ -39,13 +43,21 @@ class BaseCallScreen extends StatelessWidget {
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.safeArea = true,
+    this.backgroundGradient = const LinearGradient(
+      begin: Alignment.bottomCenter,
+      end: Alignment.topCenter,
+      colors: [Color(0xff11181f), Color(0xff10181f), Color(0xff68828c)],
+    ),
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: safeArea ? SafeArea(child: _buildLayout()) : _buildLayout(),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(gradient: backgroundGradient),
+        child: safeArea ? SafeArea(child: _buildLayout()) : _buildLayout(),
+      ),
     );
   }
 
@@ -54,11 +66,9 @@ class BaseCallScreen extends StatelessWidget {
       children: [
         ...children.map((child) => Positioned.fill(child: child)),
 
-        if (topBar != null)
-          Positioned(top: 0, left: 0, right: 0, child: topBar!),
+        if (topBar != null) Positioned(top: 0, left: 0, right: 0, child: topBar!),
 
-        if (controls != null)
-          Positioned(bottom: 0, left: 0, right: 0, child: controls!),
+        if (controls != null) Positioned(bottom: 0, left: 0, right: 0, child: controls!),
       ],
     );
   }

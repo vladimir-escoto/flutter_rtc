@@ -2,31 +2,33 @@ part of "../call_container_screen.dart";
 
 class DeclineCallView extends StatelessWidget {
   final CallBloc callBloc;
+  final CallBlocState state;
 
-  const DeclineCallView({required this.callBloc, super.key});
+  const DeclineCallView({required this.callBloc, super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
     return BaseCallScreen(
-        children: [
-          Center(
-            child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error, color: Colors.red, size: 50),
-            const SizedBox(height: 20),
-            const Text(
-              'Call failed or declined',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => callBloc.add(RedialCallEvent()),
-              child: const Text('Retry'),
-            ),
-          ],
-            ),
+      controls: _buildControls(),
+      children: [
+        Align(
+          alignment: const FractionalOffset(0.5, 0.25),
+          child: RemoteMembersCarousel(
+            spacing: 10,
+            fontSize: 20,
+            members: state.remoteMembers,
+            children: [
+              Text("Not Answer", style: TextStyle(color: Colors.white, fontSize: 24)),
+            ],
           ),
-        ]);
+        ),
+      ],
+    );
   }
+
+  Widget _buildControls() => DeclineCallControls(
+    onCloseCallTap: () => callBloc.add(HangUpCallEvent()),
+    onCallAgainTap: () => callBloc.add(StartOutgoingCallEvent()),
+    onChatCallTap: () => callBloc.add(HangUpCallEvent()),
+  );
 }

@@ -8,6 +8,7 @@ import 'package:flutter_rtc/src/ui/call_timer_mixin.dart';
 import 'package:flutter_rtc/src/ui/widgets/call_duration_text.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_renderer_widget.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_widget.dart';
+import 'package:flutter_rtc/src/ui/widgets/remote_members_carousel.dart';
 import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -30,6 +31,7 @@ part 'widgets/call_status_widget.dart';
 part 'widgets/full_screen_call_controls.dart';
 part 'widgets/incoming_call_controls.dart';
 part 'widgets/outgoing_call_controls.dart';
+part 'widgets/decline_call_controls.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
@@ -144,7 +146,7 @@ class _CallContainerScreenState extends State<CallContainerScreen>
   Widget _buildDecline(BuildContext context, CallBloc bloc,
       CallBlocState state) =>
       widget.declineView?.call(context, bloc, state) ??
-        DeclineCallView(callBloc: bloc);
+        DeclineCallView(callBloc: bloc, state: state);
 
 
   Widget _buildError(BuildContext context, CallBloc bloc,
