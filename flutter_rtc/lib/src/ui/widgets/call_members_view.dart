@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/flutter_rtc.dart';
-import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 class CallMembersView extends StatefulWidget {
@@ -52,44 +51,91 @@ class _CallMembersViewState extends State<CallMembersView> {
   }
 
   void _updateMembers() {
-    _sortedMembers = [...widget.members]..sort((a, b) {
-      final aValue = a.cameraEnabled ? 1 : 0;
-      final bValue = b.cameraEnabled ? 1 : 0;
-      return bValue.compareTo(aValue);
-    });
+    _sortedMembers = [...widget.members]
+      ..sort((a, b) => (b.cameraEnabled ? 1 : 0).compareTo(a.cameraEnabled ? 1 : 0));
 
     _heroTags.addAll(_sortedMembers.map((m) => m.id));
   }
 
-  Widget _buildAvatar(Member member) {
-    return widget.avatarBuilder?.call(context, member) ??
-        DefaultAvatarBuilder(member: member);
+  Widget _buildParticipantBox(Member member) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          // Video/Avatar Content
+          Positioned.fill(child: _buildVideo(member)),
+
+          // Nombre en esquina superior izquierda
+          Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                member.displayNameOrId,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 4.0,
+                      color: Colors.black,
+                      offset: Offset(1.0, 1.0),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Menú de tres puntos
+          Align(
+            alignment: Alignment.topRight,
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(value: 'settings', child: Text('Configuración')),
+                    const PopupMenuItem(value: 'info', child: Text('Información')),
+                  ],
+              onSelected: (value) => _handleMenuSelection(value, member),
+            ),
+          ),
+
+          // Indicador de calidad de señal
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ConnectionQualityIndicator(quality: 10),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildVideo(Member member) {
     return widget.videoBuilder?.call(context, member, widget.renders[member.id]) ??
-        DefaultVideoBuilder(member: member, renderer: widget.renders[member.id]!);
+        RendererBox(renderer: widget.renders[member.id]!, member: member, mirror: true);
   }
 
   Widget _buildSingleLayout() {
     final member = _sortedMembers.first;
     return AnimatedSwitcher(
       duration: widget.layoutTransitionDuration,
-      switchInCurve: widget.layoutTransitionCurve,
       child: Container(
         key: ValueKey(member.id),
-        child: Center(
-          child: Hero(
-            tag: member.id,
-            child: member.cameraEnabled ? _buildVideo(member) : _buildAvatar(member),
-          ),
-        ),
+        child: AspectRatio(aspectRatio: 1, child: _buildParticipantBox(member)),
       ),
     );
   }
 
   Widget _buildDualLayout() {
-    return Row(
+    return Column(
       children:
           _sortedMembers.take(2).map((member) {
             return Expanded(
@@ -97,16 +143,7 @@ class _CallMembersViewState extends State<CallMembersView> {
                 duration: widget.layoutTransitionDuration,
                 child: Container(
                   key: ValueKey(member.id),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: Hero(
-                      tag: member.id,
-                      child:
-                          member.cameraEnabled
-                              ? _buildVideo(member)
-                              : _buildAvatar(member),
-                    ),
-                  ),
+                  child: AspectRatio(aspectRatio: 1, child: _buildParticipantBox(member)),
                 ),
               ),
             );
@@ -115,46 +152,23 @@ class _CallMembersViewState extends State<CallMembersView> {
   }
 
   Widget _buildGridLayout() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = _calculateGridColumns(
-          itemCount: _sortedMembers.length,
-          maxWidth: constraints.maxWidth,
-        );
-
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: 1,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-          ),
-          itemCount: _sortedMembers.length,
-          itemBuilder: (context, index) {
-            final member = _sortedMembers[index];
-            return AnimatedSwitcher(
-              duration: widget.layoutTransitionDuration,
-              child: Container(
-                key: ValueKey(member.id),
-                child: Hero(
-                  tag: member.id,
-                  child:
-                      member.cameraEnabled ? _buildVideo(member) : _buildAvatar(member),
-                ),
-              ),
-            );
-          },
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: _sortedMembers.length <= 4 ? 0.5 : 1,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      itemCount: _sortedMembers.length,
+      itemBuilder: (context, index) {
+        final member = _sortedMembers[index];
+        return AnimatedSwitcher(
+          duration: widget.layoutTransitionDuration,
+          child: _buildParticipantBox(member),
         );
       },
     );
-  }
-
-  int _calculateGridColumns({required int itemCount, required double maxWidth}) {
-    if (maxWidth > 1200) return 5;
-    if (maxWidth > 800) return 4;
-    if (maxWidth > 600) return 3;
-    return 2;
   }
 
   @override
@@ -168,26 +182,69 @@ class _CallMembersViewState extends State<CallMembersView> {
 
   Widget _buildLayout() {
     if (_sortedMembers.isEmpty) return const SizedBox.shrink();
+    if (_sortedMembers.length == 1) return _buildSingleLayout();
+    if (_sortedMembers.length == 2) return _buildDualLayout();
 
-    return switch (_sortedMembers.length) {
-      1 => _buildSingleLayout(),
-      2 => _buildDualLayout(),
-      _ => _buildGridLayout(),
-    };
+    return _buildGridLayout();
+  }
+
+  void _handleMenuSelection(String value, Member member) {
+    // Implementar lógica del menú
   }
 }
 
-// Default builders
-class DefaultAvatarBuilder extends StatelessWidget {
-  final Member member;
+class ConnectionQualityIndicator extends StatelessWidget {
+  final double quality;
 
-  const DefaultAvatarBuilder({super.key, required this.member});
+  const ConnectionQualityIndicator({super.key, required this.quality});
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (index) {
+        final isActive = index < quality;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: isActive ? Colors.green : Colors.grey,
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class RendererBox extends StatelessWidget {
+  final RTCVideoRenderer renderer;
+  final Member member;
+  final bool mirror;
+
+  bool get available => member.cameraEnabled;
+
+  String get photoUrl => member.photoUrlOrId;
+
+  const RendererBox({
+    super.key,
+    required this.member,
+    required this.renderer,
+    required this.mirror,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return available
+        ? Transform.scale(scale: mirror ? -1.0 : 1.0, child: RTCVideoView(renderer))
+        : _buildAvatar(member);
+  }
+
+  Widget _buildAvatar(Member member) {
     return Container(
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        shape: BoxShape.rectangle,
         image: DecorationImage(
           image: NetworkImage(member.photoUrlOrId),
           fit: BoxFit.cover,
@@ -196,29 +253,13 @@ class DefaultAvatarBuilder extends StatelessWidget {
       child: Center(
         child: Text(
           member.displayNameOrId[0].toUpperCase(),
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+          style: const TextStyle(
             color: Colors.white,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-    );
-  }
-}
-
-class DefaultVideoBuilder extends StatelessWidget {
-  final Member member;
-  final RTCVideoRenderer renderer;
-
-  const DefaultVideoBuilder({super.key, required this.member, required this.renderer});
-
-  @override
-  Widget build(BuildContext context) {
-    return VideoBox(
-      renderer: renderer,
-      photoUrl: member.photoUrlOrId,
-      available: member.cameraEnabled,
-      mirror: true,
     );
   }
 }

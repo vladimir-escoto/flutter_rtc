@@ -64,26 +64,26 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
         //   mirror: !isLocalMain,
         // ),
         // if (secondaryStreamAvailable || widget.state.isVideoCall)
-        FloatingDraggableRendererWidget(
-          topMargin: 100,
-          bottomMargin: 125,
-          secondaryStreamAvailable: secondaryStreamAvailable,
-          secondaryRenderer: secondaryRenderer,
-          isLocalMain: isLocalMain,
-          photoUrl: secondaryPhotoUrl,
-          onTap: (status, hp, vp) {
-            if (status == RenderStatus.expanded) {
-              _switchRenderers();
-              return true;
-            }
-            return false;
-          },
-          onSwitchCamera: () {
-            widget.callBloc.add(
-              ToggleLocalControlEvent(control: LocalControlType.camera),
-            );
-          },
-        ),
+        // FloatingDraggableRendererWidget(
+        //   topMargin: 100,
+        //   bottomMargin: 125,
+        //   secondaryStreamAvailable: secondaryStreamAvailable,
+        //   secondaryRenderer: secondaryRenderer,
+        //   isLocalMain: isLocalMain,
+        //   photoUrl: secondaryPhotoUrl,
+        //   onTap: (status, hp, vp) {
+        //     if (status == RenderStatus.expanded) {
+        //       _switchRenderers();
+        //       return true;
+        //     }
+        //     return false;
+        //   },
+        //   onSwitchCamera: () {
+        //     widget.callBloc.add(
+        //       ToggleLocalControlEvent(control: LocalControlType.camera),
+        //     );
+        //   },
+        // ),
       ],
     );
   }
