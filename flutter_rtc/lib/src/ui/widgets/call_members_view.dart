@@ -152,10 +152,12 @@ class _CallMembersViewState extends State<CallMembersView> {
   }
 
   Widget _buildGridLayout() {
+    final size = MediaQuery.of(context).size;
+    final crossAxisCount = size.width<size.height?2:4;
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+        crossAxisCount: crossAxisCount,
         childAspectRatio: _sortedMembers.length <= 4 ? 0.5 : 1,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
@@ -166,6 +168,49 @@ class _CallMembersViewState extends State<CallMembersView> {
         return AnimatedSwitcher(
           duration: widget.layoutTransitionDuration,
           child: _buildParticipantBox(member),
+        );
+      },
+    );
+  }
+
+  Widget _buildDynamicGridLayout() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = MediaQuery.of(context).size;
+        final crossAxisCount = size.width<size.height?2:4;
+        final itemCount = _sortedMembers.length;
+
+        // Calcular el número de filas necesarias
+        final rowCount = (itemCount / crossAxisCount).ceil();
+
+        // Calcular espacio vertical disponible restando paddings y espaciados
+        final verticalPadding = 8 * crossAxisCount; // Padding vertical total
+        final mainAxisSpacingTotal = 8 * (rowCount - 1); // Espaciado entre filas
+        final availableHeight = constraints.maxHeight - verticalPadding - mainAxisSpacingTotal;
+
+        // Calcular altura por item basado en el espacio disponible
+        final itemHeight = availableHeight / rowCount;
+
+        // Calcular relación de aspecto dinámica
+        final itemWidth = (constraints.maxWidth - 8 * (crossAxisCount - 1)) / crossAxisCount;
+        final aspectRatio = itemWidth / itemHeight;
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: aspectRatio,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+          ),
+          itemCount: itemCount,
+          itemBuilder: (context, index) {
+            final member = _sortedMembers[index];
+            return AnimatedSwitcher(
+              duration: widget.layoutTransitionDuration,
+              child: _buildParticipantBox(member),
+            );
+          },
         );
       },
     );
@@ -184,6 +229,7 @@ class _CallMembersViewState extends State<CallMembersView> {
     if (_sortedMembers.isEmpty) return const SizedBox.shrink();
     if (_sortedMembers.length == 1) return _buildSingleLayout();
     if (_sortedMembers.length == 2) return _buildDualLayout();
+    if (_sortedMembers.length <=8) return _buildDynamicGridLayout();
 
     return _buildGridLayout();
   }
