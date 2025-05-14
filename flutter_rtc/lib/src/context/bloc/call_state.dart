@@ -9,7 +9,6 @@ part of 'call_bloc.dart';
 /// UI state, call duration, and any error message.
 class CallBlocState extends Equatable {
   final CallInfo callInfo;
-
   // UI state.
   final OverlayStatus overlayStatus;
 
@@ -143,7 +142,7 @@ class CallBlocState extends Equatable {
 
   @override
   String toString() {
-    return 'CallBlocState(lifecycleStatus: $lifecycleStatus, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: $callMode,  overlayStatus: $overlayStatus, , errorMessage: $errorMessage)';
+    return 'lifecycleStatus: ${lifecycleStatus.name}, localMicOn: $localMicOn, localCameraOn: $localCameraOn, callMode: ${callMode.name},  overlayStatus: ${overlayStatus.name}, error: $errorMessage';
   }
 
   @override

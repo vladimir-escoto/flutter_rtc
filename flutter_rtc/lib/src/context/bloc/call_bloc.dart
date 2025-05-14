@@ -10,7 +10,6 @@ import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 part 'call_enums.dart';
-
 part 'call_events.dart';
 part 'call_state.dart';
 
@@ -34,6 +33,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
     on<HangUpCallEvent>(_onHangUpCallEvent);
     on<RedialCallEvent>(_onRedialCallEvent);
     on<SwitchCameraEvent>(_onSwitchCameraEvent);
+    on<SwitchCallModeEvent>(_onSwitchCallModeEvent);
     on<HoldCallEvent>(_onHoldCallEvent);
     on<AppLifecycleStateEvent>(_onAppLifecycleStateEvent);
 
@@ -63,6 +63,8 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
       case CallLifeCycleStatus.initial:
         emit(CallBlocState.fromCallInfo(state.callInfo));
         break;
+      case CallLifeCycleStatus.incoming:
+
       default:
         final newState = state.copyWithStream(rtcManager.mediaStreams)
             .copyWithCallInfo(state.callInfo.copyWith(callStatus: type));
@@ -83,14 +85,17 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
         emit(state.toggleControl(micEnabled: !state.localMicOn));
         break;
       case LocalControlType.camera:
+        if (event.value == state.localCameraOn) return;
         rtcManager.toggleCamera(!state.localCameraOn);
         emit(state.toggleControl(cameraEnabled: !state.localCameraOn));
         break;
       case LocalControlType.speaker:
+        if (event.value == state.localSpeakerOn) return;
         rtcManager.toggleSpeaker(!state.localSpeakerOn);
         emit(state.toggleControl(speakerEnable: !state.localSpeakerOn));
         break;
       case LocalControlType.screenShare:
+        if (event.value == state.localScreenShareOn) return;
         var enable = !state.localScreenShareOn;
         rtcManager.toggleScreenSharing(enable);
         emit(state.toggleControl(screenShareEnabled: enable));
@@ -150,7 +155,7 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
   void _onAcceptIncomingCallEvent(
     AcceptIncomingCallEvent event,
       CallEmitter emit,) async =>
-      await rtcManager.answerIncomingCall(event.data);
+      await rtcManager.answerIncomingCall(event.data!);
 
   /// New handler: Decline an incoming call.
   Future<void> _onDeclineIncomingCallEvent(
@@ -194,10 +199,16 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
       CallEmitter emit,
   ) async => await rtcManager.switchCamera();
 
-  FutureOr<void> _onAppLifecycleStateEvent(
+  Future<void> _onAppLifecycleStateEvent(
     AppLifecycleStateEvent event,
       CallEmitter emit,
   ) async {}
 
+
+  Future<void> _onSwitchCallModeEvent(SwitchCallModeEvent event,
+      Emitter<CallBlocState> emit) async {
+    emit(state.copyWithCallInfo(
+        state.callInfo.copyWith(callMode: event.callMode)));
+  }
 }
 

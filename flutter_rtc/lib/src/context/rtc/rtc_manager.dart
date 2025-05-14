@@ -113,7 +113,7 @@ class RTCManager {
 
   Future<void> handleDeclineIncomingCall(String? reason) async {
     await _peerManager.handleDeclineIncomingCall(reason);
-    _eventHandler.sendCallEvent(CallLifeCycleStatus.declined);
+    _eventHandler.sendCallEvent(CallLifeCycleStatus.ended);
   }
 
   Future<void> handleEndCall() async {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_rtc/flutter_rtc.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_rtc/flutter_rtc.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,57 +20,14 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return CallOverlay(
           child: child!,
-          //     outgoingView: (context, bloc, state) {
-          //   return Container(
-          //     width: double.infinity,
-          //     height: double.infinity,
-          //     color: Colors.black87,
-          //     child: Center(
-          //       child: Column(
-          //         crossAxisAlignment: CrossAxisAlignment.center,
-          //         mainAxisAlignment: MainAxisAlignment.center,
-          //         children: [
-          //           Text("Test Builder"),
-          //           Text(state.self.id),
-          //           Text(state.callInfo.members.first.id),
-          //
-          //           CallControlOption(
-          //             icon: const Icon(Icons.call_end_rounded),
-          //             iconColor: Colors.white,
-          //             backgroundColor: Colors.red,
-          //             onPressed: () =>
-          //                bloc.add(HangUpCallEvent()),
-          //             padding: const EdgeInsets.all(24),
-          //           ),
-          //         ],
-          //       ),
-          //     ),
-          //   );
-          // }
+          // outgoingView: (context, bloc, state) =>
+          //     CustomCallScreen(bloc: bloc, state: state)
         );
       },
       home: HomeScreen(),
     );
   }
 }
-
-// class HomeScreen extends StatelessWidget {
-//   const HomeScreen({super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     debugPrint('[HomeScreen] build');
-//     return Scaffold(
-//       appBar: AppBar(title: Text('Universal Call Overlay Example')),
-//       body: Center(
-//         child: ElevatedButton(
-//           child: Text("Start New Call"),
-//           onPressed: () => CallCoordinator.instance.simulateCall(),
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -223,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (targetId.isNotEmpty) {
                       CallCoordinator.instance.simulateCall(
                         userId: clientId,
-                        members: [Member(id: targetId.first), Member(id: targetId.last)],
+                        members: targetId.map((id) => Member(id: id)).toList(),
                       );
                     }
                   },
@@ -235,6 +192,103 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.active,
+                    );
+                  },
+                  child: const Text('Simulate Active'),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.failed,
+                    );
+                  },
+                  child: const Text('Simulate Error'),
+                ),
+              ),
+            ],
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.declined,
+                    );
+                  },
+                  child: const Text('Simulate Declined'),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.hold,
+                    );
+                  },
+                  child: const Text('Simulate Hold'),
+                ),
+              ),
+
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.incoming,
+                    );
+                  },
+                  child: const Text('Simulate Incoming'),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final targetId = _callIdController.text.trim().split(":");
+                    CallCoordinator.instance.simulateCall(
+                      userId: clientId,
+                      members: targetId.map((id) => Member(id: id)).toList(),
+                      state: CallLifeCycleStatus.ringing,
+                    );
+                  },
+                  child: const Text('Simulate calling'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+
               ElevatedButton(
                 onPressed: () {
                   CallCoordinator.instance.clearAllSessions();

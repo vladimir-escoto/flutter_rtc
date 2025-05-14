@@ -107,7 +107,7 @@ class CallCoordinator {
 
   CallContext _makeCall(String userId, List<Member> members, CallMode mode) {
     final callId = _generateCallId();
-    debugPrint('[CallCoordinator] makeCall, callId: $callId');
+    debugPrint('[CallCoordinator] [callId: $callId] makeCall, callId: $callId');
 
     final context = CallContext(
       params: _users[userId] ?? const {},
@@ -127,13 +127,15 @@ class CallCoordinator {
         _handleCallStatusEvent(event, callId));
 
     _activeCalls[callId] = context;
-    _updateState();
 
     return context;
   }
 
   void _handleCallStatusEvent(CallLifeCycleStatus event, String callId) {
-    debugPrint('[CallCoordinator] Call status event: $event');
+    var status = _activeCalls[callId]?.status;
+    debugPrint('[CallCoordinator] [callId: $callId] status: $status, new status: $event');
+
+    _updateState();
     if (event == CallLifeCycleStatus.ended) {
       endCall(callId);
     }
@@ -158,7 +160,7 @@ class CallCoordinator {
     var context = _activeCalls[data.callId];
 
     if (context == null) {
-      debugPrint('[CallCoordinator] No active session for call $data');
+      debugPrint('[CallCoordinator] [callId: ${data.callId}] No active session for call $data');
       return;
     }
 
@@ -167,9 +169,8 @@ class CallCoordinator {
 
   ///handler callkit incoming events, for backGround proposes
   void _handCallKitGlobalEvent(CallKitEventData event) {
-    debugPrint('[CallCoordinator] Received callkit event: ${event.event}');
+    debugPrint('[CallCoordinator] [callId: ${event.body["id"]}] Received callkit event: ${event.event}');
     if (event.event == CallKitEvent.incoming) {
-      debugPrint('[CallCoordinator] Received callkit Incoming event: ${event.body}');
       var callData = CallEventData.fromJson(event.body as Map<String, dynamic>);
       receiveIncomingCall(callData);
     } else if (event.event == CallKitEvent.start) {
@@ -180,7 +181,7 @@ class CallCoordinator {
 
   void receiveIncomingCall(CallEventData data) {
     if (!_activeCalls.containsKey(data.callId)) {
-      debugPrint('[CallCoordinator] receiveIncomingCall ${data.callId}');
+      debugPrint('[CallCoordinator] [callId: ${data.callId}] receiveIncomingCall');
       var offer = data.toOffer();
       var context = _makeCall(data.to, offer.members, offer.mode);
       context.handleIncomingOffer(data);
@@ -189,7 +190,7 @@ class CallCoordinator {
 
   /// Clears all active sessions (used for logout or reset).
   void clearAllSessions() {
-    debugPrint('[CallCoordinator] dispose');
+    debugPrint('[CallCoordinator] clearAllSessions');
     for (final entry in _activeCalls.entries) {
       entry.value.dispose();
       _callSubs.remove(entry.key)?.cancel();
@@ -199,30 +200,31 @@ class CallCoordinator {
   }
 
   void endCall(String callId) {
-    debugPrint('[CallCoordinator] endCall $callId');
+    debugPrint('[CallCoordinator] [callId: $callId] endCall');
     _activeCalls.remove(callId)?.endCall();
     _callSubs.remove(callId)?.cancel();
     _callKitManager.endCall(callId);
     _updateState();
   }
 
-  void holdCall(String callId) {
-    debugPrint('[CallCoordinator] holdCall $callId');
+  void holdCall(String callId, ) {
+    debugPrint('[CallCoordinator] [callId: $callId] holdCall');
     _activeCalls[callId]?.holdCall();
   }
 
   void resumeCall(String callId) {
-    debugPrint('[CallCoordinator] holdCall $callId');
+    debugPrint('[CallCoordinator] [callId: $callId] resumeCall');
     _activeCalls[callId]?.resumeCall();
   }
 
   void closeAllOnHold() {
+    debugPrint('[CallCoordinator] closeAllOnHold');
     _activeCalls.removeWhere((key, value) => value.isOnHold);
     _updateState();
   }
 
   void setAppLifecycleState(AppLifecycleState status) {
-    debugPrint('[CallCoordinator] setAppLifecycleState $status');
+    debugPrint('[CallCoordinator] setAppLifecycleState ${status.name}');
     for (final context in _activeCalls.values) {
       context.setAppLifecycleState(status);
     }
@@ -241,12 +243,13 @@ class CallCoordinator {
   }
 
   Future<String> simulateCall({
+    CallLifeCycleStatus state = CallLifeCycleStatus.active,
     String userId = "John",
     List<Member> members = const [Member(id: "Patricia")],
     CallMode mode = CallMode.audio,
   }) async {
     final context = _makeCall(userId, members, mode);
-    context.simulateCall();
+    context.simulateCall(state);
     return context.callId;
   }
 }

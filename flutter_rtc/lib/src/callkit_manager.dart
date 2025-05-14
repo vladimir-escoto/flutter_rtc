@@ -84,7 +84,7 @@ class CallKitManager {
     );
     if (params == null) return;
 
-    debugPrint("[CallKit] showOutgoingCall from $callerName (id: $callId)");
+    debugPrint("[CallKit][callId: $callId] showOutgoingCall from $callerName");
     await FlutterCallkitIncoming.startCall(params);
   }
 
@@ -103,7 +103,8 @@ class CallKitManager {
       type: type,
     );
     if (params == null) return;
-    debugPrint("[CallKit] showCallkitIncoming from $callerName (id: $callId)");
+    debugPrint(
+        "[CallKit][callId: $callId] showCallkitIncoming from $callerName");
     await FlutterCallkitIncoming.showCallkitIncoming(params);
   }
 
@@ -115,7 +116,7 @@ class CallKitManager {
     int type = 0,
   }) async {
     if (isCallShowing(callId)) {
-      debugPrint("[CallKit] Call $callId already exists");
+      debugPrint("[CallKit][callId: $callId] Call already exists");
       return null;
     }
 
@@ -146,13 +147,14 @@ class CallKitManager {
 
   Future<void> setCallConnected(String callId) async {
     if (!isCallShowing(callId)) return;
+    debugPrint("[CallKit][callId: $callId] Call connected");
     await FlutterCallkitIncoming.setCallConnected(callId);
   }
 
   Future<void> endCall(String callId) async {
     //TODO: validate Callkit active calls
     if (!isCallShowing(callId)) return;
-    debugPrint("[CallKit] Ending call $callId");
+    debugPrint("[CallKit][callId: $callId] Ending call");
     await FlutterCallkitIncoming.endCall(callId);
     _controllers.remove(callId)?.close();
   }
@@ -160,7 +162,7 @@ class CallKitManager {
   Future<void> holdCall(String callId, {bool isOnHold = true}) async {
     //TODO: validate Callkit active calls
     if (!isCallShowing(callId)) return;
-    debugPrint("[CallKit] hold call $callId");
+    debugPrint("[CallKit][callId: $callId] hold call");
     await FlutterCallkitIncoming.holdCall(callId, isOnHold: isOnHold);
   }
 
@@ -175,6 +177,8 @@ class CallKitManager {
   Future<void> muteCall(String callId, bool micEnabled) async {
     if (!isCallShowing(callId)) return;
     var isMute = await FlutterCallkitIncoming.isMuted(callId);
+    debugPrint(
+        "[CallKit][callId: $callId] mute call - wasMute: $isMute, isMute: $micEnabled");
     if (isMute != micEnabled) {
       await FlutterCallkitIncoming.muteCall(callId, isMuted: micEnabled);
     }

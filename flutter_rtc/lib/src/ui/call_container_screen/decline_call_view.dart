@@ -7,10 +7,10 @@ class DeclineCallView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black54,
-      body: Center(
-        child: Column(
+    return BaseCallScreen(
+        children: [
+          Center(
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.error, color: Colors.red, size: 50),
@@ -25,8 +25,8 @@ class DeclineCallView extends StatelessWidget {
               child: const Text('Retry'),
             ),
           ],
-        ),
-      ),
-    );
+            ),
+          ),
+        ]);
   }
 }

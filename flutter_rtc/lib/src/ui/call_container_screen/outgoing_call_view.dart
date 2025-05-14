@@ -14,10 +14,9 @@ class OutgoingCallView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
+    return BaseCallScreen(
+      controls: _buildControls(),
+      children: [
           if (state.isVideoCall && state.localStream != null)
             Positioned.fill(child: RTCVideoView(localRenderer, mirror: true))
           else
@@ -60,22 +59,17 @@ class OutgoingCallView extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: OutgoingCallControls(
-              isMicrophoneEnabled:state.localMicOn,
-              isCameraEnabled: state.localCameraOn,
-              isSpeakerEnabled: state.localSpeakerOn,
-              onCancelCallTap: () =>callBloc.add(HangUpCallEvent()),
-              onMicrophoneTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic)),
-              // onCameraTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera)),
-              onSpeakerTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker)),
-            ),
-          ),
         ],
-      ),
     );
   }
+
+  Widget _buildControls() =>OutgoingCallControls(
+    isMicrophoneEnabled:state.localMicOn,
+    isCameraEnabled: state.localCameraOn,
+    isSpeakerEnabled: state.localSpeakerOn,
+    onCancelCallTap: () =>callBloc.add(HangUpCallEvent()),
+    onMicrophoneTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic)),
+    // onCameraTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera)),
+    onSpeakerTap: () => callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker)),
+  );
 }

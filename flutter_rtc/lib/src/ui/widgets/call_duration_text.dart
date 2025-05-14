@@ -6,7 +6,7 @@ typedef DurationFormatter = String Function(Duration);
 
 /// Displays a duration that updates every second.
 ///
-/// - [notifier]: the ValueListenable<Duration> that emits the ticks.
+/// - [notifier]: the ValueListenable Duration that emits the ticks.
 /// - [style]: the text style.
 /// - [formatter]: optional function to convert Duration to String;
 ///   defaults to `duration.toCallFormat()`.

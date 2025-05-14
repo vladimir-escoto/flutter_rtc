@@ -15,8 +15,11 @@ class CallControlOption extends StatelessWidget {
     this.disabledBackgroundColor = Colors.white,
     this.shape = const CircleBorder(),
     this.padding = const EdgeInsets.all(22),
+    this.iconSize,
     this.onPressed,
   });
+
+  final double? iconSize;
 
   final bool isEnable;
 
@@ -70,7 +73,7 @@ class CallControlOption extends StatelessWidget {
         disabledBackgroundColor: disabledBackgroundColor,
       ),
       child: IconTheme.merge(
-        data: IconThemeData(color: iconColor),
+        data: IconThemeData(color: iconColor, size: iconSize),
         child: !isEnable && disableIcon != null ? disableIcon! : icon,
       ),
     );

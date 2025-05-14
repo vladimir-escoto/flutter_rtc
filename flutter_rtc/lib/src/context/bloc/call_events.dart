@@ -67,7 +67,7 @@ class CallErrorEvent extends CallBlocEvent {
 class DeclineIncomingCallEvent extends CallBlocEvent {
   final String? reason;
 
-  DeclineIncomingCallEvent({this.reason});
+  DeclineIncomingCallEvent(this.reason);
 }
 
 /// New event for  AppLifecycle
@@ -80,9 +80,9 @@ class AppLifecycleStateEvent extends CallBlocEvent {
 /// New event: Accept an incoming call.
 /// The BLoC can use the provided call mode to set the appropriate UI.
 class AcceptIncomingCallEvent extends CallBlocEvent {
-  final CallEventData data;
+  final CallEventData? data;
 
-  AcceptIncomingCallEvent({required this.data});
+  AcceptIncomingCallEvent({this.data});
 }
 
 class HoldCallEvent extends CallBlocEvent {
@@ -103,3 +103,10 @@ class RedialCallEvent extends CallBlocEvent {}
 
 /// New event for switching the camera.
 class SwitchCameraEvent extends CallBlocEvent {}
+
+/// New event for switching the camera.
+class SwitchCallModeEvent extends CallBlocEvent {
+  final CallMode callMode;
+
+  SwitchCallModeEvent(this.callMode);
+}

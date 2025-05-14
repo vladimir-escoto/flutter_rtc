@@ -32,6 +32,8 @@ class CallContext {
 
   CallBloc get callBloc => _bloc;
 
+  CallLifeCycleStatus get status => _callInfo.callStatus;
+
   Stream<CallLifeCycleStatus> get callStatus => _callStatusController.stream;
 
   CallContext({
@@ -70,7 +72,7 @@ class CallContext {
 
   /// Called by the initiator to start the call
   void startOutgoingCall() {
-    debugPrint('[CallContext] startOutgoingCall');
+    debugPrint('[CallContext][callId: $callId] startOutgoingCall');
     _bloc.add(StartOutgoingCallEvent());
     callKitManager.showOutgoingCall(
       callId: callId,
@@ -80,7 +82,7 @@ class CallContext {
   }
 
   Future<void> handleIncomingOffer(CallEventData data) async {
-    debugPrint('[CallContext] handleIncomingOffer: $data');
+    debugPrint('[CallContext][callId: $callId] handleIncomingOffer: $data');
     _rtcManager.handleIncomingOffer(data);
     await callKitManager.showCallkitIncoming(
       callId: data.callId,
@@ -91,7 +93,7 @@ class CallContext {
 
   /// Routes signaling events to the RTC manager
   Future<void> handleSignalingEvent(CallEventData data) async {
-    debugPrint('[CallContext] handleSignalingEvent: $data');
+    debugPrint('[CallContext][callId: $callId] handleSignalingEvent: $data');
     switch (data.type) {
       case CallDataEventType.hold:
         _rtcManager.handleIncomingHold(data);
@@ -113,50 +115,52 @@ class CallContext {
         endCall();
         break;
       default:
-        debugPrint('[CallContext] Unhandled event type: ${data.type}');
+        debugPrint('[CallContext][callId: $callId] Unhandled event type: ${data
+            .type}');
     }
   }
 
   /// Ends the call and notifies all members
   Future<void> endCall() async {
-    debugPrint('[CallContext] end');
     if (_callInfo.callStatus != CallLifeCycleStatus.ended) {
+      debugPrint('[CallContext][callId: $callId] endCall');
       _bloc.add(HangUpCallEvent());
     }
   }
 
   Future<void> holdCall() async {
     if (isOnHold) return;
-    debugPrint('[CallContext] pause');
+    debugPrint('[CallContext][callId: $callId] holdCall');
     _bloc.add(HoldCallEvent(isOnHold: true));
     callKitManager.holdCall(callId, isOnHold: true);
   }
 
   Future<void> resumeCall() async {
-    debugPrint('[CallContext] resume');
+    debugPrint('[CallContext][callId: $callId] resumeCall');
     _bloc.add(HoldCallEvent(isOnHold: false));
     callKitManager.holdCall(callId, isOnHold: false);
   }
 
   Future<void> declineCall() async {
-    debugPrint('[CallContext] decline');
     if (_callInfo.callStatus != CallLifeCycleStatus.declined) {
-      _bloc.add(DeclineIncomingCallEvent());
+      debugPrint('[CallContext][callId: $callId] declineCall');
+      _bloc.add(DeclineIncomingCallEvent(""));
     }
   }
 
   Future<void> setConnectionStatus(bool connected, dynamic error) async {
-    debugPrint('[CallContext] setConnectionStatus: connected=$connected, error=$error');
-    //Todo: Manage connection status
+    debugPrint(
+        '[CallContext][callId: $callId] setConnectionStatus: connected=$connected, error=$error');
   }
 
   void setAppLifecycleState(AppLifecycleState status) {
-    debugPrint('[CallContext] setAppLifecycleState: $status');
+    debugPrint(
+        '[CallContext][callId: $callId] setAppLifecycleState: ${status.name}');
     _bloc.add(AppLifecycleStateEvent(status: status));
   }
 
   StreamSubscription _handleBlocState() => _bloc.stream.listen((state) {
-    debugPrint('[CallContext] _handleBlocState: $state');
+    debugPrint('[CallContext][callId: $callId] _handleBlocState: $state');
 
     if (_callInfo.self.micEnabled != state.self.micEnabled) {
       callKitManager.muteCall(callId, state.self.micEnabled);
@@ -169,11 +173,11 @@ class CallContext {
         callKitManager.setCallConnected(callId);
       }
     }
+    _callInfo = state.callInfo.copyWith();
   });
 
   StreamSubscription _handleCallKitEvents() =>
       callKitManager.eventsFor(callId).listen((CallKitEventData data) {
-        debugPrint('[CallContext] _handleCallKitEvents: $data');
         switch (data.event) {
           case CallKitEvent.accept:
             var callData = CallEventData.fromJson(data.body);
@@ -185,28 +189,27 @@ class CallContext {
           case CallKitEvent.ended:
           case CallKitEvent.timeout:
             endCall();
-          case CallKitEvent.toggleHold:
-            debugPrint('[CallContext] toggleHold ${data.body}');
-            _bloc.add(HoldCallEvent(isOnHold: data.body["isOnHold"] as bool));
             break;
+          case CallKitEvent.toggleHold:
+            var isOnHold = data.body["isOnHold"] as bool;
+            _bloc.add(HoldCallEvent(isOnHold: isOnHold));
           case CallKitEvent.toggleMute:
-            debugPrint('[CallContext] toggleMute ${data.body}');
-            _bloc.add(
-              ToggleLocalControlEvent(
-                control: LocalControlType.mic,
-                value: data.body["isMuted"] as bool,
-              ),
-            );
+            var isMute = data.body["isMuted"] as bool;
+            _bloc.add(ToggleLocalControlEvent(
+              control: LocalControlType.mic, value: isMute,
+            ));
             break;
           default:
-            debugPrint('[CallContext] Unhandled event type: ${data.event}');
+            debugPrint(
+                '[CallContext][callKit][callId: $callId] Unhandled event: ${data.event}');
             break;
         }
       });
 
-  void simulateCall() {
-    debugPrint('[CallContext] startOutgoingCall');
-    _bloc.add(CallLifecycleEvent(CallEvent(CallLifeCycleStatus.active)));
+  void simulateCall(CallLifeCycleStatus state) {
+    //Used for testing purposes
+    debugPrint('[CallContext] [callId: $callId] simulateCall');
+    _bloc.add(CallLifecycleEvent(CallEvent(state)));
   }
 
   /// Frees all resources
@@ -218,6 +221,6 @@ class CallContext {
     _callSub?.cancel();
     _bloc.close();
     _rtcManager.dispose();
-    debugPrint('[CallContext] dispose');
+    debugPrint('[CallContext][callId: $callId] dispose');
   }
 }

@@ -20,6 +20,8 @@ class CallOverlayManager {
   CallViewBuilder? activeCallView;
   CallViewBuilder? endedView;
   CallViewBuilder? declineView;
+  CallViewBuilder? minimizedView;
+  CallViewBuilder? holdView;
   CallViewBuilder? errorView;
 
   OverlayState? _overlayState;
@@ -51,6 +53,11 @@ class CallOverlayManager {
       }
     }
 
+    for (final c in calls) {
+      debugPrint(
+          '[CallOverlayManager] [callId:${c.callId}] status:${c.status.name}');
+    }
+
     if (calls.any((c) => c.isActive)) {
       final activeCall = calls.firstWhere((c) => c.isActive);
       _addOverlay(activeCall);
@@ -77,12 +84,15 @@ class CallOverlayManager {
   }
 
   Widget _callContainerScreenBuilder(CallBloc callBloc) => CallContainerScreen(
+    key: ValueKey(callBloc.state.callInfo.callId),
     callBloc: callBloc,
     outgoingView: outgoingView,
     incomingView: incomingView,
     activeCallView: activeCallView,
     endedView: endedView,
     declineView: declineView,
+    minimizedView: minimizedView,
+    holdView: holdView,
     errorView: errorView,
   );
 
@@ -99,6 +109,8 @@ class CallOverlayManager {
     CallViewBuilder? activeCallView,
     CallViewBuilder? endedView,
     CallViewBuilder? declineView,
+    CallViewBuilder? minimizedView,
+    CallViewBuilder? holdView,
     CallViewBuilder? errorView,
   }) {
     this.outgoingView = outgoingView;
@@ -107,6 +119,8 @@ class CallOverlayManager {
     this.endedView = endedView;
     this.declineView = declineView;
     this.errorView = errorView;
+    this.minimizedView = minimizedView;
+    this.holdView = holdView;
   }
 
   void dispose() {

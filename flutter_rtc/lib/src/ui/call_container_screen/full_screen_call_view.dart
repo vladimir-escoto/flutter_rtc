@@ -47,10 +47,10 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     final secondaryPhotoUrl =
         !isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
+    return BaseCallScreen(
+      topBar: _buildCallBar(),
+      controls: _buildControls(),
+      children: [
           VideoBox(
             renderer: mainRenderer,
             photoUrl: mainPhotoUrl,
@@ -78,10 +78,7 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
               );
             },
           ),
-          _buildCallBar(),
-          _buildControls(),
         ],
-      ),
     );
   }
 
@@ -95,7 +92,7 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     );
   }
 
-  Positioned _buildCallBar() {
+  Widget _buildCallBar() {
     final remoteMembers = widget.state.remoteMembers;
 
     final titleText =
@@ -103,44 +100,39 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
             ? remoteMembers.first.displayNameOrId
             : '${remoteMembers.length} Participants';
 
-    return Positioned(
-      left: 16,
-      right: 16,
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildCircleIcon(Icons.close_fullscreen, () {
-              widget.callBloc.add(
-                UIEvent(
-                  event: UIEventType.changeOverlay,
-                  value: OverlayStatus.minimized,
-                ),
-              );
-            }),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
-                SizedBox(height: 4),
-                CallDurationText(notifier: durationNotifier),
-              ],
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildCircleIcon(Icons.close_fullscreen, () {
+          widget.callBloc.add(
+            UIEvent(
+              event: UIEventType.changeOverlay,
+              value: OverlayStatus.minimized,
             ),
-            _buildCircleIcon(Icons.person_add, () {
-              // widget.callBloc.add(
-              //   UIEvent(
-              //     event: UIEventType.addParticipant,
-              //   ),
-              // );
-            }),
+          );
+        }),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+                titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
+            SizedBox(height: 4),
+            CallDurationText(notifier: durationNotifier),
           ],
         ),
-      ),
+        _buildCircleIcon(Icons.person_add, () {
+          // widget.callBloc.add(
+          //   UIEvent(
+          //     event: UIEventType.addParticipant,
+          //   ),
+          // );
+        }),
+      ],
     );
   }
 
-  Positioned _buildControls() => Positioned.fill(
-    child: FullScreenCallControls(
+  Widget _buildControls() =>
+      FullScreenCallControls(
       isScreenShareEnabled: widget.state.localScreenShareOn,
       isMicrophoneEnabled: widget.state.localMicOn,
       isCameraEnabled: widget.state.localCameraOn,
@@ -160,6 +152,5 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
       onSpeakerTap: () {
         widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
       },
-    ),
   );
 }
