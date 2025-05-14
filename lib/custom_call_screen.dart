@@ -9,10 +9,11 @@ class CustomCallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     debugPrint('[HomeScreen] build');
     return Container(
-      width: double.infinity,
-      height: double.infinity,
+      width: size.width,
+      height: size.height,
       color: Colors.black87,
       child: Center(
         child: Column(

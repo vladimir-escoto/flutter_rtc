@@ -42,6 +42,7 @@ class _IncomingCallControlsState extends State<IncomingCallControls> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 32),
       child: Column(
@@ -62,26 +63,26 @@ class _IncomingCallControlsState extends State<IncomingCallControls> {
                     ? Column(
                       children: [const SizedBox(height: 16), ..._buildAnimatedMessages()],
                     )
-                    : const SizedBox(width: double.infinity),
+                    : SizedBox(width: width),
           ),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CallControlOption(
-                icon: Icon(widget.isVideoCall ? Icons.videocam : Icons.call),
+                icon: const Icon(Icons.call_end_rounded),
                 iconColor: Colors.white,
-                backgroundColor: Colors.green,
-                onPressed: widget.onAcceptCallTap,
+                backgroundColor: Colors.redAccent,
+                onPressed: () => widget.onDeclineCallTap(""),
                 padding: const EdgeInsets.all(16),
                 iconSize: 40,
               ),
               CallModeSwitch(isVideo: widget.isVideoCall, onChanged: widget.onCallSwitch),
               CallControlOption(
-                icon: const Icon(Icons.call_end_rounded),
+                icon: Icon(widget.isVideoCall ? Icons.videocam : Icons.call),
                 iconColor: Colors.white,
-                backgroundColor: Colors.redAccent,
-                onPressed: () => widget.onDeclineCallTap(""),
+                backgroundColor: Colors.green,
+                onPressed: widget.onAcceptCallTap,
                 padding: const EdgeInsets.all(16),
                 iconSize: 40,
               ),

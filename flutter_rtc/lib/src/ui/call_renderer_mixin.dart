@@ -9,13 +9,15 @@ mixin CallRendererMixin<T extends StatefulWidget> on State<T> {
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
 
   /// Map of remote renderers by member.id.
-  final Map<String, RTCVideoRenderer> remoteRenderers = {};
+  final Map<String, RTCVideoRenderer> _remoteRenderers = {};
+
+  Map<String, RTCVideoRenderer> get renderers => _remoteRenderers;
 
   /// Initializes all renderers (local + remotes) once.
   Future<void> initRenderers(List<Member> members) async {
     await localRenderer.initialize();
     for (final m in members) {
-      final r = remoteRenderers.putIfAbsent(m.id, () => RTCVideoRenderer());
+      final r = _remoteRenderers.putIfAbsent(m.id, () => RTCVideoRenderer());
       await r.initialize();
     }
   }
@@ -23,14 +25,15 @@ mixin CallRendererMixin<T extends StatefulWidget> on State<T> {
   /// Updates each renderer according to the call state.
   Future<void> updateRenderers(CallBlocState state) async {
     // Local
-    final localStream = state.isVideoCall && state.localCameraOn ? state.localStream : null;
+    final localStream =
+        state.isVideoCall && state.localCameraOn ? state.localStream : null;
     if (localRenderer.srcObject != localStream) {
       localRenderer.srcObject = localStream;
     }
 
     // Remotes
     for (final m in state.callInfo.remoteMembers) {
-      final r = remoteRenderers.putIfAbsent(m.id, () => RTCVideoRenderer());
+      final r = _remoteRenderers.putIfAbsent(m.id, () => RTCVideoRenderer());
       final remoteStream = state.isVideoCall && m.cameraEnabled ? m.mediaStream : null;
       if (r.srcObject != remoteStream) {
         r.srcObject = remoteStream;
@@ -41,16 +44,16 @@ mixin CallRendererMixin<T extends StatefulWidget> on State<T> {
   /// Returns an "active" renderer for minimized views, for example.
   RTCVideoRenderer activeRenderer(CallBlocState state) {
     final first = state.callInfo.remoteMembers.first;
-    return remoteRenderers.putIfAbsent(first.id, () => RTCVideoRenderer());
+    return _remoteRenderers.putIfAbsent(first.id, () => RTCVideoRenderer());
   }
 
   @override
   void dispose() {
     localRenderer.dispose();
-    for (final r in remoteRenderers.values) {
+    for (final r in _remoteRenderers.values) {
       r.dispose();
     }
-    remoteRenderers.clear();
+    _remoteRenderers.clear();
     super.dispose();
   }
 }

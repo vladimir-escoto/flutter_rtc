@@ -4,13 +4,13 @@ class FullScreenCallView extends StatefulWidget {
   final CallBloc callBloc;
   final CallBlocState state;
   final RTCVideoRenderer localRenderer;
-  final RTCVideoRenderer activeRenderer;
+  final Map<String, RTCVideoRenderer> remoteRenderer;
 
   const FullScreenCallView({
     required this.callBloc,
     required this.state,
     required this.localRenderer,
-    required this.activeRenderer,
+    required this.remoteRenderer,
     super.key,
   });
 
@@ -29,13 +29,15 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     setState(() => isLocalMain = !isLocalMain);
   }
 
+  RTCVideoRenderer get activeRenderer => widget.remoteRenderer.values.first;
+
   @override
   Widget build(BuildContext context) {
     final localMember = widget.state.self;
     final remoteMember = widget.state.callInfo.remoteMembers.first;
 
-    final mainRenderer = isLocalMain ? widget.localRenderer : widget.activeRenderer;
-    final secondaryRenderer = isLocalMain ? widget.activeRenderer : widget.localRenderer;
+    final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer;
+    final secondaryRenderer = isLocalMain ? activeRenderer : widget.localRenderer;
 
     final mainStreamAvailable =
         isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
@@ -51,34 +53,38 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
       topBar: _buildCallBar(),
       controls: _buildControls(),
       children: [
-          VideoBox(
-            renderer: mainRenderer,
-            photoUrl: mainPhotoUrl,
-            available: mainStreamAvailable,
-            mirror: !isLocalMain,
-          ),
-          // if (secondaryStreamAvailable || widget.state.isVideoCall)
-          FloatingDraggableRendererWidget(
-            topMargin: 100,
-            bottomMargin: 125,
-            secondaryStreamAvailable: secondaryStreamAvailable,
-            secondaryRenderer: secondaryRenderer,
-            isLocalMain: isLocalMain,
-            photoUrl: secondaryPhotoUrl,
-            onTap: (status, hp, vp) {
-              if (status == RenderStatus.expanded) {
-                _switchRenderers();
-                return true;
-              }
-              return false;
-            },
-            onSwitchCamera: () {
-              widget.callBloc.add(
-                ToggleLocalControlEvent(control: LocalControlType.camera),
-              );
-            },
-          ),
-        ],
+        CallMembersView(
+          members: widget.state.remoteMembers,
+          renders: widget.remoteRenderer,
+        ),
+        // VideoBox(
+        //   renderer: mainRenderer,
+        //   photoUrl: mainPhotoUrl,
+        //   available: mainStreamAvailable,
+        //   mirror: !isLocalMain,
+        // ),
+        // if (secondaryStreamAvailable || widget.state.isVideoCall)
+        FloatingDraggableRendererWidget(
+          topMargin: 100,
+          bottomMargin: 125,
+          secondaryStreamAvailable: secondaryStreamAvailable,
+          secondaryRenderer: secondaryRenderer,
+          isLocalMain: isLocalMain,
+          photoUrl: secondaryPhotoUrl,
+          onTap: (status, hp, vp) {
+            if (status == RenderStatus.expanded) {
+              _switchRenderers();
+              return true;
+            }
+            return false;
+          },
+          onSwitchCamera: () {
+            widget.callBloc.add(
+              ToggleLocalControlEvent(control: LocalControlType.camera),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -105,17 +111,13 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
       children: [
         _buildCircleIcon(Icons.close_fullscreen, () {
           widget.callBloc.add(
-            UIEvent(
-              event: UIEventType.changeOverlay,
-              value: OverlayStatus.minimized,
-            ),
+            UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.minimized),
           );
         }),
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-                titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
+            Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
             SizedBox(height: 4),
             CallDurationText(notifier: durationNotifier),
           ],
@@ -131,26 +133,23 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     );
   }
 
-  Widget _buildControls() =>
-      FullScreenCallControls(
-      isScreenShareEnabled: widget.state.localScreenShareOn,
-      isMicrophoneEnabled: widget.state.localMicOn,
-      isCameraEnabled: widget.state.localCameraOn,
-      isSpeakerEnabled: widget.state.localSpeakerOn,
-      onScreenShareTap: () {
-        widget.callBloc.add(
-          ToggleLocalControlEvent(control: LocalControlType.screenShare),
-        );
-      },
-      onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
-      onMicrophoneTap: () {
-        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
-      },
-      onCameraTap: () {
-        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
-      },
-      onSpeakerTap: () {
-        widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
-      },
+  Widget _buildControls() => FullScreenCallControls(
+    isScreenShareEnabled: widget.state.localScreenShareOn,
+    isMicrophoneEnabled: widget.state.localMicOn,
+    isCameraEnabled: widget.state.localCameraOn,
+    isSpeakerEnabled: widget.state.localSpeakerOn,
+    onScreenShareTap: () {
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.screenShare));
+    },
+    onCancelCallTap: () => widget.callBloc.add(HangUpCallEvent()),
+    onMicrophoneTap: () {
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.mic));
+    },
+    onCameraTap: () {
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.camera));
+    },
+    onSpeakerTap: () {
+      widget.callBloc.add(ToggleLocalControlEvent(control: LocalControlType.speaker));
+    },
   );
 }
