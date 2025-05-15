@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rtc/flutter_rtc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../max_visible_grid_delegate.dart';
+
 class CallMembersView extends StatefulWidget {
   final List<Member> members;
   final Map<String, RTCVideoRenderer> renders;
@@ -123,44 +125,24 @@ class _CallMembersViewState extends State<CallMembersView> {
         RendererBox(renderer: widget.renders[member.id]!, member: member, mirror: true);
   }
 
-  Widget _buildSingleLayout() {
-    final member = _sortedMembers.first;
-    return AnimatedSwitcher(
-      duration: widget.layoutTransitionDuration,
-      child: Container(
-        key: ValueKey(member.id),
-        child: AspectRatio(aspectRatio: 1, child: _buildParticipantBox(member)),
-      ),
-    );
-  }
-
-  Widget _buildDualLayout() {
-    return Column(
-      children:
-          _sortedMembers.take(2).map((member) {
-            return Expanded(
-              child: AnimatedSwitcher(
-                duration: widget.layoutTransitionDuration,
-                child: Container(
-                  key: ValueKey(member.id),
-                  child: AspectRatio(aspectRatio: 1, child: _buildParticipantBox(member)),
-                ),
-              ),
-            );
-          }).toList(),
-    );
-  }
-
   Widget _buildGridLayout() {
-    final size = MediaQuery.of(context).size;
-    final crossAxisCount = size.width<size.height?2:4;
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        childAspectRatio: _sortedMembers.length <= 4 ? 0.5 : 1,
-        mainAxisSpacing: 8,
+      padding: const EdgeInsets.all(16),
+      gridDelegate: MaxVisibleGridDelegate(
+        itemCount: _sortedMembers.length,
+        crossAxisCountResolver: (count, isPortrait) {
+          if (isPortrait) return count < 4 ? 1 : 2;
+          if (count == 1) return 1;
+          if (count == 2) return 2;
+          if (count == 3) return 3;
+          if (count == 4) return 2;
+          if (count <= 6) return 3;
+          return 4;
+        },
+        maxRowsPortrait: 4,
+        maxRowsLandscape: 2,
         crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
       ),
       itemCount: _sortedMembers.length,
       itemBuilder: (context, index) {
@@ -173,65 +155,15 @@ class _CallMembersViewState extends State<CallMembersView> {
     );
   }
 
-  Widget _buildDynamicGridLayout() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = MediaQuery.of(context).size;
-        final crossAxisCount = size.width<size.height?2:4;
-        final itemCount = _sortedMembers.length;
-
-        // Calcular el número de filas necesarias
-        final rowCount = (itemCount / crossAxisCount).ceil();
-
-        // Calcular espacio vertical disponible restando paddings y espaciados
-        final verticalPadding = 8 * crossAxisCount; // Padding vertical total
-        final mainAxisSpacingTotal = 8 * (rowCount - 1); // Espaciado entre filas
-        final availableHeight = constraints.maxHeight - verticalPadding - mainAxisSpacingTotal;
-
-        // Calcular altura por item basado en el espacio disponible
-        final itemHeight = availableHeight / rowCount;
-
-        // Calcular relación de aspecto dinámica
-        final itemWidth = (constraints.maxWidth - 8 * (crossAxisCount - 1)) / crossAxisCount;
-        final aspectRatio = itemWidth / itemHeight;
-
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: aspectRatio,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-          ),
-          itemCount: itemCount,
-          itemBuilder: (context, index) {
-            final member = _sortedMembers[index];
-            return AnimatedSwitcher(
-              duration: widget.layoutTransitionDuration,
-              child: _buildParticipantBox(member),
-            );
-          },
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    if (_sortedMembers.isEmpty) return const SizedBox.shrink();
     return AnimatedSwitcher(
       duration: widget.layoutTransitionDuration,
       switchInCurve: widget.layoutTransitionCurve,
-      child: _buildLayout(),
+        child: _buildGridLayout()
     );
-  }
-
-  Widget _buildLayout() {
-    if (_sortedMembers.isEmpty) return const SizedBox.shrink();
-    if (_sortedMembers.length == 1) return _buildSingleLayout();
-    if (_sortedMembers.length == 2) return _buildDualLayout();
-    if (_sortedMembers.length <=8) return _buildDynamicGridLayout();
-
-    return _buildGridLayout();
   }
 
   void _handleMenuSelection(String value, Member member) {
