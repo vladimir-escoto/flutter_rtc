@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 class VideoBox extends StatelessWidget {
-  final RTCVideoRenderer renderer;
+  final RTCVideoRenderer? renderer;
   final String? photoUrl;
   final bool available;
   final bool mirror;
@@ -17,19 +17,14 @@ class VideoBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget content;
-    if (!available) {
-      if (photoUrl != null && photoUrl?.isNotEmpty == true) {
-        content = Center(
-          child: CircleAvatar(radius: 48, backgroundImage: NetworkImage(photoUrl!)),
-        );
-      } else {
-        content = Center(child: Icon(Icons.person, size: 48, color: Colors.white));
-      }
-    } else {
-      content = RTCVideoView(renderer, mirror: mirror);
+    if (available && renderer != null && renderer!.renderVideo) {
+      return RTCVideoView(renderer!, mirror: mirror);
+    } else if (photoUrl != null && photoUrl?.isNotEmpty == true) {
+      return Center(
+        child: CircleAvatar(radius: 48, backgroundImage: NetworkImage(photoUrl!)),
+      );
     }
 
-    return content;
+    return const Center(child: Icon(Icons.person, size: 48, color: Colors.white));
   }
 }

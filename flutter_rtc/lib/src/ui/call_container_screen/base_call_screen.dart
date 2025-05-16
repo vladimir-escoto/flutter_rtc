@@ -53,6 +53,8 @@ class BaseCallScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: floatingActionButton,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerTop,
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: BoxDecoration(gradient: backgroundGradient),

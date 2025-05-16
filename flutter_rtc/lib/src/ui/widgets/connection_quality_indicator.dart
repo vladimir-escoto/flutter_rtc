@@ -28,6 +28,8 @@ class ConnectionQualityIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: List.generate(barCount, (index) {
         final bool isActive = index < quality;
         return Container(

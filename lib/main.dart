@@ -37,7 +37,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _callIdController = TextEditingController();
+  final TextEditingController _callIdController = TextEditingController(
+    text: "1:2:3:4:5:6:7:8",
+  );
   bool isConnected = false;
   String? _clientId;
 
@@ -45,7 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     SystemChannels.textInput.invokeMethod('TextInput.hide');
-
     _loadClientId();
   }
 
@@ -64,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -225,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
@@ -252,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Text('Simulate Hold'),
                 ),
               ),
-
             ],
           ),
           Row(
@@ -286,10 +284,35 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          SizedBox(
+            width: 100,
+            height: 100,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: PopupMenuButton<String>(
+                    useRootNavigator: false,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_horiz, size: 16, color: Colors.black),
+                    onSelected: (value) {
+                      // acciones
+                    },
+                    itemBuilder:
+                        (_) => [
+                      const PopupMenuItem(value: 'mute', child: Text('Mute')),
+                      const PopupMenuItem(value: 'settings', child: Text('Settings')),
+                      const PopupMenuItem(value: 'info', child: Text('Info')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-
               ElevatedButton(
                 onPressed: () {
                   CallCoordinator.instance.clearAllSessions();
