@@ -6,7 +6,6 @@ import 'package:flutter_rtc/src/ui/call_renderer_mixin.dart';
 import 'package:flutter_rtc/src/ui/call_timer_mixin.dart';
 import 'package:flutter_rtc/src/ui/widgets/call_duration_text.dart';
 import 'package:flutter_rtc/src/ui/widgets/call_members_view.dart';
-import 'package:flutter_rtc/src/ui/widgets/floating_draggable_renderer_widget.dart';
 import 'package:flutter_rtc/src/ui/widgets/floating_draggable_widget.dart';
 import 'package:flutter_rtc/src/ui/widgets/remote_members_carousel.dart';
 import 'package:flutter_rtc/src/ui/widgets/video_box.dart';

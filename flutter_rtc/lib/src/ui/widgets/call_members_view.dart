@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_rtc/src/ui/widgets/connection_quality_indicator.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../context/model/member.dart';
@@ -124,50 +125,111 @@ class ParticipantGridCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final bool isMuted = !member.micEnabled;
+    final bool isVideoOn = member.cameraEnabled;
+    final bool isSpeaking = member.speakerEnable;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: isSpeaking
+            ? Border.all(color: const Color(0xFF3B82F6), width: 2)
+            : null,
       ),
       child: Stack(
         children: [
-          Positioned.fill(child: _buildMedia(context)),
-          Align(
-            alignment: Alignment.topLeft,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                member.displayNameOrId,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(blurRadius: 4.0,
-                        color: Colors.black,
-                        offset: Offset(1, 1))
-                  ],
+          // Media (video full or avatar fill)
+          Positioned.fill(
+            child: isVideoOn && renderer != null
+                ? videoBuilder?.call(context, member, renderer) ??
+                RTCVideoView(renderer!, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
+                : avatarBuilder?.call(context, member) ??
+                Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: NetworkImage(member.photoUrlOrId),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
+          ),
+          // Footer overlay
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(10),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Nombre
+                  Expanded(
+                    child: Text(
+                      member.displayNameOrId,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Sans-serif',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Iconos de estado
+                  Row(
+                    children: [
+                      Icon(
+                        isMuted ? Icons.mic_off : Icons.mic,
+                        size: 16,
+                        color: isMuted ? Colors.red : Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        isVideoOn ? Icons.videocam : Icons.videocam_off,
+                        size: 16,
+                        color: isVideoOn ? Colors.green : Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      ConnectionQualityIndicator(
+                        quality: member.connectionQuality,
+                        barCount: 4,
+                        activeColor: const Color(0xFF22C55E),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.topRight,
+          // Menú de acciones
+          Positioned(
+            top: 8,
+            left: 8,
             child: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.white),
-              itemBuilder: (_) =>
-              const [
-                PopupMenuItem(value: 'settings', child: Text('Configuración')),
-                PopupMenuItem(value: 'info', child: Text('Información')),
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.more_horiz,
+                size: 16,
+                color: Color.fromRGBO(255, 255, 255, 0.7),
+              ),
+              onSelected: (value) {
+                // acciones
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'mute', child: Text('Mute')),
+                const PopupMenuItem(value: 'settings', child: Text('Settings')),
+                const PopupMenuItem(value: 'info', child: Text('Info')),
               ],
-              onSelected: (value) {},
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ConnectionQualityIndicator(quality: 10),
             ),
           ),
         ],
@@ -175,52 +237,21 @@ class ParticipantGridCell extends StatelessWidget {
     );
   }
 
-  Widget _buildMedia(BuildContext context) {
-    if (member.cameraEnabled && renderer != null) {
-      return videoBuilder?.call(context, member, renderer) ??
-          Transform.scale(scale: -1.0, child: RTCVideoView(renderer!));
-    }
-    return avatarBuilder?.call(context, member) ??
-        Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: NetworkImage(member.photoUrlOrId),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              member.displayNameOrId[0].toUpperCase(),
-              style: const TextStyle(color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-        );
-  }
+  // Widget _buildDefaultAvatar(Member member) {
+  //   return Container(
+  //     color: Colors.grey,
+  //     child: Center(
+  //       child: Text(
+  //         member.displayNameOrId[0].toUpperCase(),
+  //         style: const TextStyle(
+  //           color: Colors.white,
+  //           fontSize: 24,
+  //           fontWeight: FontWeight.bold,
+  //           fontFamily: 'Sans-serif',
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }
 
-class ConnectionQualityIndicator extends StatelessWidget {
-  final double quality;
-
-  const ConnectionQualityIndicator({super.key, required this.quality});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (index) {
-        final isActive = index < quality;
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: isActive ? Colors.green : Colors.grey,
-            shape: BoxShape.circle,
-          ),
-        );
-      }),
-    );
-  }
-}

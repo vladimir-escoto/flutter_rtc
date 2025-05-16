@@ -19,11 +19,13 @@ final class Member extends Equatable {
 
   final ConnectionStatus status;
 
+  final int connectionQuality;
+
   bool get isStreamAvailable => mediaStream != null && cameraEnabled;
 
   String get displayNameOrId => displayName ?? "User $id";
 
-  String get photoUrlOrId => "https://i.pravatar.cc/14$id";
+  String get photoUrlOrId => "https://i.pravatar.cc/200$id";
 
   const Member({
     required this.id,
@@ -34,6 +36,7 @@ final class Member extends Equatable {
     this.cameraEnabled = false,
     this.screenShareEnabled = false,
     this.mediaStream,
+    this.connectionQuality = 3,
     this.status = ConnectionStatus.disconnected,
   });
 
@@ -46,6 +49,7 @@ final class Member extends Equatable {
     MediaStream? mediaStream,
     ConnectionStatus? status,
     String? photoUrl,
+    int? connectionQuality,
   }) {
     return Member(
       id: id,
@@ -57,6 +61,7 @@ final class Member extends Equatable {
       screenShareEnabled: screenShareEnabled ?? this.screenShareEnabled,
       mediaStream: mediaStream ?? this.mediaStream,
       status: status ?? this.status,
+      connectionQuality: connectionQuality ?? this.connectionQuality,
     );
   }
 
@@ -69,6 +74,7 @@ final class Member extends Equatable {
       'speakerEnable': speakerEnable,
       'cameraEnabled': cameraEnabled,
       'screenShareEnabled': screenShareEnabled,
+      'connectionQuality': connectionQuality,
       'status': status.name,
     };
   }
@@ -81,6 +87,7 @@ final class Member extends Equatable {
       micEnabled: json['micEnabled'],
       speakerEnable: json['speakerEnable'],
       cameraEnabled: json['cameraEnabled'],
+      connectionQuality: json['connectionQuality'],
       screenShareEnabled: json['screenShareEnabled'],
       status: ConnectionStatus.values.firstWhere((e) => e.name == json['status']),
     );
@@ -97,6 +104,7 @@ final class Member extends Equatable {
     screenShareEnabled,
     mediaStream,
     status,
+    connectionQuality,
   ];
 }
 

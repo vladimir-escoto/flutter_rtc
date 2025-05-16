@@ -25,32 +25,32 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
   @override
   DateTime get initialCreatedAt => widget.state.createdAt;
 
-  void _switchRenderers() {
-    setState(() => isLocalMain = !isLocalMain);
-  }
+  // void _switchRenderers() {
+  //   setState(() => isLocalMain = !isLocalMain);
+  // }
 
   RTCVideoRenderer get activeRenderer => widget.remoteRenderer.values.first;
 
   @override
   Widget build(BuildContext context) {
-    final localMember = widget.state.self;
-    final remoteMember = widget.state.callInfo.remoteMembers.first;
+    // final localMember = widget.state.self;
+    // final remoteMember = widget.state.callInfo.remoteMembers.first;
 
-    final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer;
-    final secondaryRenderer = isLocalMain ? activeRenderer : widget.localRenderer;
-
-    final mainStreamAvailable =
-        isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
-    final secondaryStreamAvailable =
-        !isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
-
-    final mainPhotoUrl =
-        isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
-    final secondaryPhotoUrl =
-        !isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
+    // final mainRenderer = isLocalMain ? widget.localRenderer : activeRenderer;
+    // final secondaryRenderer = isLocalMain ? activeRenderer : widget.localRenderer;
+    //
+    // final mainStreamAvailable =
+    //     isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
+    // final secondaryStreamAvailable =
+    //     !isLocalMain ? localMember.isStreamAvailable : remoteMember.isStreamAvailable;
+    //
+    // final mainPhotoUrl =
+    //     isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
+    // final secondaryPhotoUrl =
+    //     !isLocalMain ? localMember.photoUrlOrId : remoteMember.photoUrlOrId;
 
     return BaseCallScreen(
-      topBar: _buildCallBar(),
+      //topBar: _buildCallBar(),
       controls: _buildControls(),
       children: [
         CallMembersView(
@@ -88,50 +88,50 @@ class _FullScreenCallViewState extends State<FullScreenCallView>
     );
   }
 
-  Widget _buildCircleIcon(IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 24),
-        onPressed: onPressed,
-      ),
-    );
-  }
+  // Widget _buildCircleIcon(IconData icon, VoidCallback onPressed) {
+  //   return Container(
+  //     decoration: BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+  //     child: IconButton(
+  //       icon: Icon(icon, color: Colors.white, size: 24),
+  //       onPressed: onPressed,
+  //     ),
+  //   );
+  // }
 
-  Widget _buildCallBar() {
-    final remoteMembers = widget.state.remoteMembers;
-
-    final titleText =
-        remoteMembers.length == 1
-            ? remoteMembers.first.displayNameOrId
-            : '${remoteMembers.length} Participants';
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildCircleIcon(Icons.close_fullscreen, () {
-          widget.callBloc.add(
-            UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.minimized),
-          );
-        }),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
-            SizedBox(height: 4),
-            CallDurationText(notifier: durationNotifier),
-          ],
-        ),
-        _buildCircleIcon(Icons.person_add, () {
-          // widget.callBloc.add(
-          //   UIEvent(
-          //     event: UIEventType.addParticipant,
-          //   ),
-          // );
-        }),
-      ],
-    );
-  }
+  // Widget _buildCallBar() {
+  //   final remoteMembers = widget.state.remoteMembers;
+  //
+  //   final titleText =
+  //       remoteMembers.length == 1
+  //           ? remoteMembers.first.displayNameOrId
+  //           : '${remoteMembers.length} Participants';
+  //
+  //   return Row(
+  //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //     children: [
+  //       _buildCircleIcon(Icons.close_fullscreen, () {
+  //         widget.callBloc.add(
+  //           UIEvent(event: UIEventType.changeOverlay, value: OverlayStatus.minimized),
+  //         );
+  //       }),
+  //       Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           Text(titleText, style: TextStyle(color: Colors.white, fontSize: 18)),
+  //           SizedBox(height: 4),
+  //           CallDurationText(notifier: durationNotifier),
+  //         ],
+  //       ),
+  //       _buildCircleIcon(Icons.person_add, () {
+  //         // widget.callBloc.add(
+  //         //   UIEvent(
+  //         //     event: UIEventType.addParticipant,
+  //         //   ),
+  //         // );
+  //       }),
+  //     ],
+  //   );
+  // }
 
   Widget _buildControls() => FullScreenCallControls(
     isScreenShareEnabled: widget.state.localScreenShareOn,
