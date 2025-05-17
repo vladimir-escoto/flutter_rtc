@@ -6,11 +6,15 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../context/model/member.dart';
 import '../max_visible_grid_delegate.dart';
 
+typedef MenuTapCallback = void Function(String memberId, String option);
+
 class CallMembersView extends StatefulWidget {
   final List<Member> members;
   final Map<String, RTCVideoRenderer> renders;
   final Duration layoutTransitionDuration;
   final Curve layoutTransitionCurve;
+  final MenuTapCallback? onMenuTap;
+  final List<String> menuOptions;
 
   const CallMembersView({
     super.key,
@@ -18,6 +22,8 @@ class CallMembersView extends StatefulWidget {
     required this.renders,
     this.layoutTransitionDuration = const Duration(milliseconds: 300),
     this.layoutTransitionCurve = Curves.easeInOut,
+    this.onMenuTap,
+    this.menuOptions = const ["mute", "info"]
   });
 
   @override
@@ -26,6 +32,14 @@ class CallMembersView extends StatefulWidget {
 
 class _CallMembersViewState extends State<CallMembersView> {
   late List<Member> _sortedMembers;
+  String? _openMenuMemberId;
+
+  void _toggleMenu(String memberId) {
+    setState(() {
+      // Open the selected menu; close if same tapped again
+      _openMenuMemberId = _openMenuMemberId == memberId ? null : memberId;
+    });
+  }
 
   @override
   void initState() {
@@ -95,6 +109,13 @@ class _CallMembersViewState extends State<CallMembersView> {
             key: ValueKey(member.id),
             member: member,
             renderer: widget.renders[member.id],
+            isMenuOpen: _openMenuMemberId == member.id,
+            onMenuToggle: _toggleMenu,
+            menuOptions: widget.menuOptions,
+            onMenuTap: (memberId, option) {
+              _toggleMenu(memberId);
+              widget.onMenuTap?.call(memberId, option);
+            },
           ),
         );
       },
@@ -102,17 +123,30 @@ class _CallMembersViewState extends State<CallMembersView> {
   }
 }
 
+/// Single participant cell with inline menu.
 class ParticipantGridCell extends StatelessWidget {
   final Member member;
   final RTCVideoRenderer? renderer;
+  final bool isMenuOpen;
+  final List<String> menuOptions;
+  final ValueChanged<String> onMenuToggle;
+  final MenuTapCallback onMenuTap;
 
-  const ParticipantGridCell({super.key, required this.member, this.renderer});
+  const ParticipantGridCell({
+    super.key,
+    required this.member,
+    required this.isMenuOpen,
+    required this.onMenuToggle,
+    required this.onMenuTap,
+    this.menuOptions = const [],
+    this.renderer,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bool isMuted = !member.micEnabled;
-    final bool isVideoOn = member.cameraEnabled;
-    final bool isSpeaking = member.speakerEnable;
+    final isMuted = !member.micEnabled;
+    final isVideoOn = member.cameraEnabled;
+    final isSpeaking = member.speakerEnable;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
@@ -120,114 +154,138 @@ class ParticipantGridCell extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
-        border: isSpeaking ? Border.all(color: const Color(0xFF3B82F6), width: 2) : null,
+        border: isSpeaking
+            ? Border.all(color: const Color(0xFF3B82F6), width: 2)
+            : null,
       ),
       child: Stack(
         children: [
-          // Media (video full or avatar fill)
-          Positioned.fill(
-            child: VideoBox(
-              renderer: renderer,
-              photoUrl: member.photoUrlOrId,
-              available: member.cameraEnabled,
-              mirror: true,
-            ),
+          // Video or avatar fills entire cell
+          VideoBox(
+            renderer: renderer,
+            photoUrl: member.photoUrlOrId,
+            available: isVideoOn,
+            mirror: true,
           ),
           // Footer overlay
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              height: 24,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Nombre
-                  Expanded(
-                    child: Text(
-                      member.displayNameOrId,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Sans-serif',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Iconos de estado
-                  Row(
-                    children: [
-                      Icon(
-                        isMuted ? Icons.mic_off : Icons.mic,
-                        size: 16,
-                        color: isMuted ? Colors.red : Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        isVideoOn ? Icons.videocam : Icons.videocam_off,
-                        size: 16,
-                        color: isVideoOn ? Colors.green : Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      ConnectionQualityIndicator(
-                        quality: member.connectionQuality,
-                        barCount: 4,
-                        activeColor: const Color(0xFF22C55E),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Menú de acciones
-          Positioned(
-            top: 8,
-            left: 8,
-            child: PopupMenuButton<String>(
-              useRootNavigator: true,
-              padding: EdgeInsets.zero,
-              icon: const Icon(
-                Icons.more_horiz,
-                size: 16,
-                color: Color.fromRGBO(255, 255, 255, 0.7),
-              ),
-              onSelected: (value) {
-                // acciones
-              },
-              itemBuilder:
-                  (_) => [
-                    const PopupMenuItem(value: 'mute', child: Text('Mute')),
-                    const PopupMenuItem(value: 'settings', child: Text('Settings')),
-                    const PopupMenuItem(value: 'info', child: Text('Info')),
-                  ],
-            ),
-          ),
+          _buildBar(isMuted, isVideoOn),
+          ..._buildMenu(),
         ],
       ),
     );
   }
 
-  // Widget _buildDefaultAvatar(Member member) {
-  //   return Container(
-  //     color: Colors.grey,
-  //     child: Center(
-  //       child: Text(
-  //         member.displayNameOrId[0].toUpperCase(),
-  //         style: const TextStyle(
-  //           color: Colors.white,
-  //           fontSize: 24,
-  //           fontWeight: FontWeight.bold,
-  //           fontFamily: 'Sans-serif',
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget _buildBar(bool isMuted, bool isVideoOn) =>
+      Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          height: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(10)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  member.displayNameOrId,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Sans-serif',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Row(
+                children: [
+                  Icon(
+                    isMuted ? Icons.mic_off : Icons.mic,
+                    size: 16,
+                    color: isMuted ? Colors.red : Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    isVideoOn ? Icons.videocam : Icons.videocam_off,
+                    size: 16,
+                    color: isVideoOn ? Colors.green : Colors.grey,
+                  ),
+                  const SizedBox(width: 4),
+                  ConnectionQualityIndicator(
+                    quality: member.connectionQuality,
+                    barCount: 4,
+                    activeColor: const Color(0xFF22C55E),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+
+  List<Positioned> _buildMenu() {
+    return [
+      // Inline menu trigger
+      Positioned(
+        top: 16,
+        left: 16,
+        child: GestureDetector(
+          onTap: () => onMenuToggle(member.id),
+          child: const Icon(
+            Icons.more_horiz,
+            size: 16,
+            color: Color.fromRGBO(255, 255, 255, 0.7),
+          ),
+        ),
+      ),
+      // Inline menu options
+      if (isMenuOpen)
+        Positioned(
+          top: 32,
+          left: 8,
+          child: Material(
+            color: const Color(0xFF2E2E2E),
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: menuOptions.map((option) =>
+                  _InlineMenuItem(
+                      label: option,
+                      memberId: member.id,
+                      onTap: onMenuTap
+                  )).toList(),
+            ),
+          ),
+        )
+    ];
+  }
+}
+
+/// Simple inline menu item.
+class _InlineMenuItem extends StatelessWidget {
+  final String label;
+  final MenuTapCallback onTap;
+  final String memberId;
+
+  const _InlineMenuItem(
+      {required this.label, required this.onTap, required this.memberId});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onTap(memberId, label),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Text(label, style: const TextStyle(color: Colors.white)),
+      ),
+    );
+  }
 }
