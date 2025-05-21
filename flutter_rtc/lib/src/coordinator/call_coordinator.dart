@@ -92,7 +92,7 @@ class CallCoordinator {
   }) async => await startCall(
     userId: userId,
     members: [Member(id: targetUserId)],
-    mode: CallMode.video,
+    mode: mode,
   );
 
   Future<String> startCall({
