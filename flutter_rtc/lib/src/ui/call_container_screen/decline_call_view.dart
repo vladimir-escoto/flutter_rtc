@@ -3,7 +3,7 @@ part of "../call_container_screen.dart";
 class DeclineCallView extends StatelessWidget {
   final CallBloc callBloc;
   final CallBlocState state;
-  final RTCVideoRenderer localRenderer;
+  final RTCVideoRenderer? localRenderer;
 
   const DeclineCallView({
     required this.callBloc,

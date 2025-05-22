@@ -2,6 +2,7 @@
 part of 'rtc_manager.dart';
 
 class _RTCMediaHandler {
+
   MediaStream? _localStream;
 
   MediaStream? get localStream => _localStream;

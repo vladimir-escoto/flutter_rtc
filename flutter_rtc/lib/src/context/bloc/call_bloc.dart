@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_rtc/src/context/model/call_info.dart';
 import 'package:flutter_rtc/src/context/model/member.dart';
@@ -63,11 +63,9 @@ class CallBloc extends Bloc<CallBlocEvent, CallBlocState> {
       case CallLifeCycleStatus.initial:
         emit(CallBlocState.fromCallInfo(state.callInfo));
         break;
-      case CallLifeCycleStatus.incoming:
-
       default:
-        final newState = state.copyWithStream(rtcManager.mediaStreams)
-            .copyWithCallInfo(state.callInfo.copyWith(callStatus: type));
+        final newState = state.copyWithStream(rtcManager.mediaStreams, type);
+        debugPrint('[CallBloc]:new state: ${newState.members})}');
         emit(newState);
         break;
     }

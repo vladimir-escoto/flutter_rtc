@@ -10,6 +10,7 @@ import 'package:flutter_rtc/src/context/call_context.dart';
 import 'package:flutter_rtc/src/context/model/member.dart';
 import 'package:flutter_rtc/src/signaling/mqtt_signaling.dart';
 import 'package:flutter_rtc/src/signaling/signaling_interface.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
 
 typedef GlobalEventCallback = void Function(dynamic event);
@@ -36,7 +37,9 @@ class CallCoordinator {
 
   bool _initialized = false;
 
-  get onGlobalEvent => _onGlobalEvent.stream;
+  Stream get onGlobalEvent => _onGlobalEvent.stream;
+
+  bool get isSignalingConnected => _signaling.isConnected;
 
   Stream<CallList> get callStateStream => _callStreamController.stream;
 
@@ -105,8 +108,9 @@ class CallCoordinator {
     return context.callId;
   }
 
-  CallContext _makeCall(String userId, List<Member> members, CallMode mode) {
-    final callId = _generateCallId();
+  CallContext _makeCall(String userId, List<Member> members, CallMode mode,
+      {String? callId, bool isCaller = true}) {
+    callId ??= _generateCallId();
     debugPrint('[CallCoordinator] [callId: $callId] makeCall, callId: $callId');
 
     final context = CallContext(
@@ -115,7 +119,7 @@ class CallCoordinator {
       userId: userId,
       members: members,
       signaling: _signaling,
-      isCaller: true,
+        isCaller: isCaller,
       mode: mode
     );
 
@@ -124,7 +128,7 @@ class CallCoordinator {
     }
 
     _callSubs[callId] = context.callStatus.listen((event) =>
-        _handleCallStatusEvent(event, callId));
+        _handleCallStatusEvent(event, callId!));
 
     _activeCalls[callId] = context;
 
@@ -159,8 +163,13 @@ class CallCoordinator {
     _onGlobalEvent.add(data);
     var context = _activeCalls[data.callId];
 
-    if (context == null) {
-      debugPrint('[CallCoordinator] [callId: ${data.callId}] No active session for call $data');
+    if (context == null && data.type == CallDataEventType.offer) {
+      receiveIncomingCall(data);
+      return;
+    } else if (context == null) {
+      debugPrint(
+          '[CallCoordinator] [callId: ${data.callId}] Unhandled event: ${data
+              .type}');
       return;
     }
 
@@ -171,8 +180,8 @@ class CallCoordinator {
   void _handCallKitGlobalEvent(CallKitEventData event) {
     debugPrint('[CallCoordinator] [callId: ${event.body["id"]}] Received callkit event: ${event.event}');
     if (event.event == CallKitEvent.incoming) {
-      var callData = CallEventData.fromJson(event.body as Map<String, dynamic>);
-      receiveIncomingCall(callData);
+      // var callData = CallEventData.fromJson(event.body as Map<String, dynamic>);
+      // receiveIncomingCall(callData);
     } else if (event.event == CallKitEvent.start) {
       // TODO: started an outgoing call
       // TODO: show screen calling in Flutter
@@ -183,13 +192,15 @@ class CallCoordinator {
     if (!_activeCalls.containsKey(data.callId)) {
       debugPrint('[CallCoordinator] [callId: ${data.callId}] receiveIncomingCall');
       var offer = data.toOffer();
-      var context = _makeCall(data.to, offer.members, offer.mode);
+      var context = _makeCall(
+          data.to, offer.members, offer.mode, callId: data.callId,
+          isCaller: false);
       context.handleIncomingOffer(data);
     }
   }
 
   /// Clears all active sessions (used for logout or reset).
-  void clearAllSessions() {
+  void clearAllSessions() async {
     debugPrint('[CallCoordinator] clearAllSessions');
     for (final entry in _activeCalls.entries) {
       entry.value.dispose();
@@ -197,6 +208,7 @@ class CallCoordinator {
     }
     _activeCalls.clear();
     _users.clear();
+    Helper.clearAndroidCommunicationDevice();
   }
 
   void endCall(String callId) {

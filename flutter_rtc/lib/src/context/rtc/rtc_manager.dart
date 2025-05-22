@@ -13,9 +13,7 @@ import '../bloc/call_bloc.dart';
 
 part 'rtc_device_handler.dart';
 part 'rtc_event_manager.dart';
-
 part 'rtc_media_handler.dart';
-
 part 'rtc_peer_manager.dart';
 
 class RTCManager {
@@ -32,12 +30,11 @@ class RTCManager {
 
   Stream<PeerCallEvent> get peerEvents => _eventHandler.peerEvents;
 
-  MediaStream? get localStream => _mediaHandler.localStream;
-
   Map<String, MediaStream?> get mediaStreams {
-    _peerManager.remoteMediaStream.putIfAbsent(userId, () => localStream);
+    Map<String, MediaStream?> streams = Map.from(_peerManager.remoteMediaStream);
+    streams.putIfAbsent(userId, () => _mediaHandler.localStream);
 
-    return _peerManager.remoteMediaStream;
+    return streams;
   }
 
   RTCManager(
@@ -55,13 +52,16 @@ class RTCManager {
   /// peer connection, data channel and sending the offer via signaling.
   Future<void> startOutgoingCall(List<Member> members, CallMode mode) async {
     try {
-      debugPrint("[CallManager] startOutgoingCall");
+      debugPrint("[CallManager] startOutgoingCall(${mode.name})");
       _eventHandler.sendCallEvent(CallLifeCycleStatus.initial);
+      final isVideoCall = mode == CallMode.video;
+      await _mediaHandler._ensureHasPermissions(isVideoCall);
+
+      debugPrint("[CallManager] createOfferFor ${members.length}");
+      await _mediaHandler.ensureLocalStream(enableVideo: isVideoCall);
       _eventHandler.sendCallEvent(CallLifeCycleStatus.calling);
-
-      await _mediaHandler._ensureHasPermissions(mode == CallMode.video);
-
-      createOfferFor(members, mode);
+      await _peerManager.createOffersFor(
+          members, _mediaHandler.localStream!, mode);
     } catch (e) {
       debugPrint("[CallManager] Error starting outgoing call: $e");
       _eventHandler.sendCallEvent(
@@ -87,11 +87,6 @@ class RTCManager {
     }
   }
 
-  Future<void> createOfferFor(List<Member> members, CallMode mode) async {
-    debugPrint("[CallManager] createOfferFor ${members.length}");
-    await _mediaHandler.ensureLocalStream(enableVideo: mode == CallMode.video);
-    await _peerManager.createOffersFor(members, _mediaHandler.localStream!, mode);
-  }
 
   /// Handles an incoming offer by storing the offer data and notifying listeners.
   void handleIncomingOffer(CallEventData offer) async {
@@ -119,6 +114,7 @@ class RTCManager {
   Future<void> handleEndCall() async {
     await _peerManager.handleEndCall();
     _eventHandler.sendCallEvent(CallLifeCycleStatus.ended);
+    dispose();
   }
 
   Future<void> joinMember(String remoteId) async {
@@ -149,12 +145,13 @@ class RTCManager {
     onStop: (stream) => _peerManager.replaceVideoTracks(stream.getVideoTracks().first),
   );
 
-  void close() {
+
+  void dispose() {
     _peerManager.disposeAll();
     _mediaHandler.dispose();
+    _deviceHandler.dispose();
+    _eventHandler.dispose();
   }
-
-  void dispose() => close();
 
   Future<void> resumeCall() async {
     _peerManager.resumeCall();

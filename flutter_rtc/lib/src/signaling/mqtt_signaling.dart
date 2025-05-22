@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:mqtt5_client/mqtt5_client.dart';
 import 'package:mqtt5_client/mqtt5_server_client.dart';
@@ -163,4 +164,8 @@ class MQTTSignaling implements ISignaling {
     _callEC.close();
     _signalingEC.close();
   }
+
+  @override
+  bool get isConnected =>
+      _client.connectionStatus?.state == MqttConnectionState.connected;
 }

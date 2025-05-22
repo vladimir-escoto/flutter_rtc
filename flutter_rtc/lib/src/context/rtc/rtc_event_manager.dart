@@ -23,4 +23,9 @@ class _RTCEventHandler {
       {dynamic value}) =>
       _peerEventController.add(PeerCallEvent(memberId, status, value: value));
 
+  void dispose() {
+    _peerEventController.close();
+    _callEventController.close();
+    _remoteEventController.close();
+  }
 }

@@ -139,7 +139,6 @@ class PeerConnectionWrapper {
   }
 
   Future<void> endCall() async {
-    dispose();
 
     final data = CallEventData(
       type: CallDataEventType.callEnded,
