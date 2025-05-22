@@ -45,10 +45,14 @@ class CallContext {
     required List<Member> members,
     Map<String, dynamic> params = const {},
   }) {
+    final isVideoCall = mode == CallMode.video;
     var copyMembers = List<Member>.from(members);
 
     if (!copyMembers.any((p) => p.id == userId)) {
-      copyMembers.add(Member(id: userId));
+      copyMembers.add(Member(id: userId,
+          cameraEnabled: isVideoCall,
+          speakerEnable: isVideoCall,
+          micEnabled: true));
     }
 
     _callInfo = CallInfo(
@@ -74,11 +78,11 @@ class CallContext {
   void startOutgoingCall() {
     debugPrint('[CallContext][callId: $callId] startOutgoingCall');
     _bloc.add(StartOutgoingCallEvent());
-    callKitManager.showOutgoingCall(
-      callId: callId,
-      callerName: _callInfo.self.displayNameOrId,
-      body: _callInfo.toJson(),
-    );
+    // callKitManager.showOutgoingCall(
+    //   callId: callId,
+    //   callerName: _callInfo.self.displayNameOrId,
+    //   body: _callInfo.toJson(),
+    // );
   }
 
   Future<void> handleIncomingOffer(CallEventData data) async {

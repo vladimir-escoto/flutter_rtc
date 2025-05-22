@@ -8,4 +8,8 @@ class _RTCDeviceHandler {
   }
 
   void setSpeakerphone(bool enabled) => Helper.setSpeakerphoneOn(enabled);
+
+  void dispose() {
+
+  }
 }

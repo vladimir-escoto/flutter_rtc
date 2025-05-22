@@ -12,34 +12,21 @@ import 'package:flutter_rtc/src/ui/widgets/video_box.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 part 'call_container_screen/base_call_screen.dart';
-
 part 'call_container_screen/decline_call_view.dart';
-
 part 'call_container_screen/error_call_View.dart';
-
 part 'call_container_screen/full_screen_call_view.dart';
-
 part 'call_container_screen/hold_call_view.dart';
-
 part 'call_container_screen/incoming_call_view.dart';
-
 part 'call_container_screen/minimized_call_view.dart';
-
 part 'call_container_screen/outgoing_call_view.dart';
-
 part 'widgets/call_control_option.dart';
-
 part 'widgets/call_overlay.dart';
-
 part 'widgets/call_status_widget.dart';
 
-part 'widgets/full_screen_call_controls.dart';
-
-part 'widgets/incoming_call_controls.dart';
-
-part 'widgets/outgoing_call_controls.dart';
-
 part 'widgets/decline_call_controls.dart';
+part 'widgets/full_screen_call_controls.dart';
+part 'widgets/incoming_call_controls.dart';
+part 'widgets/outgoing_call_controls.dart';
 
 typedef ControlHandler = void Function();
 typedef DragUpdateHandler = void Function(Offset);
@@ -86,14 +73,25 @@ class _CallContainerScreenState extends State<CallContainerScreen>
   void initState() {
     super.initState();
     FocusManager.instance.primaryFocus?.unfocus(); // hidden keyboard here
+
+    initRenderers(widget.callBloc.state);
   }
+
+  @override
+  String get userId => widget.callBloc.state.self.id;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<CallBloc, CallBlocState>(
       bloc: widget.callBloc,
       builder: (context, state) {
+        if (state.lifecycleStatus == CallLifeCycleStatus.initial ||
+            state.lifecycleStatus == CallLifeCycleStatus.ended || !mounted) {
+          return const SizedBox.shrink();
+        }
+
         updateRenderers(state);
+
         if (state.isUiMinimized) {
           return _buildMinimized(context, widget.callBloc, state);
         }
@@ -111,8 +109,7 @@ class _CallContainerScreenState extends State<CallContainerScreen>
             return _buildDecline(context, widget.callBloc, state);
           case CallLifeCycleStatus.hold:
             return _buildHoldView(context, widget.callBloc, state);
-          case CallLifeCycleStatus.initial:
-          case CallLifeCycleStatus.ended:
+          default:
             return const SizedBox.shrink();
         }
       },
@@ -126,7 +123,8 @@ class _CallContainerScreenState extends State<CallContainerScreen>
 
   Widget _buildMinimized(BuildContext context, CallBloc bloc, CallBlocState state) =>
       widget.minimizedView?.call(context, bloc, state) ??
-      MinimizedCallView(callBloc: bloc, state: state, renderer: activeRenderer(state));
+          MinimizedCallView(
+              callBloc: bloc, state: state, renderer: activeRenderer);
 
   Widget _buildOutgoing(BuildContext context, CallBloc bloc, CallBlocState state) =>
       widget.outgoingView?.call(context, bloc, state) ??
@@ -152,4 +150,5 @@ class _CallContainerScreenState extends State<CallContainerScreen>
   Widget _buildError(BuildContext context, CallBloc bloc, CallBlocState state) =>
       widget.errorView?.call(context, bloc, state) ??
       CallErrorView(callBloc: bloc, state: state);
+
 }

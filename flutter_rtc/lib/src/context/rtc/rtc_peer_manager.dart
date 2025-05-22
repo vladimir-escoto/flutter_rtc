@@ -60,7 +60,6 @@ class _RTCPeerManager {
     for (final peer in _peers.values) {
       await peer.endCall();
     }
-    disposeAll();
   }
 
   Future<void> handleIncomingHold(CallEventData data) async {

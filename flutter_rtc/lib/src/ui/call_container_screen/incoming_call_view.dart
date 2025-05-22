@@ -3,7 +3,7 @@ part of "../call_container_screen.dart";
 class IncomingCallView extends StatelessWidget {
   final CallBloc callBloc;
   final CallBlocState state;
-  final RTCVideoRenderer localRenderer;
+  final RTCVideoRenderer? localRenderer;
 
   const IncomingCallView({
     required this.callBloc,
@@ -17,7 +17,7 @@ class IncomingCallView extends StatelessWidget {
     return BaseCallScreen(
       controls: _buildControls(),
       children: [
-        if (state.isVideoCall)
+        if (state.isVideoCall && state.self.cameraEnabled)
           VideoBox(
             renderer: localRenderer,
             photoUrl: state.self.photoUrlOrId,

@@ -8,6 +8,7 @@ part 'signaling_configuration.dart';
 part 'signaling_event.dart';
 
 abstract class ISignaling {
+  bool get isConnected;
   // Stream of signaling events.
   Stream<SignalingEvent> get signalingEvents;
 

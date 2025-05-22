@@ -76,9 +76,10 @@ class CallBlocState extends Equatable {
     return CallBlocState(callInfo: callInfo, overlayStatus: OverlayStatus.expanded);
   }
 
-  CallBlocState copyWithStream(Map<String, MediaStream?> remoteStream) {
-    return copyWithCallInfo(callInfo.copyAndUpdateStream(remoteStream));
-  }
+  CallBlocState copyWithStream(Map<String, MediaStream?> remoteStream,
+      CallLifeCycleStatus callStatus) =>
+      copyWithCallInfo(
+          callInfo.copyAndUpdateStream(remoteStream, callStatus));
 
   CallBlocState toggleControl({
     bool? speakerEnable,
@@ -122,6 +123,9 @@ class CallBlocState extends Equatable {
   }
 
   CallBlocState copyWithCallInfo(CallInfo callInfo) {
+    debugPrint('[CallInfo]:Updating: ${callInfo.members
+        .where((e) => e.mediaStream != null)
+        .length})}');
     return copyWith(callInfo: callInfo);
   }
 

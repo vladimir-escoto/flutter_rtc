@@ -3,7 +3,7 @@ part of "../call_container_screen.dart";
 class FullScreenCallView extends StatefulWidget {
   final CallBloc callBloc;
   final CallBlocState state;
-  final RTCVideoRenderer localRenderer;
+  final RTCVideoRenderer? localRenderer;
   final Map<String, RTCVideoRenderer> remoteRenderer;
 
   const FullScreenCallView({

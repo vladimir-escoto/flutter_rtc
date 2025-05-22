@@ -142,21 +142,24 @@ class CallOffer extends RTCSessionDescription {
     );
   }
 
-  /// Converts the [CallOffer] object to a JSON map.
-  Map<String, dynamic> toJson() => {
-    'sdp': sdp,
-    'type': type,
-    'mode': mode.toString(),
-    'members': members.toJsonList(),
-  };
+  @override
+  dynamic toMap() {
+    return {
+      'sdp': sdp,
+      'type': type,
+      'mode': mode.name,
+      'members': members.toJsonList(),
+    };
+  }
+
 
   /// Creates a [CallOffer] instance from a JSON map.
   factory CallOffer.fromJson(Map<String, dynamic> json) => CallOffer(
     sdp: json['sdp'],
     type: json['type'],
-    mode: CallMode.values.firstWhere((e) => e.toString() == json['mode']),
+    mode: CallMode.values.firstWhere((e) => e.name == json['mode']),
     members: MembersListExtension.fromJsonList(
-      json['members'] as List<Map<String, dynamic>>,
+      json['members'],
     ),
   );
 }

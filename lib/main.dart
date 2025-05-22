@@ -38,9 +38,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _callIdController = TextEditingController(
-    text: "1:2:3:4:5:6:7:8",
+    text: "7",
   );
-  bool isConnected = false;
+  String? errorMessage;
+  bool get isConnected => CallCoordinator.instance.isSignalingConnected;
   String? _clientId;
 
   @override
@@ -48,6 +49,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     _loadClientId();
+
+    CallCoordinator.instance.onGlobalEvent.listen((event) async {
+      if (event is SignalingEvent) {
+        if (event.type == SignalingEventType.error) {
+          setState(() {
+            errorMessage = event.data;
+          });
+          return;
+        }
+
+        if (event.type == SignalingEventType.connected) {
+          CallCoordinator.instance.registerUser(await ClientPreferences.getClientId());
+        }
+      }
+    });
   }
 
   Future<void> _loadClientId() async {
@@ -65,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -93,19 +110,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeScreen(BuildContext context, String clientId) {
-    CallCoordinator.instance.onGlobalEvent.listen((event) {
-      setState(() {
-        isConnected = event.type == SignalingEventType.connected;
-      });
 
-      if (event is SignalingEvent && event.type == SignalingEventType.connected) {
-        CallCoordinator.instance.registerUser(clientId);
-      }
-    });
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
+          if (errorMessage != null)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  errorMessage = null;
+                });
+              },
+              child: Text(
+                  'Error: $errorMessage',
+                  style: TextStyle(
+                    decoration: TextDecoration.none,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+            ),
           Text(
             'Client ID: $clientId',
             style: TextStyle(
@@ -131,11 +156,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    final targetId = _callIdController.text.trim();
+                    final targetId = _callIdController.text.trim().split(":");
                     if (targetId.isNotEmpty) {
                       CallCoordinator.instance.startSingleCall(
                         clientId,
-                        targetId,
+                        targetId.first,
                         mode: CallMode.video,
                       );
                     }
@@ -146,9 +171,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    final targetId = _callIdController.text.trim();
+                    final targetId = _callIdController.text.trim().split(":");
                     if (targetId.isNotEmpty) {
-                      CallCoordinator.instance.startSingleCall(clientId, targetId);
+                      CallCoordinator.instance.startSingleCall(
+                          clientId, targetId.first);
                     }
                   },
                   child: const Text('Make Audio Call'),
@@ -156,6 +182,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          //--------------------------------------------------------------------
+          Container(
+            margin: EdgeInsets.only(top: 8, bottom: 8),
+            decoration: BoxDecoration(border: Border.symmetric(
+                horizontal: BorderSide(color: Colors.black12))),),
+          //--------------------------------------------------------------------
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             spacing: 10,
@@ -166,12 +198,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     final targetId = _callIdController.text.trim().split(":");
                     if (targetId.isNotEmpty) {
                       CallCoordinator.instance.startCall(
+                        mode: CallMode.video,
                         userId: clientId,
-                        members: [Member(id: targetId.first), Member(id: targetId.last)],
+                        members: targetId.map((id) => Member(id: id)).toList(),
                       );
                     }
                   },
-                  child: const Text('Group Call'),
+                  child: const Text('Group Video Call'),
                 ),
               ),
               Expanded(
@@ -179,17 +212,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {
                     final targetId = _callIdController.text.trim().split(":");
                     if (targetId.isNotEmpty) {
-                      CallCoordinator.instance.simulateCall(
+                      CallCoordinator.instance.startCall(
+                        mode: CallMode.audio,
                         userId: clientId,
                         members: targetId.map((id) => Member(id: id)).toList(),
                       );
                     }
                   },
-                  child: const Text('Simulate Call'),
+                  child: const Text('Group Audio Call'),
                 ),
               ),
             ],
           ),
+          Container(margin: EdgeInsets.only(top: 8, bottom: 8),
+            decoration: BoxDecoration(border: Border.symmetric(
+                horizontal: BorderSide(color: Colors.black12))),),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
@@ -283,32 +320,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ],
-          ),
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: PopupMenuButton<String>(
-                    useRootNavigator: false,
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.more_horiz, size: 16, color: Colors.black),
-                    onSelected: (value) {
-                      // acciones
-                    },
-                    itemBuilder:
-                        (_) => [
-                      const PopupMenuItem(value: 'mute', child: Text('Mute')),
-                      const PopupMenuItem(value: 'settings', child: Text('Settings')),
-                      const PopupMenuItem(value: 'info', child: Text('Info')),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -3,7 +3,7 @@ part of "../call_container_screen.dart";
 class MinimizedCallView extends StatefulWidget {
   final CallBloc callBloc;
   final CallBlocState state;
-  final RTCVideoRenderer renderer;
+  final RTCVideoRenderer? renderer;
 
   const MinimizedCallView({
     required this.callBloc,
@@ -38,10 +38,10 @@ class _MinimizedCallViewState extends State<MinimizedCallView> with CallTimerMix
       },
       builder: (ctx, status, hPos, vPos) {
         Widget content;
-        if (!(widget.renderer.renderVideo)) {
+        if (!(widget.renderer?.renderVideo ?? false)) {
           content = _buildCircleAvatar(remoteMember.photoUrlOrId);
         } else {
-          content = RTCVideoView(widget.renderer, mirror: false);
+          content = RTCVideoView(widget.renderer!, mirror: false);
         }
         return Stack(children: [Positioned.fill(child: content), _buildTimer()]);
       },
