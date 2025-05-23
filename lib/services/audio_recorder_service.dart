@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart' as rec;
 
 /// Result of an audio recording operation.
 class AudioResult {
@@ -14,36 +14,29 @@ class AudioResult {
 
 /// Basic audio recorder service using the [record] package.
 class AudioRecorderService {
-  final Record _record;
+  final rec.Record _record;
   final Future<bool> Function()? _checkPermissions;
   final Future<Directory> Function()? _getTempDir;
 
-
-  /// Emits amplitude values from the underlying [Record] instance.
-  ///
-  /// The [interval] controls how frequently values are emitted. By default the
-  /// record package sends updates every 300ms.
-  Stream<Amplitude> onAmplitude({Duration interval = const Duration(milliseconds: 300)}) {
-    // `Record` exposes a method `onAmplitude` which returns a stream of
-    // [Amplitude] values. It is not a getter so we forward the call here.
-    return _record.onAmplitude(interval: interval);
+  Stream<rec.Amplitude> onAmplitude({Duration interval = const Duration(milliseconds: 300)}) {
+    return _record.onAmplitudeChanged(interval: interval);
   }
 
   DateTime? _startTime;
   String? _filePath;
-
   AudioRecorderService({
-    Record? record,
+    rec.Record? record,
     Future<bool> Function()? checkPermissions,
     Future<Directory> Function()? tempDir,
-  })  : _record = record ?? Record(),
+  })  : _record = record ?? rec.Record(),
         _checkPermissions = checkPermissions,
         _getTempDir = tempDir;
 
   Future<void> start({
     int sampleRate = 48000,
     int bitRate = 96000,
-    AudioEncoder encoder = AudioEncoder.aac,
+    rec.AudioEncoder encoder = rec.AudioEncoder.aacLc,
+
   }) async {
     final granted = await (_checkPermissions ?? _defaultCheckPermissions)();
     if (!granted) {
@@ -56,7 +49,8 @@ class AudioRecorderService {
       await voiceDir.create(recursive: true);
     }
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final extension = encoder == AudioEncoder.aac ? 'm4a' : 'opus';
+    final extension = encoder == rec.AudioEncoder.opus ? 'opus' : 'm4a';
+
     final path = '${voiceDir.path}/$timestamp.$extension';
 
     _filePath = path;

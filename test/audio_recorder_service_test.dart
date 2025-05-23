@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart' as rec;
 import 'package:flutter_rtc/services/audio_recorder_service.dart';
 
-class MockRecord extends Mock implements Record {}
+class MockRecord extends Mock implements rec.Record {}
+
 
 void main() {
   group('AudioRecorderService', () {
