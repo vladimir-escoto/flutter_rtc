@@ -1,14 +1,15 @@
-import 'dart:async';
+// File: lib/widgets/chat_input_bar/chat_input_bar.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'attachment_panel.dart';
-import 'recording_panel.dart';
 
-/// Attachment options for the panel.
+// Opciones del panel de adjuntos.
 enum AttachmentOption { photos, camera, location, contacts, documents }
 
-/// ChatInputBar: text input + attachments + emoji + camera + audio recording.
+// Estados del input bar.
+enum _InputMode { idle, keyboard, attachments, recording }
+
 class ChatInputBar extends StatefulWidget {
   final VoidCallback onAttachmentTap;
   final void Function(AttachmentOption option) onAttachmentSelected;
@@ -23,6 +24,10 @@ class ChatInputBar extends StatefulWidget {
   final Color iconColor;
   final Duration animationDuration;
 
+  // I18n
+  final String hintText;
+  final String holdToRecordTooltip;
+
   const ChatInputBar({
     super.key,
     required this.onAttachmentTap,
@@ -35,22 +40,23 @@ class ChatInputBar extends StatefulWidget {
     this.backgroundColor = Colors.white,
     this.iconColor = Colors.grey,
     this.animationDuration = const Duration(milliseconds: 300),
+    this.hintText = 'Type a message',
+    this.holdToRecordTooltip = 'Hold to record, release to send',
   });
 
   @override
-  _ChatInputBarState createState() => _ChatInputBarState();
+  State<ChatInputBar> createState() => _ChatInputBarState();
 }
 
-enum _InputMode { idle, keyboard, attachments, recording }
-
-class _ChatInputBarState extends State<ChatInputBar>
-    with WidgetsBindingObserver {
+class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   _InputMode _mode = _InputMode.idle;
 
   Timer? _recordTimer;
   int _recordSeconds = 0;
+
+  OverlayEntry? _tooltipOverlay;
 
   @override
   void initState() {
@@ -66,15 +72,14 @@ class _ChatInputBarState extends State<ChatInputBar>
     _controller.dispose();
     _focusNode.dispose();
     _recordTimer?.cancel();
+    _tooltipOverlay?.remove();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Cancel recording if app goes background
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      if (_mode == _InputMode.recording) _cancelRecording();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _collapseAll();
     }
   }
 
@@ -97,9 +102,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _startRecording() {
+    HapticFeedback.lightImpact();
     setState(() => _mode = _InputMode.recording);
     _recordSeconds = 0;
-    _recordTimer = Timer.periodic(Duration(seconds: 1), (_) {
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _recordSeconds++);
     });
     widget.onStartRecording();
@@ -107,42 +113,79 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _stopRecording() {
     _recordTimer?.cancel();
+    HapticFeedback.lightImpact();
     widget.onStopRecording();
-    _reset();
+    _resetRecordingState();
   }
 
   void _cancelRecording() {
     _recordTimer?.cancel();
     widget.onCancelRecording();
-    _reset();
+    _resetRecordingState();
   }
 
-  void _reset() {
+  void _resetRecordingState() {
+    setState(() {
+      _mode = _InputMode.idle;
+      _recordSeconds = 0;
+    });
+  }
+
+  void _collapseAll() {
+    _focusNode.unfocus();
+    _recordTimer?.cancel();
+    _tooltipOverlay?.remove();
     setState(() {
       _mode = _InputMode.idle;
       _controller.clear();
+      _recordSeconds = 0;
     });
   }
 
   void _handleTapOutside() {
-    if (_mode != _InputMode.idle) {
-      _focusNode.unfocus();
-      setState(() => _mode = _InputMode.idle);
-    }
+    _collapseAll();
   }
 
   void _onLongPressMove(LongPressMoveUpdateDetails details) {
-    // if dragged up beyond threshold, cancel
     if (details.offsetFromOrigin.dy < -50) {
       _cancelRecording();
     }
+  }
+
+  void _showHoldToRecordTooltip() {
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+
+    _tooltipOverlay = OverlayEntry(
+      builder:
+          (_) => Positioned(
+            left: offset.dx + 60,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 80,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  widget.holdToRecordTooltip,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ),
+          ),
+    );
+    overlay.insert(_tooltipOverlay!);
+    Future.delayed(const Duration(seconds: 2), () => _tooltipOverlay?.remove());
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Detect taps outside to collapse
         if (_mode != _InputMode.idle)
           Positioned.fill(
             child: GestureDetector(
@@ -150,32 +193,34 @@ class _ChatInputBarState extends State<ChatInputBar>
               behavior: HitTestBehavior.opaque,
             ),
           ),
-        // Input area + panels
         Align(
           alignment: Alignment.bottomCenter,
           child: AnimatedContainer(
             duration: widget.animationDuration,
             color: widget.backgroundColor,
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildInputRow(),
-                // Attachment panel
-                AttachmentPanel(
-                  visible: _mode == _InputMode.attachments,
-                  animationDuration: widget.animationDuration,
-                  onSelected: widget.onAttachmentSelected,
-                ),
-                // Recording panel
-                if (_mode == _InputMode.recording)
-                  RecordingPanel(
-                    duration: Duration(seconds: _recordSeconds),
-                    animationDuration: widget.animationDuration,
-                    onStop: _stopRecording,
-                    onCancel: _cancelRecording,
-                  ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: _buildInputRow(),
+          ),
+        ),
+
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: AnimatedContainer(
+            duration: widget.animationDuration,
+            color: widget.backgroundColor,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: AnimatedSwitcher(
+              duration: widget.animationDuration,
+              child:
+              (_mode == _InputMode.recording)
+                  ? RecordingPanel(
+                key: ValueKey('recording_panel'),
+                duration: Duration(seconds: _recordSeconds),
+                animationDuration: widget.animationDuration,
+                onStop: _stopRecording,
+                onCancel: _cancelRecording,
+              )
+                  : const SizedBox.shrink(),
             ),
           ),
         ),
@@ -184,58 +229,133 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   Widget _buildInputRow() {
+    final hasText = _controller.text.trim().isNotEmpty;
+
     return Row(
       children: [
-        // Attachment icon
-        IconButton(
-          icon: Icon(Icons.attach_file, color: widget.iconColor),
-          onPressed: _toggleAttachments,
+        Semantics(
+          label: "Attach file",
+          child: IconButton(
+            icon: Icon(Icons.attach_file, color: widget.iconColor),
+            onPressed: _toggleAttachments,
+          ),
         ),
-        // Text field
         Expanded(
           child: TextField(
             controller: _controller,
             focusNode: _focusNode,
             decoration: InputDecoration(
-              hintText: 'Type a message',
+              hintText: widget.hintText,
               border: InputBorder.none,
               suffixIcon: IconButton(
                 icon: Icon(Icons.emoji_emotions, color: widget.iconColor),
                 onPressed: () {
-                  // TODO: open emoji picker
+                  // TODO: implement emoji picker
+                  _focusNode.requestFocus();
                 },
+                tooltip: "Open emoji picker",
+              ),
+            ),
+            onTap: () {
+              if (_mode == _InputMode.attachments) {
+                setState(() => _mode = _InputMode.keyboard);
+                _focusNode.requestFocus();
+              }
+            },
+            onSubmitted: (text) {
+              if (text.trim().isNotEmpty) {
+                widget.onSendMessage(text.trim());
+                _controller.clear();
+              }
+            },
+          ),
+        ),
+        if (hasText)
+          Semantics(
+            label: "Send message",
+            child: IconButton(
+              icon: Icon(Icons.send, color: widget.iconColor),
+              onPressed: () {
+                final text = _controller.text.trim();
+                if (text.isNotEmpty) {
+                  widget.onSendMessage(text);
+                  _controller.clear();
+                }
+              },
+            ),
+          )
+        else ...[
+          Semantics(
+            label: "Open camera",
+            child: IconButton(
+              icon: Icon(Icons.camera_alt, color: widget.iconColor),
+              onPressed: widget.onShowCamera,
+            ),
+          ),
+          Semantics(
+            label: "Record audio",
+            child: GestureDetector(
+              onTap: _showHoldToRecordTooltip,
+              onLongPressStart: (_) => _startRecording(),
+              onLongPressMoveUpdate: _onLongPressMove,
+              onLongPressEnd: (_) => _stopRecording(),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color:
+                      _mode == _InputMode.recording
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Icon(Icons.mic, color: widget.iconColor),
               ),
             ),
           ),
-        ),
-        // Send / camera + mic
-        if (_controller.text.trim().isNotEmpty)
-          IconButton(
-            icon: Icon(Icons.send, color: widget.iconColor),
-            onPressed: () =>
-                widget.onSendMessage(_controller.text.trim()),
-          )
-        else ...[
-          IconButton(
-            icon: Icon(Icons.camera_alt, color: widget.iconColor),
-            onPressed: widget.onShowCamera,
-          ),
-          GestureDetector(
-            onTap: () {
-              final tooltip = Tooltip(
-                message: 'Hold to record, release to send',
-                child: SizedBox.shrink(),
-              );
-              final entry = OverlayEntry(builder: (_) => tooltip);
-              Overlay.of(context)?.insert(entry);
-              Future.delayed(Duration(seconds: 2), entry.remove);
-            },
-            onLongPressStart: (_) => _startRecording(),
-            onLongPressMoveUpdate: _onLongPressMove,
-            onLongPressEnd: (_) => _stopRecording(),
-            child: Icon(Icons.mic, color: widget.iconColor),
-          ),
         ],
+      ],
+    );
+  }
+}
+
+class RecordingPanel extends StatelessWidget {
+  final Duration duration;
+  final Duration animationDuration;
+  final VoidCallback onStop;
+  final VoidCallback onCancel;
+
+  const RecordingPanel({
+    super.key,
+    required this.duration,
+    required this.animationDuration,
+    required this.onStop,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return Row(
+      children: [
+        const Icon(Icons.mic, color: Colors.red),
+        const SizedBox(width: 12),
+        Text(
+          '$minutes:$seconds',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Text(
+            "Slide up to cancel",
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.mic),
+          onPressed: onCancel,
+        ),
       ],
     );
   }
