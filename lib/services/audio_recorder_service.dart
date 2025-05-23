@@ -18,7 +18,16 @@ class AudioRecorderService {
   final Future<bool> Function()? _checkPermissions;
   final Future<Directory> Function()? _getTempDir;
 
-  Stream<Amplitude> get onAmplitude => _record.onAmplitude;
+
+  /// Emits amplitude values from the underlying [Record] instance.
+  ///
+  /// The [interval] controls how frequently values are emitted. By default the
+  /// record package sends updates every 300ms.
+  Stream<Amplitude> onAmplitude({Duration interval = const Duration(milliseconds: 300)}) {
+    // `Record` exposes a method `onAmplitude` which returns a stream of
+    // [Amplitude] values. It is not a getter so we forward the call here.
+    return _record.onAmplitude(interval: interval);
+  }
 
   DateTime? _startTime;
   String? _filePath;
