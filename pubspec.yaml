@@ -33,6 +33,8 @@ dependencies:
   flutter_rtc:
     path: ./flutter_rtc
   uuid: ^4.5.1
+  record: ^5.0.0
+  path_provider: ^2.1.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -41,6 +43,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  mockito: ^5.4.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
