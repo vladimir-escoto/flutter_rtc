@@ -24,7 +24,6 @@ class AudioRecorderService {
 
   DateTime? _startTime;
   String? _filePath;
-
   AudioRecorderService({
     rec.Record? record,
     Future<bool> Function()? checkPermissions,
@@ -37,6 +36,7 @@ class AudioRecorderService {
     int sampleRate = 48000,
     int bitRate = 96000,
     rec.AudioEncoder encoder = rec.AudioEncoder.aacLc,
+
   }) async {
     final granted = await (_checkPermissions ?? _defaultCheckPermissions)();
     if (!granted) {
@@ -50,6 +50,7 @@ class AudioRecorderService {
     }
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final extension = encoder == rec.AudioEncoder.opus ? 'opus' : 'm4a';
+
     final path = '${voiceDir.path}/$timestamp.$extension';
 
     _filePath = path;

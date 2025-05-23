@@ -6,6 +6,7 @@ import 'package:flutter_rtc/services/audio_recorder_service.dart';
 
 class MockRecord extends Mock implements rec.Record {}
 
+
 void main() {
   group('AudioRecorderService', () {
     late MockRecord record;
