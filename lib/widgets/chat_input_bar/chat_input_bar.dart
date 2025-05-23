@@ -4,10 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Opciones del panel de adjuntos.
 enum AttachmentOption { photos, camera, location, contacts, documents }
 
-// Estados del input bar.
 enum _InputMode { idle, keyboard, attachments, recording }
 
 class ChatInputBar extends StatefulWidget {
@@ -55,8 +53,11 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
 
   Timer? _recordTimer;
   int _recordSeconds = 0;
+  DateTime? _recordStartTime;
 
   OverlayEntry? _tooltipOverlay;
+
+  static const int _minRecordingSeconds = 1;
 
   @override
   void initState() {
@@ -101,14 +102,59 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
     }
   }
 
+  // Start recording on tap down
+  void _onMicTapDown(TapDownDetails details) {
+    debugPrint("_onMicTapDown");
+    if (_mode != _InputMode.recording) {
+      _startRecording();
+    }
+  }
+
   void _startRecording() {
+    if (_mode == _InputMode.recording) return;
+    debugPrint("_startRecording");
     HapticFeedback.lightImpact();
-    setState(() => _mode = _InputMode.recording);
-    _recordSeconds = 0;
+    setState(() {
+      _mode = _InputMode.recording;
+      _recordSeconds = 0;
+      _recordStartTime = DateTime.now();
+    });
+    _recordTimer?.cancel();
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _recordSeconds++);
     });
     widget.onStartRecording();
+  }
+
+  // On release, decide whether to send or cancel
+  void _onMicTapUp(TapUpDetails details) {
+    debugPrint("_onMicTapUp");
+    if (_mode == _InputMode.recording) {
+      final duration = DateTime.now().difference(_recordStartTime ?? DateTime.now());
+      if (duration.inSeconds >= _minRecordingSeconds) {
+        _stopRecording();
+      } else {
+        _cancelRecording();
+      }
+    }
+  }
+
+  // Backup for long press gesture as well
+  void _onMicLongPressEnd(LongPressEndDetails details) {
+    if (_mode == _InputMode.recording) {
+      final duration = DateTime.now().difference(_recordStartTime ?? DateTime.now());
+      if (duration.inSeconds >= _minRecordingSeconds) {
+        _stopRecording();
+      } else {
+        _cancelRecording();
+      }
+    }
+  }
+
+  void _cancelRecording() {
+    _recordTimer?.cancel();
+    widget.onCancelRecording();
+    _resetRecordingState();
   }
 
   void _stopRecording() {
@@ -118,16 +164,11 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
     _resetRecordingState();
   }
 
-  void _cancelRecording() {
-    _recordTimer?.cancel();
-    widget.onCancelRecording();
-    _resetRecordingState();
-  }
-
   void _resetRecordingState() {
     setState(() {
       _mode = _InputMode.idle;
       _recordSeconds = 0;
+      _recordStartTime = null;
     });
   }
 
@@ -139,6 +180,7 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
       _mode = _InputMode.idle;
       _controller.clear();
       _recordSeconds = 0;
+      _recordStartTime = null;
     });
   }
 
@@ -146,6 +188,7 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
     _collapseAll();
   }
 
+  // For cancel by slide up
   void _onLongPressMove(LongPressMoveUpdateDetails details) {
     if (details.offsetFromOrigin.dy < -50) {
       _cancelRecording();
@@ -153,6 +196,9 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
   }
 
   void _showHoldToRecordTooltip() {
+    debugPrint("_showHoldToRecordTooltip");
+    _tooltipOverlay?.remove();
+    _tooltipOverlay = null;
     final overlay = Overlay.of(context);
     final renderBox = context.findRenderObject() as RenderBox?;
     final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -179,7 +225,10 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
           ),
     );
     overlay.insert(_tooltipOverlay!);
-    Future.delayed(const Duration(seconds: 2), () => _tooltipOverlay?.remove());
+    Future.delayed(const Duration(seconds: 2), () {
+      _tooltipOverlay?.remove();
+      _tooltipOverlay = null;
+    });
   }
 
   @override
@@ -202,7 +251,6 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
             child: _buildInputRow(),
           ),
         ),
-
         Align(
           alignment: Alignment.bottomCenter,
           child: AnimatedContainer(
@@ -212,15 +260,15 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
             child: AnimatedSwitcher(
               duration: widget.animationDuration,
               child:
-              (_mode == _InputMode.recording)
-                  ? RecordingPanel(
-                key: ValueKey('recording_panel'),
-                duration: Duration(seconds: _recordSeconds),
-                animationDuration: widget.animationDuration,
-                onStop: _stopRecording,
-                onCancel: _cancelRecording,
-              )
-                  : const SizedBox.shrink(),
+                  (_mode == _InputMode.recording)
+                      ? RecordingPanel(
+                        key: ValueKey('recording_panel'),
+                        duration: Duration(seconds: _recordSeconds),
+                        animationDuration: widget.animationDuration,
+                        onStop: _stopRecording,
+                        onCancel: _cancelRecording,
+                      )
+                      : const SizedBox.shrink(),
             ),
           ),
         ),
@@ -296,15 +344,17 @@ class _ChatInputBarState extends State<ChatInputBar> with WidgetsBindingObserver
             label: "Record audio",
             child: GestureDetector(
               onTap: _showHoldToRecordTooltip,
+              onTapDown: _onMicTapDown,
+              onTapUp: _onMicTapUp,
               onLongPressStart: (_) => _startRecording(),
               onLongPressMoveUpdate: _onLongPressMove,
-              onLongPressEnd: (_) => _stopRecording(),
+              onLongPressEnd: _onMicLongPressEnd,
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color:
                       _mode == _InputMode.recording
-                          ? Colors.red.withValues(alpha: 0.12)
+                          ? Colors.red.withOpacity(0.12)
                           : Colors.transparent,
                   shape: BoxShape.circle,
                 ),
@@ -352,10 +402,7 @@ class RecordingPanel extends StatelessWidget {
             style: TextStyle(color: Colors.grey.shade700),
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.mic),
-          onPressed: onCancel,
-        ),
+        IconButton(icon: const Icon(Icons.close, color: Colors.red), onPressed: onCancel),
       ],
     );
   }
