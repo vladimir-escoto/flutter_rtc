@@ -18,6 +18,7 @@ class AudioRecorderService {
   final Future<bool> Function()? _checkPermissions;
   final Future<Directory> Function()? _getTempDir;
 
+
   /// Emits amplitude values from the underlying [Record] instance.
   ///
   /// The [interval] controls how frequently values are emitted. By default the
