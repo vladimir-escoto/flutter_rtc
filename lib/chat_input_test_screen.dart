@@ -84,19 +84,31 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
               ),
             ),Container(
               color: Colors.grey,
-              height: 100,
               child: ExpandableContainer(
                 leftChild: Container(
                   color: Colors.blue,
                   child: TextField(autofocus: true,),
                 ),
-                rightChildBuilder:
-                    (offset) => Container(
+                rightChildBuilder: (offset) =>
+                    Container(
                       color: Colors.orange,
                       child: Center(
                         child: Text("Offset: ${offset.toStringAsFixed(1)}"),
                       ),
                     ),
+                pinnedChild: Container(
+                  color: Colors.orange,
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 8,
+                      children: [
+                        Icon(Icons.mic),
+                        Text("00:00"),
+                      ],
+                    ),
+                  ),
+                ),
 
                 onStart: () => debugPrint("Expand started"),
                 onStop: () => debugPrint("Stopped by release"),

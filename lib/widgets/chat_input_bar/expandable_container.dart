@@ -5,6 +5,7 @@ class ExpandableContainer extends StatefulWidget {
   final Widget leftChild;
   final Widget Function(double offset) rightChildBuilder;
   final double dragThreshold;
+  final Widget pinnedChild;
 
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
@@ -14,6 +15,7 @@ class ExpandableContainer extends StatefulWidget {
     super.key,
     required this.leftChild,
     required this.rightChildBuilder,
+    required this.pinnedChild,
     this.dragThreshold = 90.0,
     this.onStart,
     this.onCancel,
@@ -25,10 +27,12 @@ class ExpandableContainer extends StatefulWidget {
 }
 
 class _ExpandableContainerState extends State<ExpandableContainer>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _offsetBackController;
   late Animation<double> _leftWidthFactor;
   late Animation<double> _rightWidthFactor;
+  late Animation<double> _offsetAnimation;
 
   bool _isExpanded = false;
   bool _isInteracting = false;
@@ -42,6 +46,11 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
+    );
+
+    _offsetBackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
     );
 
     _leftWidthFactor = Tween<double>(begin: 0.8, end: 0.0)
@@ -65,6 +74,12 @@ class _ExpandableContainerState extends State<ExpandableContainer>
           _isInteracting = false;
         });
       }
+    });
+
+    _offsetBackController.addListener(() {
+      setState(() {
+        _dragOffset = _offsetAnimation.value;
+      });
     });
   }
 
@@ -90,6 +105,29 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     }
   }
 
+  void _animateOffsetBackToZero() {
+    if (_dragOffset.abs() <= 0) return;
+
+    _offsetAnimation = Tween<double>(
+      begin: _dragOffset,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _offsetBackController,
+      curve: Curves.easeOut,
+    ));
+
+    _offsetBackController.reset();
+    _offsetBackController.forward();
+  }
+
+  void _handleTapUp() {
+    if (_isExpanded) {
+      widget.onStop?.call();
+      _animateOffsetBackToZero();
+      _reverseCollapse();
+    }
+  }
+
   void _reverseCollapse() {
     if (_isInteracting) return;
     _isInteracting = true;
@@ -97,19 +135,10 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     _controller.reverse();
   }
 
-  void _handleTapUp() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-        if (_isExpanded) {
-          widget.onStop?.call();
-          _reverseCollapse();
-        }
-      });
-  }
-
-
   @override
   void dispose() {
     _controller.dispose();
+    _offsetBackController.dispose();
     super.dispose();
   }
 
@@ -137,11 +166,10 @@ class _ExpandableContainerState extends State<ExpandableContainer>
                     onHorizontalDragEnd: (_) => _handleTapUp(),
                     child: SizedBox(
                       width: constraints.maxWidth * _rightWidthFactor.value,
-                      child: _isExpanded
-                          ? Transform.translate(
+                      child: Transform.translate(
                         offset: Offset(_dragOffset, 0),
                         child: widget.rightChildBuilder(_dragOffset),
-                      ) : widget.rightChildBuilder(0),
+                      ),
                     ),
                   ),
             ),
