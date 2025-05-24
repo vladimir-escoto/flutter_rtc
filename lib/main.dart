@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rtc/flutter_rtc.dart';
 
-import 'call_test_screen.dart';
 import 'chat_input_test_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  CallCoordinator.instance.initialize();
+  //CallCoordinator.instance.initialize();
   runApp(MyApp());
 }
 

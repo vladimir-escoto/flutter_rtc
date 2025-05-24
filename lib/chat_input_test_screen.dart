@@ -1,7 +1,7 @@
 // File: lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
-import '../widgets/chat_input_bar/chat_input_bar.dart';
+import 'package:myapp/widgets/chat_input_bar/expandable_container.dart';
 
 class ChatInputTestScreen extends StatefulWidget {
   const ChatInputTestScreen({super.key});
@@ -66,8 +66,8 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: msg.isAudio
-                            ? Colors.blueAccent.withOpacity(0.2)
-                            : Colors.grey.withOpacity(0.2),
+                            ? Colors.blueAccent.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -82,27 +82,43 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                   );
                 },
               ),
+            ),Container(
+              color: Colors.grey,
+              height: 100,
+              child: ExpandableContainer(
+                leftChild: Container(
+                  color: Colors.blue,
+                  child: TextField(autofocus: true,),
+                ),
+                rightChildBuilder:
+                    (offset) => Container(
+                      color: Colors.orange,
+                      child: Center(
+                        child: Text("Offset: ${offset.toStringAsFixed(1)}"),
+                      ),
+                    ),
+              ),
             ),
 
             // Chat input bar
-            ChatInputBar(
-              onAttachmentTap: () => print('Attachment icon tapped'),
-              onAttachmentSelected: (opt) =>
-                  print('Selected attachment: $opt'),
-              onShowCamera: () => print('Show camera called'),
-              onSendMessage: (text) {
-                print('Send text: $text');
-                _addTextMessage(text);
-              },
-              onStartRecording: () => print('Recording started'),
-              onStopRecording: () {
-                print('Recording stopped & sending audio');
-                _addAudioMessage();
-              },
-              onCancelRecording: () => print('Recording cancelled'),
-              backgroundColor: Colors.white,
-              iconColor: Colors.grey[700]!,
-            ),
+            // ChatInputBar(
+            //   onAttachmentTap: () => print('Attachment icon tapped'),
+            //   onAttachmentSelected: (opt) =>
+            //       print('Selected attachment: $opt'),
+            //   onShowCamera: () => print('Show camera called'),
+            //   onSendMessage: (text) {
+            //     print('Send text: $text');
+            //     _addTextMessage(text);
+            //   },
+            //   onStartRecording: () => print('Recording started'),
+            //   onStopRecording: () {
+            //     print('Recording stopped & sending audio');
+            //     _addAudioMessage();
+            //   },
+            //   onCancelRecording: () => print('Recording cancelled'),
+            //   backgroundColor: Colors.white,
+            //   iconColor: Colors.grey[700]!,
+            // ),
           ],
         ),
       ),
@@ -116,3 +132,6 @@ class _ChatMessage {
   final bool isAudio;
   _ChatMessage({required this.text, this.isAudio = false});
 }
+
+
+
