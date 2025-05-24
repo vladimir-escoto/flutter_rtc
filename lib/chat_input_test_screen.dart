@@ -97,6 +97,10 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                         child: Text("Offset: ${offset.toStringAsFixed(1)}"),
                       ),
                     ),
+
+                onStart: () => debugPrint("Expand started"),
+                onStop: () => debugPrint("Stopped by release"),
+                onCancel: () => debugPrint("Canceled by threshold"),
               ),
             ),
 

@@ -6,11 +6,18 @@ class ExpandableContainer extends StatefulWidget {
   final Widget Function(double offset) rightChildBuilder;
   final double dragThreshold;
 
+  final VoidCallback? onStart;
+  final VoidCallback? onCancel;
+  final VoidCallback? onStop;
+
   const ExpandableContainer({
     super.key,
     required this.leftChild,
     required this.rightChildBuilder,
     this.dragThreshold = 90.0,
+    this.onStart,
+    this.onCancel,
+    this.onStop,
   });
 
   @override
@@ -37,15 +44,11 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       duration: const Duration(milliseconds: 300),
     );
 
-    _leftWidthFactor = Tween<double>(
-      begin: 0.8,
-      end: 0.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _leftWidthFactor = Tween<double>(begin: 0.8, end: 0.0)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    _rightWidthFactor = Tween<double>(
-      begin: 0.2,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _rightWidthFactor = Tween<double>(begin: 0.2, end: 1.0)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.dismissed) {
@@ -69,6 +72,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     if (_isInteracting || _isExpanded) return;
     _isInteracting = true;
     HapticFeedback.lightImpact();
+    widget.onStart?.call();
     _controller.forward();
   }
 
@@ -79,6 +83,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     _dragOffset += details.delta.dx;
 
     if (_dragDistance.abs() > widget.dragThreshold) {
+      widget.onCancel?.call();
       _reverseCollapse();
     } else {
       setState(() {});
@@ -92,15 +97,15 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     _controller.reverse();
   }
 
-  void _handleTapUp(TapUpDetails details) {
-    if (!_isExpanded) {
-      Future.delayed(const Duration(milliseconds: 300), () {
+  void _handleTapUp() {
+    Future.delayed(const Duration(milliseconds: 300), () {
         if (_isExpanded) {
+          widget.onStop?.call();
           _reverseCollapse();
         }
       });
-    }
   }
+
 
   @override
   void dispose() {
@@ -116,33 +121,27 @@ class _ExpandableContainerState extends State<ExpandableContainer>
           children: [
             AnimatedBuilder(
               animation: _leftWidthFactor,
-              builder:
-                  (_, __) => SizedBox(
+              builder: (_, __) =>
+                  SizedBox(
                     width: constraints.maxWidth * _leftWidthFactor.value,
                     child: widget.leftChild,
                   ),
             ),
             AnimatedBuilder(
               animation: _rightWidthFactor,
-              builder:
-                  (_, __) => GestureDetector(
+              builder: (_, __) =>
+                  GestureDetector(
                     onTapDown: (_) => _startExpand(),
-                    onTapUp: _handleTapUp,
+                    onTapUp: (_) => _handleTapUp(),
                     onHorizontalDragUpdate: _handleDragUpdate,
+                    onHorizontalDragEnd: (_) => _handleTapUp(),
                     child: SizedBox(
                       width: constraints.maxWidth * _rightWidthFactor.value,
-                      child:
-                          _isExpanded
-                              ? Transform.translate(
-                                offset: Offset(
-                                  _dragOffset.clamp(-widget.dragThreshold, 0),
-                                  0,
-                                ),
-                                child: widget.rightChildBuilder(
-                                  _dragOffset.clamp(-widget.dragThreshold, 0),
-                                ),
-                              )
-                              : widget.rightChildBuilder(0),
+                      child: _isExpanded
+                          ? Transform.translate(
+                        offset: Offset(_dragOffset, 0),
+                        child: widget.rightChildBuilder(_dragOffset),
+                      ) : widget.rightChildBuilder(0),
                     ),
                   ),
             ),
