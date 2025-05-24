@@ -21,7 +21,7 @@ class AudioRecorderService {
   Stream<Amplitude> onAmplitude({Duration interval = const Duration(milliseconds: 300)}) {
     return _recorder.onAmplitudeChanged(interval);
   }
-
+  
   DateTime? _startTime;
   String? _filePath;
 
@@ -38,7 +38,8 @@ class AudioRecorderService {
     int bitRate = 96000,
     AudioEncoder encoder = AudioEncoder.aacLc,
   }) async {
-    final granted = await (_checkPermissions ?? _defaultCheckPermissions)();
+    final granted = await (_checkPermissions ?? _record.hasPermission)();
+
     if (!granted) {
       throw Exception('Microphone or storage permission denied');
     }
@@ -50,11 +51,12 @@ class AudioRecorderService {
     }
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final extension = encoder == AudioEncoder.opus ? 'opus' : 'm4a';
+
     final path = '${voiceDir.path}/$timestamp.$extension';
 
     _filePath = path;
     _startTime = DateTime.now();
-
+    
     await _recorder.start(
       RecordConfig(
         encoder: encoder,
@@ -62,6 +64,7 @@ class AudioRecorderService {
         sampleRate: sampleRate,
       ),
       path: path,
+
     );
   }
 
@@ -76,6 +79,7 @@ class AudioRecorderService {
 
   Future<void> cancel() async {
     await _recorder.cancel();
+
     if (_filePath != null) {
       final file = File(_filePath!);
       if (await file.exists()) {
