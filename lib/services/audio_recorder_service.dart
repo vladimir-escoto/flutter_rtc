@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 /// Result of an audio recording operation.
@@ -38,7 +37,7 @@ class AudioRecorderService {
     int bitRate = 96000,
     AudioEncoder encoder = AudioEncoder.aacLc,
   }) async {
-    final granted = await (_checkPermissions ?? _record.hasPermission)();
+    final granted = await (_checkPermissions ?? _recorder.hasPermission)();
 
     if (!granted) {
       throw Exception('Microphone or storage permission denied');
@@ -86,11 +85,5 @@ class AudioRecorderService {
         await file.delete();
       }
     }
-  }
-
-  static Future<bool> _defaultCheckPermissions() async {
-    final micStatus = await Permission.microphone.request();
-    final storageStatus = await Permission.storage.request();
-    return micStatus.isGranted && storageStatus.isGranted;
   }
 }
