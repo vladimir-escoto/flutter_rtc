@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 
 enum AttachmentOption { photos, camera, location, contacts, documents }
 
-enum _InputMode { idle, keyboard, attachments, recording }
+enum _InputMode { idle, keyboard, attachments, recording, recordingLocked }
 
 class ChatInputBar extends StatefulWidget {
   final VoidCallback onAttachmentTap;
@@ -60,6 +60,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   static const int _minRecordingSeconds = 1;
   static const double _cancelThreshold = -75.0;
+  static const double _lockThreshold = -60.0;
 
   double dragOffset = 0;
   late AnimationController _dragAnimationController;
@@ -121,13 +122,13 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _onMicTapDown(TapDownDetails details) {
-    if (_mode != _InputMode.recording) {
+    if (_mode != _InputMode.recording && _mode != _InputMode.recordingLocked) {
       _startRecording();
     }
   }
 
   void _startRecording() {
-    if (_mode == _InputMode.recording) return;
+    if (_mode == _InputMode.recording || _mode == _InputMode.recordingLocked) return;
     HapticFeedback.lightImpact();
     setState(() {
       _mode = _InputMode.recording;
@@ -142,7 +143,18 @@ class _ChatInputBarState extends State<ChatInputBar>
     widget.onStartRecording();
   }
 
+  void _lockRecording() {
+    if (_mode != _InputMode.recording) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _mode = _InputMode.recordingLocked;
+    });
+  }
+
   void _onMicTapUp(TapUpDetails details) {
+    if (_mode == _InputMode.recordingLocked) {
+      return;
+    }
     if (_mode == _InputMode.recording) {
       final duration = DateTime.now().difference(_recordStartTime ?? DateTime.now());
       if (duration.inSeconds >= _minRecordingSeconds) {
@@ -154,6 +166,9 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _onMicLongPressEnd(LongPressEndDetails details) {
+    if (_mode == _InputMode.recordingLocked) {
+      return;
+    }
     if (_mode == _InputMode.recording) {
       final duration = DateTime.now().difference(_recordStartTime ?? DateTime.now());
       if (duration.inSeconds >= _minRecordingSeconds) {
@@ -173,15 +188,31 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _cancelRecording() {
     _recordTimer?.cancel();
+    HapticFeedback.lightImpact();
+    HapticFeedback.lightImpact();
     widget.onCancelRecording();
     _resetRecordingState();
   }
 
-  void _stopRecording() {
+  void _stopRecording({bool heavy = false}) {
     _recordTimer?.cancel();
-    HapticFeedback.lightImpact();
+    if (heavy) {
+      HapticFeedback.heavyImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
     widget.onStopRecording();
     _resetRecordingState();
+  }
+
+  void _sendLockedRecording() {
+    if (_mode != _InputMode.recordingLocked) return;
+    _stopRecording(heavy: true);
+  }
+
+  void _cancelLockedRecording() {
+    if (_mode != _InputMode.recordingLocked) return;
+    _cancelRecording();
   }
 
   void _resetRecordingState() {
@@ -212,6 +243,11 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _onLongPressMove(LongPressMoveUpdateDetails details) {
     if (_mode != _InputMode.recording) return;
     final dx = details.offsetFromOrigin.dx;
+    final dy = details.offsetFromOrigin.dy;
+    if (dy < _lockThreshold) {
+      _lockRecording();
+      return;
+    }
     if (dx < _cancelThreshold) {
       _cancelRecordingWithReturn();
       return;
@@ -321,6 +357,39 @@ class _ChatInputBarState extends State<ChatInputBar>
               ),
             ),
           ),
+        if (_mode == _InputMode.recordingLocked)
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: widget.animationDuration,
+              color: widget.backgroundColor,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  RecordingPanel(
+                    key: const ValueKey('recording_panel_locked'),
+                    duration: Duration(seconds: _recordSeconds),
+                  ),
+                  const Spacer(),
+                  Semantics(
+                    label: 'Delete recording',
+                    child: IconButton(
+                      key: const ValueKey('delete_locked'),
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: _cancelLockedRecording,
+                    ),
+                  ),
+                  Semantics(
+                    label: 'Send audio',
+                    child: IconButton(
+                      key: const ValueKey('send_locked'),
+                      icon: const Icon(Icons.send, color: Colors.green),
+                      onPressed: _sendLockedRecording,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
         Positioned(
           right: dragOffset,
@@ -359,14 +428,16 @@ class _ChatInputBarState extends State<ChatInputBar>
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color:
-                          _mode == _InputMode.recording
-                              ? Colors.red.withOpacity(0.12)
-                              : Colors.white,
+                      color: _mode == _InputMode.recording || _mode == _InputMode.recordingLocked
+                          ? Colors.red.withOpacity(0.12)
+                          : Colors.white,
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(10),
-                    child: Icon(Icons.mic, color: widget.iconColor),
+                    child: Icon(
+                      _mode == _InputMode.recordingLocked ? Icons.lock : Icons.mic,
+                      color: widget.iconColor,
+                    ),
                   ),
                 ],
               ),
