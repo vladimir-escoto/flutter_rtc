@@ -1,10 +1,8 @@
 import 'dart:io';
-
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-
 
 /// Result of an audio recording operation.
 class AudioResult {
@@ -16,23 +14,22 @@ class AudioResult {
 
 /// Basic audio recorder service using the [record] package.
 class AudioRecorderService {
-  final AudioRecorder _record;
+  final AudioRecorder _recorder;
   final Future<bool> Function()? _checkPermissions;
   final Future<Directory> Function()? _getTempDir;
 
-  Stream<Amplitude> onAmplitude(
-      {Duration interval = const Duration(milliseconds: 300)}) {
-    return _record.onAmplitudeChanged(interval);
+  Stream<Amplitude> onAmplitude({Duration interval = const Duration(milliseconds: 300)}) {
+    return _recorder.onAmplitudeChanged(interval);
   }
-
+  
   DateTime? _startTime;
   String? _filePath;
+
   AudioRecorderService({
-    AudioRecorder? record,
+    AudioRecorder? recorder,
     Future<bool> Function()? checkPermissions,
     Future<Directory> Function()? tempDir,
-  })
-      : _record = record ?? AudioRecorder(),
+  })  : _recorder = recorder ?? AudioRecorder(),
         _checkPermissions = checkPermissions,
         _getTempDir = tempDir;
 
@@ -40,9 +37,9 @@ class AudioRecorderService {
     int sampleRate = 48000,
     int bitRate = 96000,
     AudioEncoder encoder = AudioEncoder.aacLc,
-
   }) async {
     final granted = await (_checkPermissions ?? _record.hasPermission)();
+
     if (!granted) {
       throw Exception('Microphone or storage permission denied');
     }
@@ -59,21 +56,20 @@ class AudioRecorderService {
 
     _filePath = path;
     _startTime = DateTime.now();
+    
+    await _recorder.start(
+      RecordConfig(
+        encoder: encoder,
+        bitRate: bitRate,
+        sampleRate: sampleRate,
+      ),
+      path: path,
 
-
-    await _record.start(
-        RecordConfig(
-          encoder: encoder,
-          bitRate: bitRate,
-          sampleRate: sampleRate,
-          numChannels: 2,
-        ),
-        path: path
     );
   }
 
   Future<AudioResult> stop() async {
-    final stoppedPath = await _record.stop();
+    final stoppedPath = await _recorder.stop();
     final path = stoppedPath ?? _filePath!;
     final duration = _startTime != null
         ? DateTime.now().difference(_startTime!).inSeconds
@@ -82,7 +78,8 @@ class AudioRecorderService {
   }
 
   Future<void> cancel() async {
-    await _record.stop();
+    await _recorder.cancel();
+
     if (_filePath != null) {
       final file = File(_filePath!);
       if (await file.exists()) {
@@ -91,4 +88,9 @@ class AudioRecorderService {
     }
   }
 
+  static Future<bool> _defaultCheckPermissions() async {
+    final micStatus = await Permission.microphone.request();
+    final storageStatus = await Permission.storage.request();
+    return micStatus.isGranted && storageStatus.isGranted;
+  }
 }
