@@ -33,7 +33,7 @@ dependencies:
   flutter_rtc:
     path: ./flutter_rtc
   uuid: ^4.5.1
-  record: ^5.0.0
+  record: ^6.0.0
   path_provider: ^2.1.0
   intl: ^0.18.1
 
