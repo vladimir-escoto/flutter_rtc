@@ -43,6 +43,7 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white70,
       appBar: AppBar(
         title: Text('Chat Test Home'),
       ),
@@ -83,11 +84,22 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                 },
               ),
             ),Container(
-              color: Colors.grey,
+              height: 100,
+              color: Colors.black38,
               child: ExpandableContainer(
                 leftChild: Container(
-                  color: Colors.blue,
-                  child: TextField(autofocus: true,),
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(autofocus: true,
+                  style: TextStyle(color: Colors.black45),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                      borderSide: BorderSide.none, // Sin línea inferior
+                    ),
+                  ),
+                  ),
                 ),
                 rightChildBuilder: (offset) =>
                     Container(
@@ -96,18 +108,13 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                         child: Text("Offset: ${offset.toStringAsFixed(1)}"),
                       ),
                     ),
-                pinnedChild: Container(
-                  color: Colors.orange,
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 8,
-                      children: [
-                        Icon(Icons.mic),
-                        Text("00:00"),
-                      ],
-                    ),
-                  ),
+                pinnedChild: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 8,
+                  children: [
+                    Icon(Icons.mic, color: Colors.red, size: 24),
+                    Text("00:00", style: TextStyle(color: Colors.red,decoration: TextDecoration.none,fontSize: 24)),
+                  ],
                 ),
 
                 onStart: () => debugPrint("Expand started"),

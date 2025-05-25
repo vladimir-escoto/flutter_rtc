@@ -45,7 +45,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 2000),
     );
 
     _offsetBackController = AnimationController(
@@ -60,6 +60,10 @@ class _ExpandableContainerState extends State<ExpandableContainer>
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.addStatusListener((status) {
+      if (_controller.isAnimating) {
+        setState(() {});
+      }
+
       if (status == AnimationStatus.dismissed) {
         setState(() {
           _isExpanded = false;
@@ -144,6 +148,10 @@ class _ExpandableContainerState extends State<ExpandableContainer>
 
   @override
   Widget build(BuildContext context) {
+    final bool showPinned = _controller.status.isCompleted;
+
+    debugPrint("_controller.status: ${_controller.status}");
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Row(
@@ -166,9 +174,23 @@ class _ExpandableContainerState extends State<ExpandableContainer>
                     onHorizontalDragEnd: (_) => _handleTapUp(),
                     child: SizedBox(
                       width: constraints.maxWidth * _rightWidthFactor.value,
-                      child: Transform.translate(
-                        offset: Offset(_dragOffset, 0),
-                        child: widget.rightChildBuilder(_dragOffset),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Right child (main)
+                          Transform.translate(
+                            offset: Offset(_dragOffset, 0),
+                            child: widget.rightChildBuilder(_dragOffset),
+                          ),
+                          // Pinned child (overlay, to the left)
+                          if (showPinned)
+                            Positioned(
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              child: widget.pinnedChild,
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -178,4 +200,5 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       },
     );
   }
+
 }
