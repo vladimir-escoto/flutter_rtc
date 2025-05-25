@@ -3,13 +3,23 @@ import 'package:flutter/services.dart';
 
 class ExpandableContainer extends StatefulWidget {
   final Widget leftChild;
-  final Widget Function(double offset) rightChildBuilder;
-  final double dragThreshold;
+  final Widget Function(bool isExpanded, bool animating) rightChildBuilder;
   final Widget pinnedChild;
+
+  final double dragThreshold;
+  final double leftInitialWidthFactor;
+  final double rightInitialWidthFactor;
+  final double rightExpandedWidthFactor;
+  final double maxLeftShiftFactor;
+
+  final Duration animationDuration;
+  final Duration offsetReturnDuration;
+  final Curve slideCurve;
 
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
   final VoidCallback? onStop;
+  final VoidCallback? onFastCancel;
 
   const ExpandableContainer({
     super.key,
@@ -17,10 +27,18 @@ class ExpandableContainer extends StatefulWidget {
     required this.rightChildBuilder,
     required this.pinnedChild,
     this.dragThreshold = 90.0,
+    this.leftInitialWidthFactor = 0.8,
+    this.rightInitialWidthFactor = 0.2,
+    this.rightExpandedWidthFactor = 1.0,
+    double? maxLeftShiftFactor,
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.offsetReturnDuration = const Duration(milliseconds: 300),
+    this.slideCurve = Curves.easeInOut,
     this.onStart,
     this.onCancel,
     this.onStop,
-  });
+    this.onFastCancel,
+  }) : maxLeftShiftFactor = maxLeftShiftFactor ?? leftInitialWidthFactor;
 
   @override
   State<ExpandableContainer> createState() => _ExpandableContainerState();
@@ -30,6 +48,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     with TickerProviderStateMixin {
   late AnimationController _controller;
   late AnimationController _offsetBackController;
+
   late Animation<double> _leftWidthFactor;
   late Animation<double> _rightWidthFactor;
   late Animation<double> _offsetAnimation;
@@ -39,31 +58,38 @@ class _ExpandableContainerState extends State<ExpandableContainer>
   double _dragOffset = 0.0;
   double _dragDistance = 0.0;
 
+  bool get isExpanding => _controller.status == AnimationStatus.forward;
+
+  bool get isAnimating => _controller.status.isAnimating;
+
   @override
   void initState() {
     super.initState();
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: widget.animationDuration,
     );
 
     _offsetBackController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: widget.offsetReturnDuration,
     );
 
-    _leftWidthFactor = Tween<double>(begin: 0.8, end: 0.0)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _leftWidthFactor = Tween<double>(
+      begin: widget.leftInitialWidthFactor,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
 
-    _rightWidthFactor = Tween<double>(begin: 0.2, end: 1.0)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _rightWidthFactor = Tween<double>(
+      begin: widget.rightInitialWidthFactor,
+      end: widget.rightExpandedWidthFactor,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
 
     _controller.addStatusListener((status) {
       if (_controller.isAnimating) {
         setState(() {});
       }
-
       if (status == AnimationStatus.dismissed) {
         setState(() {
           _isExpanded = false;
@@ -117,7 +143,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       end: 0.0,
     ).animate(CurvedAnimation(
       parent: _offsetBackController,
-      curve: Curves.easeOut,
+      curve: widget.slideCurve,
     ));
 
     _offsetBackController.reset();
@@ -129,6 +155,10 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       widget.onStop?.call();
       _animateOffsetBackToZero();
       _reverseCollapse();
+    } else if (isExpanding) {
+      _isInteracting = false;
+      _reverseCollapse();
+      widget.onFastCancel?.call();
     }
   }
 
@@ -157,12 +187,25 @@ class _ExpandableContainerState extends State<ExpandableContainer>
         return Row(
           children: [
             AnimatedBuilder(
-              animation: _leftWidthFactor,
-              builder: (_, __) =>
-                  SizedBox(
+              animation: Listenable.merge(
+                  [_leftWidthFactor, _rightWidthFactor]),
+              builder: (_, __) {
+                final rightExpansion = _rightWidthFactor.value -
+                    widget.rightInitialWidthFactor;
+                final leftShift = -constraints.maxWidth * rightExpansion;
+
+                return Transform.translate(
+                  offset: Offset(
+                    leftShift.clamp(
+                        -constraints.maxWidth * widget.maxLeftShiftFactor, 0),
+                    0,
+                  ),
+                  child: SizedBox(
                     width: constraints.maxWidth * _leftWidthFactor.value,
                     child: widget.leftChild,
                   ),
+                );
+              },
             ),
             AnimatedBuilder(
               animation: _rightWidthFactor,
@@ -173,6 +216,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
                     onHorizontalDragUpdate: _handleDragUpdate,
                     onHorizontalDragEnd: (_) => _handleTapUp(),
                     child: SizedBox(
+                      height: constraints.maxHeight,
                       width: constraints.maxWidth * _rightWidthFactor.value,
                       child: Stack(
                         clipBehavior: Clip.none,
@@ -180,7 +224,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
                           // Right child (main)
                           Transform.translate(
                             offset: Offset(_dragOffset, 0),
-                            child: widget.rightChildBuilder(_dragOffset),
+                            child: widget.rightChildBuilder(_isExpanded,isAnimating),
                           ),
                           // Pinned child (overlay, to the left)
                           if (showPinned)
@@ -200,5 +244,4 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       },
     );
   }
-
 }
