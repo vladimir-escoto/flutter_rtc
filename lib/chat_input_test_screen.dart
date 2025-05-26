@@ -91,12 +91,11 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
               ),
             ),
 
-
-
             ExpandableContainer(
               width: MediaQuery.of(context).size.width,
               height: 50,
               collapsedRightWidth: 50,
+              enableRightWidth: true,
               leftChild: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 child: TextField(
@@ -180,7 +179,7 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
               },
             ),
 
-            // Chat input bar
+
             // ChatInputBar(
             //   onAttachmentTap: () => print('Attachment icon tapped'),
             //   onAttachmentSelected: (opt) =>

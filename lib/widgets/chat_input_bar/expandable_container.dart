@@ -23,6 +23,8 @@ class ExpandableContainer extends StatefulWidget {
   final double height;
   final Color? color;
 
+  final bool enableRightWidth;
+
   final double collapsedRightWidth;
 
   const ExpandableContainer({
@@ -33,6 +35,7 @@ class ExpandableContainer extends StatefulWidget {
     required this.width,
     required this.height,
     required this.collapsedRightWidth,
+    this.enableRightWidth = true,
     this.color = Colors.black38,
     this.dragThreshold = 90.0,
     this.animationDuration = const Duration(milliseconds: 300),
@@ -74,7 +77,8 @@ class _ExpandableContainerState extends State<ExpandableContainer>
   @override
   void didUpdateWidget(ExpandableContainer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.width != widget.width ||
+    if (oldWidget.enableRightWidth != widget.enableRightWidth ||
+        oldWidget.width != widget.width ||
         oldWidget.collapsedRightWidth != widget.collapsedRightWidth) {
       // Recalculate factors and update animations if width changes
       _initializeWidthFactors();
@@ -126,8 +130,9 @@ class _ExpandableContainerState extends State<ExpandableContainer>
   }
 
   void _initializeWidthFactors() {
-    leftInitialWidthFactor = 1.0 - (widget.collapsedRightWidth / widget.width);
-    rightInitialWidthFactor = widget.collapsedRightWidth / widget.width;
+    rightInitialWidthFactor =
+    widget.enableRightWidth ? widget.collapsedRightWidth / widget.width : 0;
+    leftInitialWidthFactor = rightExpandedWidthFactor - rightInitialWidthFactor;
 
     _leftWidthFactor = Tween<double>(
       begin: leftInitialWidthFactor,
