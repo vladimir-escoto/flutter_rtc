@@ -89,94 +89,93 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                   );
                 },
               ),
-            ),Container(
+            ),ExpandableContainer(
+              width: MediaQuery.of(context).size.width,
               height: 50,
-              color: Colors.black38,
-              child: ExpandableContainer(
-                leftChild: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: TextField(
-                    autofocus: true,
-                    style: TextStyle(color: Colors.black45),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
+              collapsedRightWidth: 50,
+              leftChild: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: TextField(
+                  autofocus: true,
+                  style: TextStyle(color: Colors.black45),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
-                rightChildBuilder: (isExpanded, isAnimating) {
-                  return Container(
-                    height: double.infinity,
-                    color: Colors.white,
-                    //padding: const EdgeInsets.only(right: 32),
-                    child: Stack(
-                      children: [
-                        if (isExpanded && !isAnimating)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  "Slice to cancel",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    decoration: TextDecoration.none,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.arrow_back_ios_new, size: 24),
-                                SizedBox(width: 80),
-                              ],
-                            ),
-                          ),
+              ),
+              rightChildBuilder: (isExpanded, isAnimating) {
+                return Container(
+                  height: double.infinity,
+                  color: Colors.white,
+                  //padding: const EdgeInsets.only(right: 32),
+                  child: Stack(
+                    children: [
+                      if (isExpanded && !isAnimating)
                         Align(
                           alignment: Alignment.centerRight,
-                          child: Container(
-                            width: 60,
-                            height: double.infinity,
-                            color: Colors.red,
-                            child: CompositedTransformTarget(
-                              link: _layerLink,
-                              child: Icon(Icons.mic, size: 24),
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Slice to cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.arrow_back_ios_new, size: 24),
+                              SizedBox(width: 80),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-                pinnedChild: Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.mic, color: Colors.red, size: 24),
-                      SizedBox(width: 8),
-                      Text(
-                        "00:00",
-                        style: TextStyle(
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          width: 60,
+                          height: double.infinity,
                           color: Colors.red,
-                          fontSize: 24,
-                          decoration: TextDecoration.none,
+                          child: CompositedTransformTarget(
+                            link: _layerLink,
+                            child: Icon(Icons.mic, size: 24),
+                          ),
                         ),
                       ),
                     ],
                   ),
+                );
+              },
+              pinnedChild: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.mic, color: Colors.red, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      "00:00",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 24,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
                 ),
-                onStart: () => debugPrint("Expand started"),
-                onStop: () => debugPrint("Stopped by release"),
-                onCancel: () => debugPrint("Canceled by threshold"),
-                onFastCancel: () {
-                  debugPrint("Canceled by fast release");
-                  _showTooltip();
-                },
               ),
+              onStart: () => debugPrint("Expand started"),
+              onStop: () => debugPrint("Stopped by release"),
+              onCancel: () => debugPrint("Canceled by threshold"),
+              onFastCancel: () {
+                debugPrint("Canceled by fast release");
+                _showTooltip();
+              },
             ),
 
             // Chat input bar

@@ -10,7 +10,6 @@ class ExpandableContainer extends StatefulWidget {
   final double leftInitialWidthFactor;
   final double rightInitialWidthFactor;
   final double rightExpandedWidthFactor;
-  final double maxLeftShiftFactor;
 
   final Duration animationDuration;
   final Duration offsetReturnDuration;
@@ -21,16 +20,25 @@ class ExpandableContainer extends StatefulWidget {
   final VoidCallback? onStop;
   final VoidCallback? onFastCancel;
 
+  final double width;
+  final double height;
+  final Color? color;
+
+  final double collapsedRightWidth;
+
   const ExpandableContainer({
     super.key,
     required this.leftChild,
     required this.rightChildBuilder,
     required this.pinnedChild,
+    required this.width,
+    required this.height,
+    required this.collapsedRightWidth,
+    this.color = Colors.black38,
     this.dragThreshold = 90.0,
     this.leftInitialWidthFactor = 0.8,
     this.rightInitialWidthFactor = 0.2,
     this.rightExpandedWidthFactor = 1.0,
-    double? maxLeftShiftFactor,
     this.animationDuration = const Duration(milliseconds: 300),
     this.offsetReturnDuration = const Duration(milliseconds: 300),
     this.slideCurve = Curves.easeInOut,
@@ -38,7 +46,7 @@ class ExpandableContainer extends StatefulWidget {
     this.onCancel,
     this.onStop,
     this.onFastCancel,
-  }) : maxLeftShiftFactor = maxLeftShiftFactor ?? leftInitialWidthFactor;
+  });
 
   @override
   State<ExpandableContainer> createState() => _ExpandableContainerState();
@@ -182,66 +190,71 @@ class _ExpandableContainerState extends State<ExpandableContainer>
 
     debugPrint("_controller.status: ${_controller.status}");
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Row(
-          children: [
-            AnimatedBuilder(
-              animation: Listenable.merge(
-                  [_leftWidthFactor, _rightWidthFactor]),
-              builder: (_, __) {
-                final rightExpansion = _rightWidthFactor.value -
-                    widget.rightInitialWidthFactor;
-                final leftShift = -constraints.maxWidth * rightExpansion;
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      color: widget.color,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              AnimatedBuilder(
+                animation: Listenable.merge(
+                    [_leftWidthFactor, _rightWidthFactor]),
+                builder: (_, __) {
+                  final rightExpansion = _rightWidthFactor.value - widget.rightInitialWidthFactor;
+                  final leftShift = -constraints.maxWidth * rightExpansion;
 
-                return Transform.translate(
-                  offset: Offset(
-                    leftShift.clamp(
-                        -constraints.maxWidth * widget.maxLeftShiftFactor, 0),
-                    0,
-                  ),
-                  child: SizedBox(
-                    width: constraints.maxWidth * _leftWidthFactor.value,
-                    child: widget.leftChild,
-                  ),
-                );
-              },
-            ),
-            AnimatedBuilder(
-              animation: _rightWidthFactor,
-              builder: (_, __) =>
-                  GestureDetector(
-                    onTapDown: (_) => _startExpand(),
-                    onTapUp: (_) => _handleTapUp(),
-                    onHorizontalDragUpdate: _handleDragUpdate,
-                    onHorizontalDragEnd: (_) => _handleTapUp(),
+                  return Transform.translate(
+                    offset: Offset(
+                      leftShift.clamp(
+                          -constraints.maxWidth * widget.leftInitialWidthFactor, 0),
+                      0,
+                    ),
                     child: SizedBox(
-                      height: constraints.maxHeight,
-                      width: constraints.maxWidth * _rightWidthFactor.value,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          // Right child (main)
-                          Transform.translate(
-                            offset: Offset(_dragOffset, 0),
-                            child: widget.rightChildBuilder(_isExpanded,isAnimating),
-                          ),
-                          // Pinned child (overlay, to the left)
-                          if (showPinned)
-                            Positioned(
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              child: widget.pinnedChild,
+                      width: constraints.maxWidth * _leftWidthFactor.value,
+                      child: widget.leftChild,
+                    ),
+                  );
+                },
+              ),
+              AnimatedBuilder(
+                animation: _rightWidthFactor,
+                builder: (_, __) =>
+                    GestureDetector(
+                      onTapDown: (_) => _startExpand(),
+                      onTapUp: (_) => _handleTapUp(),
+                      onHorizontalDragUpdate: _handleDragUpdate,
+                      onHorizontalDragEnd: (_) => _handleTapUp(),
+                      child: SizedBox(
+                        height: constraints.maxHeight,
+                        width: constraints.maxWidth * _rightWidthFactor.value,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Right child (main)
+                            Transform.translate(
+                              offset: Offset(_dragOffset, 0),
+                              child: widget.rightChildBuilder(
+                                  _isExpanded, isAnimating),
                             ),
-                        ],
+                            // Pinned child (overlay, to the left)
+                            if (showPinned)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: widget.pinnedChild,
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-            ),
-          ],
-        );
-      },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
