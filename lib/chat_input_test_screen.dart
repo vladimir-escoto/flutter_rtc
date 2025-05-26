@@ -89,7 +89,11 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                   );
                 },
               ),
-            ),ExpandableContainer(
+            ),
+
+
+
+            ExpandableContainer(
               width: MediaQuery.of(context).size.width,
               height: 50,
               collapsedRightWidth: 50,
@@ -121,8 +125,7 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                "Slice to cancel",
+                              Text("Slice to cancel",
                                 style: TextStyle(
                                   fontSize: 16,
                                   decoration: TextDecoration.none,
@@ -158,8 +161,7 @@ class _ChatInputTestScreenState extends State<ChatInputTestScreen> {
                   children: [
                     Icon(Icons.mic, color: Colors.red, size: 24),
                     SizedBox(width: 8),
-                    Text(
-                      "00:00",
+                    Text("00:00",
                       style: TextStyle(
                         color: Colors.red,
                         fontSize: 24,

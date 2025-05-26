@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+typedef ExpandedCallback = Widget Function(bool isExpanded, bool animating);
+
 class ExpandableContainer extends StatefulWidget {
   final Widget leftChild;
-  final Widget Function(bool isExpanded, bool animating) rightChildBuilder;
+  final ExpandedCallback rightChildBuilder;
   final Widget pinnedChild;
 
   final double dragThreshold;
-  final double leftInitialWidthFactor;
-  final double rightInitialWidthFactor;
-  final double rightExpandedWidthFactor;
 
   final Duration animationDuration;
   final Duration offsetReturnDuration;
@@ -36,11 +35,8 @@ class ExpandableContainer extends StatefulWidget {
     required this.collapsedRightWidth,
     this.color = Colors.black38,
     this.dragThreshold = 90.0,
-    this.leftInitialWidthFactor = 0.8,
-    this.rightInitialWidthFactor = 0.2,
-    this.rightExpandedWidthFactor = 1.0,
     this.animationDuration = const Duration(milliseconds: 300),
-    this.offsetReturnDuration = const Duration(milliseconds: 300),
+    this.offsetReturnDuration = const Duration(milliseconds: 200),
     this.slideCurve = Curves.easeInOut,
     this.onStart,
     this.onCancel,
@@ -54,6 +50,10 @@ class ExpandableContainer extends StatefulWidget {
 
 class _ExpandableContainerState extends State<ExpandableContainer>
     with TickerProviderStateMixin {
+
+  late double leftInitialWidthFactor;
+  late double rightInitialWidthFactor;
+
   late AnimationController _controller;
   late AnimationController _offsetBackController;
 
@@ -65,10 +65,22 @@ class _ExpandableContainerState extends State<ExpandableContainer>
   bool _isInteracting = false;
   double _dragOffset = 0.0;
   double _dragDistance = 0.0;
+  double rightExpandedWidthFactor = 1.0;
 
   bool get isExpanding => _controller.status == AnimationStatus.forward;
 
   bool get isAnimating => _controller.status.isAnimating;
+
+  @override
+  void didUpdateWidget(ExpandableContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.width != widget.width ||
+        oldWidget.collapsedRightWidth != widget.collapsedRightWidth) {
+      // Recalculate factors and update animations if width changes
+      _initializeWidthFactors();
+    }
+  }
+
 
   @override
   void initState() {
@@ -84,15 +96,7 @@ class _ExpandableContainerState extends State<ExpandableContainer>
       duration: widget.offsetReturnDuration,
     );
 
-    _leftWidthFactor = Tween<double>(
-      begin: widget.leftInitialWidthFactor,
-      end: 0.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
-
-    _rightWidthFactor = Tween<double>(
-      begin: widget.rightInitialWidthFactor,
-      end: widget.rightExpandedWidthFactor,
-    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
+    _initializeWidthFactors();
 
     _controller.addStatusListener((status) {
       if (_controller.isAnimating) {
@@ -121,6 +125,20 @@ class _ExpandableContainerState extends State<ExpandableContainer>
     });
   }
 
+  void _initializeWidthFactors() {
+    leftInitialWidthFactor = 1.0 - (widget.collapsedRightWidth / widget.width);
+    rightInitialWidthFactor = widget.collapsedRightWidth / widget.width;
+
+    _leftWidthFactor = Tween<double>(
+      begin: leftInitialWidthFactor,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
+
+    _rightWidthFactor = Tween<double>(
+      begin: rightInitialWidthFactor,
+      end: rightExpandedWidthFactor,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.slideCurve));
+  }
   void _startExpand() {
     if (_isInteracting || _isExpanded) return;
     _isInteracting = true;
@@ -202,13 +220,14 @@ class _ExpandableContainerState extends State<ExpandableContainer>
                 animation: Listenable.merge(
                     [_leftWidthFactor, _rightWidthFactor]),
                 builder: (_, __) {
-                  final rightExpansion = _rightWidthFactor.value - widget.rightInitialWidthFactor;
+                  final rightExpansion =
+                      _rightWidthFactor.value - rightInitialWidthFactor;
                   final leftShift = -constraints.maxWidth * rightExpansion;
 
                   return Transform.translate(
                     offset: Offset(
                       leftShift.clamp(
-                          -constraints.maxWidth * widget.leftInitialWidthFactor, 0),
+                          -constraints.maxWidth * leftInitialWidthFactor, 0),
                       0,
                     ),
                     child: SizedBox(
