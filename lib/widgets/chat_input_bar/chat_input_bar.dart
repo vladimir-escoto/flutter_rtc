@@ -180,7 +180,6 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _cancelRecordingWithReturn() {
-    // Suaviza el regreso antes de cancelar grabación
     _animateMicReturn(() {
       _cancelRecording();
     });
@@ -271,7 +270,6 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     if (_mode != _InputMode.recording) return;
-    // Si no fue cancelado por drag, vuelve al centro
     _animateMicReturn();
   }
 
@@ -429,7 +427,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: _mode == _InputMode.recording || _mode == _InputMode.recordingLocked
-                          ? Colors.red.withOpacity(0.12)
+                          ? Colors.red.withValues(alpha: 0.12)
                           : Colors.white,
                       shape: BoxShape.circle,
                     ),
